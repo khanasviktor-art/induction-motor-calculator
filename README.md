@@ -24,7 +24,7 @@ npm test               # сборка + Playwright
 CHROME_PATH="/path/to/chrome" npm test
 ```
 
-Подробнее — [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+Подробнее — [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Публикация (имя репозитория, описание, topics, Pages, релиз) — [docs/PUBLISHING.md](docs/PUBLISHING.md).
 
 ## Возможности
 
@@ -71,6 +71,7 @@ CHROME_PATH="/path/to/chrome" npm test
 | [docs/TESTING.md](docs/TESTING.md) | матрица тестов, эталонные значения, CI |
 | [docs/DATA.md](docs/DATA.md) | схема справочников, добавление двигателей |
 | [docs/AGENTS.md](docs/AGENTS.md) | контракт для AI-агентов, ловушки |
+| [docs/PUBLISHING.md](docs/PUBLISHING.md) | имя репозитория, description, topics, Pages, релиз |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | как отправить PR |
 | [CHANGELOG.md](CHANGELOG.md) | история версий |
 
