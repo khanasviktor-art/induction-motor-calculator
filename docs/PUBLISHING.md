@@ -1,3 +1,6 @@
+> **Репозиторий:** https://github.com/khanasviktor-art/induction-motor-calculator  
+> **Pages:** https://khanasviktor-art.github.io/induction-motor-calculator/
+
 # Публикация на GitHub
 
 Короткая инструкция: как назвать репозиторий, что вписать в описание, какие topics, как включить Pages и сделать релиз.

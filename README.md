@@ -2,14 +2,14 @@
 
 Офлайн-приложение для расчёта асинхронного двигателя: ток, мощность, момент, кабель, защита, графики характеристик и переходные процессы пуска. Один HTML-файл, без сервера, CDN и интернета.
 
-**Версия:** 0.5.0 · **Лицензия:** MIT · **Сборка:** `index.html` (~280 КБ)
+**Версия:** 0.5.0 · **Лицензия:** MIT · **Сборка:** `index.html` (~280 КБ) · [![CI](https://github.com/khanasviktor-art/induction-motor-calculator/actions/workflows/ci.yml/badge.svg)](https://github.com/khanasviktor-art/induction-motor-calculator/actions/workflows/ci.yml)
 
 ![Графики](docs/screenshots/charts-default.png)
 
 ## Быстрый старт
 
 1. Скачайте `index.html` и откройте двойным щелчком — всё работает офлайн.
-2. Или включите GitHub Pages: **Settings → Pages → Deploy from branch → main / (root)**.
+2. Или откройте [GitHub Pages](https://khanasviktor-art.github.io/induction-motor-calculator/) (после включения Pages: **Settings → Pages → Deploy from branch → main / (root)**).
 3. Для разработки:
 
 ```bash
