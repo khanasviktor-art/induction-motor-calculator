@@ -13,7 +13,8 @@ const scenarios = [
   { name: '1ph 2.2 cap fan75', ph: 1, p2: 2.2, poles: 4, u: 230, f: 50, lt: 'quadratic', load: 75, len: 50, type: 'capacitor' },
   { name: '1ph 5.5 split const75', ph: 1, p2: 5.5, poles: 4, u: 230, f: 50, lt: 'constant', load: 75, len: 30, type: 'split' },
   { name: '1ph 0.75 2p psc fan100', ph: 1, p2: 0.75, poles: 2, u: 230, f: 50, lt: 'quadratic', load: 100, len: 10, type: 'psc' },
-  { name: '1ph 1.5 8p cap const100', ph: 1, p2: 1.5, poles: 8, u: 230, f: 50, lt: 'constant', load: 100, len: 20, type: 'capacitor' }
+  { name: '1ph 1.5 8p cap const100', ph: 1, p2: 1.5, poles: 8, u: 230, f: 50, lt: 'constant', load: 100, len: 20, type: 'capacitor' },
+  { name: '1ph 15 cap const100', ph: 1, p2: 15, poles: 4, u: 230, f: 50, lt: 'constant', load: 100, len: 30, type: 'capacitor' }
 ];
 
 const browser = await launch();

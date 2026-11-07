@@ -71,6 +71,11 @@ try {
   check(await page.$eval('#startMethod option[value="yd"]', e => e.disabled), '1 фаза: YD');
   check(!(await page.$eval('#field1phType', e => e.classList.contains('hidden'))), '1 фаза: тип скрыт');
   check((await page.textContent('#panelCable')).includes('2'), '1 фаза: жилы');
+  await page.fill('#p2', '15');
+  await page.waitForTimeout(700);
+  const warnText = (await page.$$eval('.warn-item', els => els.map(e => e.innerText.replace(/\s+/g, ' ')))).join(' | ');
+  check(warnText.includes('7,5') || warnText.includes('редкий'), 'нет предупреждения >7,5 кВт');
+  check((await page.inputValue('#p2')) === '15', 'p2 15');
 
   // тема
   await page.click('#segTheme button[data-val="light"]');
