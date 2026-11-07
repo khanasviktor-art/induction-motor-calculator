@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Chrome
+        id: chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Check generated index.html is committed
+        run: git diff --exit-code -- index.html
+
+      - name: Tests
+        run: npm test
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}

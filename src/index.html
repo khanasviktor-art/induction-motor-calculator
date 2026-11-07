@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){try{var s=JSON.parse(localStorage.getItem('motor-calc-v1')||'{}');var t=s.theme||'dark';if(t==='auto'){t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();</script>
+<title>Асинхронный двигатель — инженерный расчёт</title>
+<meta name="author" content="Виктор Ханас">
+<meta name="generator" content="DeepSeek">
+<meta name="version" content="0.5.0">
+<meta name="description" content="Расчёт мощности, тока, момента, кабеля и защиты асинхронного двигателя. Графики характеристик и переходные процессы пуска.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true">
+        <circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="2" opacity=".35"/>
+        <path d="M16 5 L16 12 M16 20 L16 27 M5 16 L12 16 M20 16 L27 16" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+        <circle cx="16" cy="16" r="4.2" fill="currentColor"/>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <h1>Асинхронный двигатель<span class="accent">.</span></h1>
+      <p>расчёт · защита · кабель · переходные процессы</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <button class="btn icon mobile-only" id="btnMenu" aria-label="Открыть параметры">
+      <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M4 6h12M4 10h12M4 14h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      Параметры
+    </button>
+    <button class="btn icon" id="btnTour" title="Обучение" aria-label="Пройти обучение">
+      <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><circle cx="10" cy="10" r="7.4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7.9 7.7a2.2 2.2 0 1 1 3.3 1.9c-.7.4-1.2 1-1.2 1.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="14" r="0.9" fill="currentColor"/></svg>
+    </button>
+    <div class="seg small theme-switch" id="segTheme" role="group" aria-label="Оформление">
+      <button data-val="light" title="Светлая тема" aria-label="Светлая тема">
+        <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><circle cx="10" cy="10" r="3.1" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 2.2v2M10 15.8v2M2.2 10h2M15.8 10h2M4.5 4.5l1.4 1.4M14.1 14.1l1.4 1.4M15.5 4.5l-1.4 1.4M5.9 14.1l-1.4 1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+      <button data-val="dark" class="active" title="Тёмная тема" aria-label="Тёмная тема">
+        <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M15.2 12.4A6.3 6.3 0 0 1 7.6 4.8a6.3 6.3 0 1 0 7.6 7.6z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+      </button>
+      <button data-val="auto" title="Как в системе" aria-label="Как в системе">
+        <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><rect x="3" y="4" width="14" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7.5 17h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="status" id="status"><span class="pulse"></span><span id="statusText">готов</span></div>
+    <button class="btn ghost" id="btnPrint" title="Печать или сохранение в PDF">
+      <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true"><path d="M5 7V3h10v4M5 14H3V9h14v5h-2M5 12h10v5H5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+      Печать / PDF
+    </button>
+    <button class="btn ghost" id="btnReset" title="Сбросить все параметры">
+      <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true"><path d="M4 10a6 6 0 1 0 1.8-4.3M4 4v4h4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Сброс
+    </button>
+  </div>
+</header>
+
+<div class="drawer-backdrop" id="drawerBackdrop"></div>
+
+<main class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="drawer-head mobile-only">
+      <span>Параметры расчёта</span>
+      <button class="drawer-close" id="drawerClose" aria-label="Закрыть">×</button>
+    </div>
+    <div class="side-scroll">
+
+      <section class="side-block">
+        <h2 class="side-title"><span class="tick"></span>Сеть</h2>
+        <div class="field">
+          <label>Фазность</label>
+          <div class="seg" id="segPhases">
+            <button data-val="3" class="active">3 фазы</button>
+            <button data-val="1">1 фаза</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="voltage">Напряжение</label>
+          <div class="input-wrap">
+            <input id="voltage" type="number" min="24" max="1000" step="5" value="380" inputmode="decimal">
+            <span class="unit">В</span>
+          </div>
+          <div class="chips-row" id="voltPresets">
+            <button class="mini" data-v="220">220</button>
+            <button class="mini" data-v="230">230</button>
+            <button class="mini" data-v="380">380</button>
+            <button class="mini" data-v="400">400</button>
+            <button class="mini" data-v="660">660</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Частота</label>
+          <div class="seg small" id="segFreq">
+            <button data-val="50" class="active">50 Гц</button>
+            <button data-val="60">60 Гц</button>
+          </div>
+        </div>
+        <div class="field" id="fieldConn">
+          <label>Схема обмоток</label>
+          <div class="seg small" id="segConn">
+            <button data-val="Y" class="active">Y / звезда</button>
+            <button data-val="D">Δ / треугольник</button>
+          </div>
+          <div class="hint" id="connHint">Фазное напряжение 220 В</div>
+        </div>
+      </section>
+
+      <section class="side-block">
+        <h2 class="side-title"><span class="tick"></span>Двигатель</h2>
+        <div class="field">
+          <label>Способ задания</label>
+          <div class="seg small" id="segMode">
+            <button data-val="catalog" class="active">База</button>
+            <button data-val="power">P₂</button>
+            <button data-val="current">Ток</button>
+            <button data-val="torque">Момент</button>
+          </div>
+          <div class="hint" id="modeHint">Выбор типоразмера из каталога АИР</div>
+        </div>
+
+        <div id="catBlock">
+          <div class="field">
+            <label for="catPoles">Полюса</label>
+            <select id="catPoles">
+              <option value="0">Все</option>
+              <option value="2">2 полюса (3000)</option>
+              <option value="4" selected>4 полюса (1500)</option>
+              <option value="6">6 полюсов (1000)</option>
+              <option value="8">8 полюсов (750)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="catMotor">Типоразмер АИР</label>
+            <select id="catMotor"></select>
+            <div class="hint" id="catInfo">—</div>
+          </div>
+        </div>
+
+        <div id="powerBlock" class="hidden">
+          <div class="field">
+            <label for="p2">Мощность на валу P₂</label>
+            <div class="input-wrap"><input id="p2" type="number" min="0.05" max="1000" step="0.5" value="15"><span class="unit">кВт</span></div>
+          </div>
+        </div>
+
+        <div id="currentBlock" class="hidden">
+          <div class="field">
+            <label for="current">Ток (линейный)</label>
+            <div class="input-wrap"><input id="current" type="number" min="0.05" max="3000" step="0.5" value="30"><span class="unit">А</span></div>
+            <div class="hint">Мощность будет восстановлена по типовым КПД и cosφ</div>
+          </div>
+        </div>
+
+        <div id="torqueBlock" class="hidden">
+          <div class="field">
+            <label for="torque">Момент на валу</label>
+            <div class="input-wrap"><input id="torque" type="number" min="0.1" max="20000" step="1" value="98"><span class="unit">Н·м</span></div>
+          </div>
+          <div class="field">
+            <label for="speedRpm">Частота вращения</label>
+            <div class="input-wrap"><input id="speedRpm" type="number" min="10" max="9000" step="10" value="1460"><span class="unit">об/мин</span></div>
+          </div>
+        </div>
+
+        <div class="field" id="fieldPoles">
+          <label for="poles">Число полюсов</label>
+          <select id="poles">
+            <option value="2">2 — 3000 об/мин</option>
+            <option value="4" selected>4 — 1500 об/мин</option>
+            <option value="6">6 — 1000 об/мин</option>
+            <option value="8">8 — 750 об/мин</option>
+          </select>
+          <div class="hint" id="polesHint"></div>
+        </div>
+
+        <div class="field hidden" id="field1phType">
+          <label for="motor1phType">Тип однофазного</label>
+          <select id="motor1phType">
+            <option value="capacitor" selected>Конденсаторный (пуск / работа)</option>
+            <option value="split">С расщеплённой фазой</option>
+            <option value="psc">Постоянный конденсатор (PSC)</option>
+          </select>
+          <div class="hint">Типовые КПД, cosφ, пусковой ток и моменты</div>
+        </div>
+
+        <div class="field">
+          <label class="checkline" title="Если включено, КПД, cosφ, скольжение и моменты берутся типовыми для заданной мощности. Снимите галочку, чтобы ввести паспортные значения."><input type="checkbox" id="autoTypical" checked> Типовые КПД, cosφ, моменты</label>
+        </div>
+        <div class="two-col">
+          <div class="field">
+            <label for="eff">КПД</label>
+            <div class="input-wrap"><input id="eff" type="number" min="20" max="99.5" step="0.1" value="89"><span class="unit">%</span></div>
+          </div>
+          <div class="field">
+            <label for="cos">cosφ</label>
+            <div class="input-wrap"><input id="cos" type="number" min="0.2" max="1" step="0.01" value="0.87"><span class="unit"></span></div>
+          </div>
+        </div>
+
+        <details class="adv">
+          <summary>Дополнительные параметры</summary>
+          <div class="two-col">
+            <div class="field">
+              <label for="slip">Скольжение</label>
+              <div class="input-wrap"><input id="slip" type="number" min="0.1" max="20" step="0.1" value="2.7"><span class="unit">%</span></div>
+            </div>
+            <div class="field">
+              <label for="kst">Iп / Iн</label>
+              <div class="input-wrap"><input id="kst" type="number" min="2" max="12" step="0.1" value="7"><span class="unit">×</span></div>
+            </div>
+            <div class="field">
+              <label for="mst">Mп / Mн</label>
+              <div class="input-wrap"><input id="mst" type="number" min="0.5" max="4" step="0.05" value="2.2"><span class="unit">×</span></div>
+            </div>
+            <div class="field">
+              <label for="mmax">Mmax / Mн</label>
+              <div class="input-wrap"><input id="mmax" type="number" min="1.2" max="4" step="0.05" value="2.3"><span class="unit">×</span></div>
+            </div>
+            <div class="field">
+              <label for="jMotor">J ротора</label>
+              <div class="input-wrap"><input id="jMotor" type="number" min="0" max="50" step="0.001" value="0"><span class="unit">кг·м²</span></div>
+            </div>
+            <div class="field">
+              <label for="motorClass">Класс изоляции</label>
+              <select id="motorClass">
+                <option value="B">B — 130 °C</option>
+                <option value="F" selected>F — 155 °C</option>
+                <option value="H">H — 180 °C</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="tauMotor">τ нагрева</label>
+              <div class="input-wrap"><input id="tauMotor" type="number" min="0" max="300" step="1" value="0"><span class="unit">мин</span></div>
+            </div>
+            <div class="field">
+              <label for="motorAmbient">Среда двигателя</label>
+              <div class="input-wrap"><input id="motorAmbient" type="number" min="-40" max="70" step="1" value="40"><span class="unit">°C</span></div>
+            </div>
+          </div>
+          <div class="hint">J = 0 — автооценка по мощности. Моменты можно взять из паспорта.</div>
+        </details>
+        <div class="note-line" id="motorNote">—</div>
+      </section>
+
+      <section class="side-block">
+        <h2 class="side-title"><span class="tick"></span>Нагрузка</h2>
+        <div class="field">
+          <label for="loadType">Тип механизма</label>
+          <select id="loadType">
+            <option value="quadratic">Вентиляторный (T ∝ n²)</option>
+            <option value="constant" selected>Постоянный момент</option>
+            <option value="linear">Линейный (T ∝ n)</option>
+            <option value="constpower">Постоянная мощность</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="jExtra">J нагрузки (приведённый)</label>
+          <div class="input-wrap"><input id="jExtra" type="number" min="0" max="500" step="0.05" value="0.3"><span class="unit">кг·м²</span></div>
+          <div class="hint">Инертность механизма, приведённая к валу. Влияет на время пуска. Ориентир: вентилятор 0,1…1 от J двигателя, конвейер 1…5, пресс 3…10.</div>
+        </div>
+      </section>
+
+      <section class="side-block">
+        <h2 class="side-title"><span class="tick"></span>Кабель</h2>
+        <div class="field">
+          <label>Норматив</label>
+          <div class="seg small" id="segStd">
+            <button data-val="pue" class="active">ПУЭ</button>
+            <button data-val="iec">IEC</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Материал жил</label>
+          <div class="seg small" id="segMat">
+            <button data-val="cu" class="active">Медь</button>
+            <button data-val="al">Алюминий</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="insulation">Изоляция</label>
+          <select id="insulation">
+            <option value="pvc" selected>ПВХ / резина — 70 °C</option>
+            <option value="xlpe">XLPE — 90 °C</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="laying">Способ прокладки</label>
+          <select id="laying">
+            <option value="open" selected>Открыто / по воздуху</option>
+            <option value="tray">В лотке / пучке</option>
+            <option value="pipe">В трубе / стене</option>
+            <option value="ground">В земле</option>
+          </select>
+        </div>
+        <div class="two-col">
+          <div class="field">
+            <label for="len">Длина линии</label>
+            <div class="input-wrap"><input id="len" type="number" min="1" max="5000" step="1" value="50"><span class="unit">м</span></div>
+          </div>
+          <div class="field">
+            <label for="ambient">Среда</label>
+            <div class="input-wrap"><input id="ambient" type="number" min="-40" max="60" step="1" value="25"><span class="unit">°C</span></div>
+          </div>
+          <div class="field">
+            <label for="group">Кабелей в пучке</label>
+            <div class="input-wrap"><input id="group" type="number" min="1" max="9" step="1" value="1"><span class="unit">шт</span></div>
+          </div>
+          <div class="field">
+            <label for="dropLimit">ΔU доп.</label>
+            <div class="input-wrap"><input id="dropLimit" type="number" min="1" max="15" step="0.5" value="5"><span class="unit">%</span></div>
+          </div>
+          <div class="field">
+            <label for="parallel">Параллельных кабелей</label>
+            <select id="parallel">
+              <option value="auto" selected>Авто</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="startDrop">ΔU при пуске</label>
+            <div class="input-wrap"><input id="startDrop" type="number" min="3" max="30" step="1" value="15"><span class="unit">%</span></div>
+          </div>
+          <div class="field">
+            <label for="loaded">Нагруженных жил</label>
+            <select id="loaded">
+              <option value="2">2</option>
+              <option value="3" selected>3</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="side-block">
+        <h2 class="side-title"><span class="tick"></span>Защита и пуск</h2>
+        <div class="field">
+          <label for="startMethod">Способ пуска</label>
+          <select id="startMethod">
+            <option value="dol" selected>Прямой пуск (DOL)</option>
+            <option value="yd">Звезда — треугольник</option>
+            <option value="soft">Софтстартер</option>
+            <option value="vfd">Частотный привод</option>
+            <option value="autotr">Автотрансформатор</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Тип аппарата</label>
+          <div class="seg small" id="segBrk">
+            <button data-val="mcb" class="active">MCB</button>
+            <button data-val="mccb">MCCB</button>
+          </div>
+          <div class="hint">Свыше 125 А автоматически применяется MCCB</div>
+        </div>
+        <div class="field" id="fieldCurve">
+          <label>Кривая автомата</label>
+          <div class="seg small" id="segCurve">
+            <button data-val="B">B</button>
+            <button data-val="C">C</button>
+            <button data-val="D" class="active">D</button>
+          </div>
+        </div>
+        <div class="field hidden" id="fieldMccb">
+          <label for="mccbMag">Уставка отсечки MCCB</label>
+          <select id="mccbMag">
+            <option value="5">5 × Iн</option>
+            <option value="6">6 × Iн</option>
+            <option value="8">8 × Iн</option>
+            <option value="10" selected>10 × Iн</option>
+            <option value="12">12 × Iн</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="upstream">Вышестоящий аппарат</label>
+          <div class="input-wrap"><input id="upstream" type="number" min="0" max="3000" step="1" value="0"><span class="unit">А</span></div>
+          <div class="hint">0 — селективность не проверять</div>
+        </div>
+        <div class="field">
+          <label for="isc">Ток КЗ в точке подключения</label>
+          <div class="input-wrap"><input id="isc" type="number" min="0.5" max="100" step="0.5" value="6"><span class="unit">кА</span></div>
+        </div>
+        <button class="btn wide" id="btnToStart">
+          <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true"><path d="M6 4l9 6-9 6z" fill="currentColor"/></svg>
+          Перейти к моделированию пуска
+        </button>
+      </section>
+
+      <div class="side-actions">
+        <button class="btn ghost" id="btnSaveProject">Сохранить проект</button>
+        <button class="btn ghost" id="btnLoadProject">Открыть проект</button>
+      </div>
+      <div class="side-foot">
+        <span>v1.2</span>
+        <span>ПУЭ · IEC 60364</span>
+      </div>
+    </div>
+    <div class="drawer-foot mobile-only">
+      <button class="btn primary wide" id="drawerDone">Показать результат</button>
+      <div class="drawer-foot-row">
+        <button class="btn ghost" data-act="print">Печать / PDF</button>
+        <button class="btn ghost" data-act="reset">Сброс</button>
+      </div>
+    </div>
+  </aside>
+  <input type="file" id="fileProject" accept=".json,application/json" hidden>
+
+  <section class="workspace">
+    <div class="loadbar" id="loadbar">
+      <div class="loadbar-head">
+        <span class="loadbar-title">Момент на валу</span>
+        <span class="loadbar-value"><b id="loadVal">75</b><span>%</span></span>
+      </div>
+      <input type="range" id="loadRange" min="0" max="150" step="1" value="75" aria-label="Момент нагрузки, процент от номинала">
+      <div class="loadbar-foot">
+        <span id="loadTorque">— Н·м</span>
+        <span id="loadPower">— кВт</span>
+        <span id="loadSpeed">— об/мин</span>
+      </div>
+    </div>
+
+    <nav class="tabs" id="tabs">
+      <button class="tab-btn active" data-tab="calc">Расчёт</button>
+      <button class="tab-btn" data-tab="charts">Графики</button>
+      <button class="tab-btn" data-tab="start">Пуск</button>
+      <button class="tab-btn" data-tab="cable">Кабель и защита</button>
+      <button class="tab-btn" data-tab="ref">Справочник</button>
+      <div class="tab-underline" id="tabUnderline"></div>
+    </nav>
+
+    <div class="tab-panels">
+
+      <!-- РАСЧЁТ -->
+      <div class="tab-panel active" data-panel="calc">
+        <div class="kpis" id="kpis"></div>
+        <div class="verdict" id="verdict"></div>
+
+        <div class="grid-2">
+          <section class="panel">
+            <div class="panel-head"><h3>Расчётные величины</h3><span class="panel-tag" id="tagMode">база</span></div>
+            <div class="panel-body" id="panelMotor"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h3>Пусковые параметры</h3><span class="panel-tag" id="tagStart">DOL</span></div>
+            <div class="panel-body" id="panelStart"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h3>Аппараты защиты</h3><span class="panel-tag ok" id="tagProtect">—</span></div>
+            <div class="panel-body" id="panelProtect"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h3>Кабель и падение напряжения</h3><span class="panel-tag" id="tagCable">—</span></div>
+            <div class="panel-body" id="panelCable"></div>
+          </section>
+        </div>
+
+        <section class="panel point-panel">
+          <div class="panel-head">
+            <h3>Рабочая точка при текущей нагрузке</h3>
+            <span class="panel-tag live"><span class="pulse small"></span>live</span>
+          </div>
+          <div class="panel-body" id="panelPoint"></div>
+        </section>
+
+        <section class="panel warn-panel" id="warnPanel">
+          <div class="panel-head"><h3>Проверки и предупреждения</h3></div>
+          <div class="panel-body" id="panelWarn"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head"><h3>Сравнение вариантов</h3><span class="panel-tag" id="variantsTag">0</span></div>
+          <div class="table-wrap" id="variantsBody"></div>
+          <div class="panel-foot" id="variantsFoot">Кнопка «+ вариант» в строке итога сохраняет текущий расчёт для сравнения.</div>
+        </section>
+      </div>
+
+      <!-- ГРАФИКИ -->
+      <div class="tab-panel" data-panel="charts">
+        <div class="chart-toolbar">
+          <span class="toolbar-label">Показать графики</span>
+          <div class="chart-chips" id="chartChips">
+            <button class="chip active" data-chart="torque">Момент — скорость</button>
+            <button class="chip active" data-chart="iu">Ток и напряжение</button>
+            <button class="chip active" data-chart="speed">Скорость и частота</button>
+            <button class="chip active" data-chart="eff">КПД и cosφ</button>
+            <button class="chip active" data-chart="power">Мощности</button>
+          </div>
+          <button class="chip" id="btnCsv" title="Экспорт кривых в CSV">CSV ↓</button>
+          <button class="chip" id="btnXlsx" title="Экспорт таблиц в Excel">XLSX ↓</button>
+          <span class="toolbar-hint">колесо — зум · перетаскивание — сдвиг · двойной клик — сброс</span>
+        </div>
+        <div class="charts-grid" id="chartsGrid">
+          <section class="panel chart-panel" data-chart-panel="torque">
+            <div class="panel-head"><h3>Механическая характеристика</h3><span class="panel-tag">M(n)</span></div>
+            <div class="chart-box"><canvas id="chartTorque"></canvas></div>
+            <div class="panel-foot">Пересечение момента двигателя и момента нагрузки — рабочая точка.</div>
+          </section>
+          <section class="panel chart-panel" data-chart-panel="iu">
+            <div class="panel-head"><h3>Ток и напряжение от нагрузки</h3><span class="panel-tag">I(U)</span></div>
+            <div class="chart-box"><canvas id="chartIU"></canvas></div>
+            <div class="panel-foot">Напряжение — на зажимах двигателя с учётом кабеля; ток — при этом напряжении, поэтому на 100 % он может быть на 1–2 % выше Iн.</div>
+          </section>
+          <section class="panel chart-panel" data-chart-panel="speed">
+            <div class="panel-head"><h3>Скорость, скольжение, частота ротора</h3><span class="panel-tag">n(s,f₂)</span></div>
+            <div class="chart-box"><canvas id="chartSpeed"></canvas></div>
+            <div class="panel-foot">f₂ = s·f₁ — частота ЭДС в роторе.</div>
+          </section>
+          <section class="panel chart-panel" data-chart-panel="eff">
+            <div class="panel-head"><h3>КПД и коэффициент мощности</h3><span class="panel-tag">η(cosφ)</span></div>
+            <div class="chart-box"><canvas id="chartEff"></canvas></div>
+            <div class="panel-foot">При снижении нагрузки КПД и cosφ падают.</div>
+          </section>
+          <section class="panel chart-panel" data-chart-panel="power">
+            <div class="panel-head"><h3>Потребляемая и полезная мощность</h3><span class="panel-tag">P₁(P₂)</span></div>
+            <div class="chart-box"><canvas id="chartPower"></canvas></div>
+            <div class="panel-foot">Разница P₁ − P₂ — потери в двигателе.</div>
+          </section>
+        </div>
+      </div>
+
+      <!-- ПУСК -->
+      <div class="tab-panel" data-panel="start">
+        <section class="panel sim-control">
+          <div class="sim-head">
+            <div>
+              <h3>Моделирование пуска</h3>
+              <p class="muted">Численное решение уравнения движения J·dω/dt = M<sub>дв</sub> − M<sub>с</sub></p>
+            </div>
+            <div class="sim-buttons">
+              <button class="btn primary" id="simPlay"><svg viewBox="0 0 20 20" width="14" height="14"><path d="M6 4l9 6-9 6z" fill="currentColor"/></svg> Пуск</button>
+              <button class="btn" id="simPause"><svg viewBox="0 0 20 20" width="14" height="14"><path d="M6 4h3v12H6zM11 4h3v12h-3z" fill="currentColor"/></svg> <span id="simPauseLabel">Пауза</span></button>
+              <button class="btn" id="simReset"><svg viewBox="0 0 20 20" width="14" height="14"><path d="M4 10a6 6 0 1 0 1.8-4.3M4 4v4h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Сброс</button>
+            </div>
+          </div>
+          <div class="sim-settings">
+            <div class="field">
+              <label for="simMethod">Способ пуска</label>
+              <select id="simMethod">
+                <option value="dol">Прямой пуск (DOL)</option>
+                <option value="yd">Звезда — треугольник</option>
+                <option value="soft">Софтстартер</option>
+                <option value="vfd">Частотный привод</option>
+                <option value="autotr">Автотрансформатор</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="simOverlay">Наложить способ</label>
+              <select id="simOverlay">
+                <option value="none">нет</option>
+                <option value="dol">Прямой пуск (DOL)</option>
+                <option value="yd">Звезда — треугольник</option>
+                <option value="soft">Софтстартер</option>
+                <option value="vfd">Частотный привод</option>
+                <option value="autotr">Автотрансформатор</option>
+              </select>
+            </div>
+            <div class="field sim-switch">
+              <label for="simSwitch">Время переключения</label>
+              <div class="input-wrap"><input id="simSwitch" type="number" min="0.2" max="30" step="0.1" value="2"><span class="unit">с</span></div>
+            </div>
+            <div class="field sim-ramp">
+              <label for="simRamp">Время разгона</label>
+              <div class="input-wrap"><input id="simRamp" type="number" min="0.2" max="120" step="0.5" value="6"><span class="unit">с</span></div>
+            </div>
+            <div class="field sim-ustart">
+              <label for="simUstart">Начальное U</label>
+              <div class="input-wrap"><input id="simUstart" type="number" min="5" max="90" step="1" value="30"><span class="unit">%</span></div>
+            </div>
+            <div class="field sim-ilimit">
+              <label for="simIlimit">Ограничение I</label>
+              <div class="input-wrap"><input id="simIlimit" type="number" min="1" max="8" step="0.1" value="3"><span class="unit">×Iн</span></div>
+            </div>
+            <div class="field">
+              <label>Скорость времени</label>
+              <div class="seg small" id="segSimSpeed">
+                <button data-val="0.25">0.25×</button>
+                <button data-val="0.5">0.5×</button>
+                <button data-val="1" class="active">1×</button>
+                <button data-val="2">2×</button>
+              </div>
+            </div>
+          </div>
+          <div class="sim-note" id="simOverlayNote"></div>
+          <div class="sim-readout" id="simReadout">
+            <div><span>t</span><b id="simT">0.00</b><em>с</em></div>
+            <div><span>n</span><b id="simN">0</b><em>об/мин</em></div>
+            <div><span>I</span><b id="simI">0</b><em>А</em></div>
+            <div><span>M</span><b id="simTq">0</b><em>Н·м</em></div>
+            <div><span>U</span><b id="simU">0</b><em>%</em></div>
+            <div><span>f₁</span><b id="simF">50.0</b><em>Гц</em></div>
+            <div class="sim-state"><span id="simStage">ожидание</span></div>
+          </div>
+        </section>
+
+        <div class="charts-grid two">
+          <section class="panel chart-panel">
+            <div class="panel-head"><h3>Частота вращения</h3><span class="panel-tag">n(t)</span></div>
+            <div class="chart-box"><canvas id="chartSimN"></canvas></div>
+          </section>
+          <section class="panel chart-panel">
+            <div class="panel-head"><h3>Ток статора</h3><span class="panel-tag">I(t)</span></div>
+            <div class="chart-box"><canvas id="chartSimI"></canvas></div>
+          </section>
+          <section class="panel chart-panel">
+            <div class="panel-head"><h3>Электромагнитный момент</h3><span class="panel-tag">M(t)</span></div>
+            <div class="chart-box"><canvas id="chartSimT"></canvas></div>
+          </section>
+          <section class="panel chart-panel">
+            <div class="panel-head"><h3>Напряжение и частота</h3><span class="panel-tag">U(t), f(t)</span></div>
+            <div class="chart-box"><canvas id="chartSimU"></canvas></div>
+          </section>
+        </div>
+
+        <section class="panel">
+          <div class="panel-head"><h3>Сравнение способов пуска</h3><span class="panel-tag">при текущей нагрузке</span></div>
+          <div class="table-wrap" id="compareTable"></div>
+          <div class="panel-foot">Если способ не разгоняет: у софтстартера момент растёт примерно как (I/Iп)² — увеличьте ограничение тока; у Y–Δ момент в 3 раза ниже.</div>
+        </section>
+      </div>
+
+      <!-- КАБЕЛЬ -->
+      <div class="tab-panel" data-panel="cable">
+        <div class="grid-2 wide-left">
+          <section class="panel">
+            <div class="panel-head"><h3>Выбор сечения</h3><span class="panel-tag" id="cableTag2">—</span></div>
+            <div class="table-wrap" id="cableTable"></div>
+            <div class="panel-foot" id="cableFoot"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h3>Аппараты и уставки</h3></div>
+            <div class="table-wrap" id="protectTable"></div>
+          </section>
+        </div>
+        <section class="panel">
+          <div class="panel-head"><h3>Проверка условий</h3><span class="panel-tag" id="checksTag">—</span></div>
+          <div class="panel-body" id="checksBody"></div>
+        </section>
+        <section class="panel">
+          <div class="panel-head"><h3>Пояснения к расчёту</h3></div>
+          <div class="panel-body prose" id="cableNotes"></div>
+        </section>
+      </div>
+
+      <!-- СПРАВОЧНИК -->
+      <div class="tab-panel" data-panel="ref">
+        <div class="grid-2">
+          <section class="panel">
+            <div class="panel-head"><h3>Основные формулы</h3></div>
+            <div class="panel-body prose" id="formulas"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h3>Допустимый ток кабеля</h3><span class="panel-tag" id="ampTag">ПУЭ</span></div>
+            <div class="table-wrap" id="ampTable"></div>
+            <div class="panel-foot">Трёхжильный кабель, 3 нагруженные жилы, воздух, 25 °C (ПУЭ) / 30 °C (IEC). Для однофазной нагрузки — 2 жилы (поправка 1,12).</div>
+          </section>
+        </div>
+        <section class="panel">
+          <div class="panel-head"><h3>База двигателей АИР</h3><span class="panel-tag" id="dbCount">—</span></div>
+          <div class="table-wrap tall" id="motorTable"></div>
+        </section>
+        <section class="panel">
+          <div class="panel-head"><h3>О методике и ограничениях</h3></div>
+          <div class="panel-body prose">
+            <p>Программа предназначена для инженерной оценки. Механическая характеристика строится по модели Клосса с поправкой на пусковой момент; ток ротора — по балансу мощности с учётом вытеснения тока. Тепловая модель упрощённая (однотельное приближение).</p>
+            <p>Данные серии АИР до 37 кВт приведены по каталогу (380 В, 50 Гц); типоразмеры 45…315 кВт отмечены звёздочкой и являются типовыми справочными. Каталожные КПД и cosφ могут отличаться от фактических для конкретного изготовителя. Сечения и уставки следует проверять по проектной документации и действующим нормам.</p>
+            <p>Кабель может выбираться из нескольких параллельных линий: программа перебирает 1…4 кабеля, учитывает снижение допустимого тока при параллельной прокладке и проверяет падение напряжения в рабочем режиме и при пуске. Для MCCB доступна регулируемая уставка отсечки и проверка селективности с вышестоящим аппаратом.</p>
+            <p>Тепловая модель учитывает класс изоляции (B/F/H) и постоянную нагрева: оцениваются температура обмотки в рабочей точке и время до достижения предела при перегрузке.</p>
+            <p>Однофазные двигатели считаются по тем же уравнениям момента и скорости, но ток определяется как I = P₁/(U·cosφ), кабель — двухжильный (2 нагруженные жилы), автомат — 1P. Типовые КПД, cosφ и пусковые токи зависят от типа: конденсаторный, с расщеплённой фазой или PSC — для них используются отдельные справочные кривые. Каталожная база АИР — трёхфазная. Подбор пускового/рабочего конденсатора программа не выполняет: его ёмкость и напряжение выбираются по паспорту двигателя.</p>
+            <div class="credit-card">
+              <div class="credit-mark">✦</div>
+              <div>
+                <b>Сделано с помощью DeepSeek</b>
+                <p>Идейный вдохновитель — Виктор Ханас · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></p>
+              </div>
+            </div>
+            <button class="btn ghost" id="btnTour2" style="margin-top:12px">Пройти обучение</button>
+            <p>Для ответственных приводов (взрывоопасные зоны, пожарные системы, подъёмные механизмы) требуется индивидуальный расчёт и согласование с производителем оборудования.</p>
+          </div>
+        </section>
+      </div>
+
+    </div>
+  </section>
+</main>
+
+<div class="tip-pop" id="tipPop" role="tooltip" aria-hidden="true"></div>
+
+<footer class="footer">
+  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.5.0</span>
+  <span class="footer-credit">Сделано с помощью <b>DeepSeek</b> · идея: <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></span>
+  <span id="footerStamp"></span>
+</footer>
+
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script src="charts.js"></script>
+<script src="sim.js"></script>
+<script src="xlsx.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

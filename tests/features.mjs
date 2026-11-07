@@ -1,0 +1,141 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { launch, openDebug, openPage, APP_URL, assert, reportErrors } from './helpers.mjs';
+
+const OUT = path.resolve('test-results');
+fs.mkdirSync(OUT, { recursive: true });
+const browser = await launch();
+let failed = 0;
+const check = (cond, msg) => { if (!cond) throw new Error(msg); };
+
+try {
+  // тур на чистом профиле
+  const t = await openPage(browser);
+  await t.page.goto(APP_URL);
+  await t.page.waitForTimeout(1700);
+  check(await t.page.$('#tourLayer') !== null, 'тур не появился');
+  check((await t.page.textContent('#tourCard h4')).includes('Параметры'), 'не первый шаг');
+  await t.page.click('[data-tour="next"]');
+  await t.page.waitForTimeout(400);
+  check((await t.page.textContent('#tourCard h4')).includes('Нагрузка'), 'второй шаг');
+  await t.page.click('[data-tour="skip"]');
+  await t.page.waitForTimeout(200);
+  check(await t.page.$('#tourLayer') === null, 'тур не закрылся');
+  check(await t.page.evaluate(() => localStorage.getItem('motor-tour-v1')) === '1', 'ключ тура');
+  failed += reportErrors(t.errors) ? 0 : 1;
+  await t.ctx.close();
+
+  const { ctx, page, errors } = await openDebug(browser);
+
+  // XLSX
+  await page.click('.tab-btn[data-tab="charts"]');
+  await page.waitForTimeout(500);
+  const [xlsxDl] = await Promise.all([page.waitForEvent('download'), page.click('#btnXlsx')]);
+  const xlsxPath = path.join(OUT, 'motor-report.xlsx');
+  await xlsxDl.saveAs(xlsxPath);
+  const xbuf = fs.readFileSync(xlsxPath);
+  check(xbuf.length > 2000, 'XLSX слишком мал');
+  check(xbuf[0] === 0x50 && xbuf[1] === 0x4b, 'XLSX не ZIP');
+  check(xbuf.includes(Buffer.from('<worksheet')), 'нет worksheet');
+  check(xbuf.includes(Buffer.from('Параметры')), 'нет листа Параметры');
+
+  // CSV
+  const [csvDl] = await Promise.all([page.waitForEvent('download'), page.click('#btnCsv')]);
+  const csvPath = path.join(OUT, 'curves.csv');
+  await csvDl.saveAs(csvPath);
+  const csv = fs.readFileSync(csvPath, 'utf8');
+  check(csv.includes('load_pct') && csv.includes('I_A'), 'CSV без заголовка');
+  check(csv.split('\n').length > 100, 'CSV слишком короткий');
+
+  // проект
+  const [projDl] = await Promise.all([page.waitForEvent('download'), page.click('#btnSaveProject')]);
+  const projPath = path.join(OUT, 'project.json');
+  await projDl.saveAs(projPath);
+  const proj = JSON.parse(fs.readFileSync(projPath, 'utf8'));
+  check(proj.state && proj.state.p2 === 15, 'в проекте нет p2');
+  await page.setInputFiles('#fileProject', projPath);
+  await page.waitForTimeout(900);
+  check((await page.inputValue('#p2')) === '15', 'проект не загрузился');
+
+  // отчёт
+  const [pop] = await Promise.all([ctx.waitForEvent('page'), page.click('#btnPrint')]);
+  await pop.waitForTimeout(1200);
+  check((await pop.$$('img')).length === 5, 'в отчёте не 5 графиков');
+  await pop.close();
+
+  // однофазный режим
+  await page.click('#segPhases button[data-val="1"]');
+  await page.waitForTimeout(500);
+  check(await page.$eval('#loaded', e => e.value === '2' && e.disabled), '1 фаза: loaded');
+  check((await page.textContent('#panelProtect')).includes('1P'), '1 фаза: автомат');
+  check(await page.$eval('#startMethod option[value="yd"]', e => e.disabled), '1 фаза: YD');
+  check(!(await page.$eval('#field1phType', e => e.classList.contains('hidden'))), '1 фаза: тип скрыт');
+  check((await page.textContent('#panelCable')).includes('2'), '1 фаза: жилы');
+
+  // тема
+  await page.click('#segTheme button[data-val="light"]');
+  await page.waitForTimeout(300);
+  check(await page.$eval('html', e => e.dataset.theme === 'light'), 'светлая тема');
+  await page.click('#segTheme button[data-val="dark"]');
+  await page.waitForTimeout(300);
+  check(await page.$eval('html', e => e.dataset.theme === 'dark'), 'тёмная тема');
+
+  // подсказка J нагрузки
+  const field = page.locator('#jExtra').locator('xpath=ancestor::div[contains(@class,"field")]');
+  await field.scrollIntoViewIfNeeded();
+  await field.hover();
+  await page.waitForTimeout(250);
+  await field.locator('.tip-btn').hover();
+  await page.waitForTimeout(350);
+  check(await page.$eval('#tipPop', e => e.classList.contains('show')), 'подсказка не открылась');
+  check((await page.textContent('#tipPop')).includes('J нагрузки'), 'текст подсказки');
+  await page.mouse.move(10, 10);
+  await page.waitForTimeout(200);
+
+  // зум и PNG
+  await page.click('.tab-btn[data-tab="charts"]');
+  await page.waitForTimeout(600);
+  const box = await page.locator('#chartTorque').boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, -240);
+  await page.waitForTimeout(300);
+  const view = await page.evaluate(() => window.__mcDebug.charts.torque.view);
+  check(view && view.x1 > view.x0, 'зум не сработал');
+  await page.click('[data-reset="chartTorque"]');
+  await page.waitForTimeout(250);
+  check(await page.evaluate(() => window.__mcDebug.charts.torque.view === null), 'сброс зума');
+  const [pngDl] = await Promise.all([page.waitForEvent('download'), page.click('[data-png="chartTorque"]')]);
+  const pngPath = path.join(OUT, 'chartTorque.png');
+  await pngDl.saveAs(pngPath);
+  const pbuf = fs.readFileSync(pngPath);
+  check(pbuf[0] === 0x89 && pbuf[1] === 0x50 && pbuf[2] === 0x4e && pbuf[3] === 0x47, 'PNG сигнатура');
+  check(pbuf.length > 5000, 'PNG слишком мал');
+
+  failed += reportErrors(errors) ? 0 : 1;
+  await ctx.close();
+
+  // мобильный drawer
+  const m = await openPage(browser, { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await m.page.goto(APP_URL);
+  await m.page.waitForTimeout(300);
+  await m.page.evaluate(() => localStorage.setItem('motor-tour-v1', '1'));
+  await m.page.reload();
+  await m.page.waitForTimeout(700);
+  await m.page.click('#btnMenu');
+  await m.page.waitForTimeout(350);
+  check(await m.page.$eval('body', e => e.classList.contains('drawer-open')), 'мобильный drawer');
+  await m.page.click('#drawerClose');
+  await m.page.waitForTimeout(300);
+  check(!(await m.page.$eval('body', e => e.classList.contains('drawer-open'))), 'drawer не закрылся');
+  failed += reportErrors(m.errors) ? 0 : 1;
+  await m.ctx.close();
+
+  assert(failed === 0, `функциональных ошибок: ${failed}`);
+} catch (e) {
+  console.error('FEATURES FAIL:', e.message);
+  failed = 1;
+} finally {
+  await browser.close();
+}
+console.log(failed ? 'features: FAIL' : 'features: ok');
+process.exitCode = failed ? 1 : 0;

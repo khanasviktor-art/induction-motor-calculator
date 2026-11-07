@@ -1,0 +1,36 @@
+name: Предложение
+description: Новая функция или улучшение
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Проблема
+      description: Какую задачу это решает
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Предложение
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Альтернативы
+  - type: textarea
+    id: limits
+    attributes:
+      label: Ограничения и риски
+      description: Что может сломаться, какие допущения появятся
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Проверки
+      options:
+        - label: Я прочитал docs/ARCHITECTURE.md и docs/LIMITATIONS.md
+          required: true
+        - label: Я готов помочь с тестами/документацией
+          required: false

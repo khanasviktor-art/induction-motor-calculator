@@ -1,0 +1,63 @@
+name: Ошибка
+description: Что-то считается или отображается неверно
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Спасибо за отчёт. Приложите проект JSON, если возможно: кнопка «Сохранить проект» в сайдбаре.
+  - type: input
+    id: version
+    attributes:
+      label: Версия
+      description: Низ файла или `meta version` (например, 0.5.0)
+      placeholder: "0.5.0"
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Браузер и ОС
+      placeholder: "Chrome 131, macOS 15"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Шаги
+      description: Что нажали, какие параметры, какой способ пуска
+      placeholder: "1. Открыл... 2. Выбрал..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Ожидалось
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Получилось
+    validations:
+      required: true
+  - type: textarea
+    id: console
+    attributes:
+      label: Консоль / скриншот
+      description: F12 → Console; приложите текст ошибки или изображение
+  - type: textarea
+    id: project
+    attributes:
+      label: Проект JSON
+      description: Вставьте JSON или приложите файл
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Проверки
+      options:
+        - label: Я проверил, что это не описано в docs/LIMITATIONS.md
+          required: true
+        - label: Я проверил на чистом профиле (без старых настроек)
+          required: false
