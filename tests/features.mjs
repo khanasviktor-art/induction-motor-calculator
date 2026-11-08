@@ -77,6 +77,18 @@ try {
   check(warnText.includes('7,5') || warnText.includes('редкий'), 'нет предупреждения >7,5 кВт');
   check((await page.inputValue('#p2')) === '15', 'p2 15');
 
+  // реальный проект: постоянная мощность 95 %, Y/380, 6 полюсов
+  await page.setInputFiles('#fileProject', path.resolve('tests/fixtures/constpower-y-6p.json'));
+  await page.waitForTimeout(1200);
+  const wtext = (await page.$$eval('.warn-item', els => els.map(e => e.innerText.replace(/\s+/g, ' ')))).join(' | ');
+  check(wtext.includes('Постоянная мощность'), 'нет предупреждения constpower');
+  check(wtext.includes('380/660') || wtext.includes('нужна Δ'), 'нет предупреждения Y/380');
+  check(wtext.includes('полюс'), 'нет предупреждения 4p/6p');
+  const advice = (await page.textContent('#panelStart')).replace(/\s+/g, ' ');
+  check(advice.includes('Постоянная мощность') || advice.includes('разгруз'), 'рекомендация не учитывает constpower');
+  const rows = await page.$$eval('#compareTable tbody tr', trs => trs.map(tr => tr.textContent.replace(/\s+/g, ' ').trim()));
+  check(rows.length === 5 && rows.every(r => r.includes('не разгоняется')), 'сравнение должно быть без разгона: ' + rows.join(' || '));
+
   // тема
   await page.click('#segTheme button[data-val="light"]');
   await page.waitForTimeout(300);
