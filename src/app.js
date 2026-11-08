@@ -513,7 +513,7 @@
     if (state.mode === 'catalog' && state.phases === 3) {
       catalog = D.MOTOR_DB.find(m => m.type === state.catType) || D.MOTOR_DB[0];
     }
-    const catForConn = catalog || (state.phases === 3 ? D.MOTOR_DB.find(m => m.type === state.catType) : null);
+    const catForConn = state.mode === 'catalog' ? catalog : null;
     if (catForConn && state.connAuto) state.conn = recommendConn(catForConn, state.voltage);
     return {
       mode: catalog ? 'catalog' : (state.mode === 'catalog' ? 'power' : state.mode),
@@ -848,7 +848,7 @@
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.1.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.2.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     const w = window.open('', '_blank');
@@ -970,7 +970,7 @@
 
   function startDiagnosis(rep, cmp) {
     const m = rep.motor;
-    if (m.phases === 3 && m.connFactor < 0.99) {
+    if (m.catalog && m.phases === 3 && m.connFactor < 0.99) {
       return 'Причина: схема Y при 380 В для 380/660 снижает момент примерно в 3 раза. Переключите обмотки на Δ и повторите расчёт.';
     }
     if (state.loadType === 'constpower') {
@@ -991,7 +991,7 @@
       if (m.p2 <= 1.5) return 'Однофазный: прямой пуск с пусковой обмоткой/конденсатором; для регулирования — частотный привод.';
       return 'Однофазный: проверьте пусковой ток и сечение; при частых пусках — частотный привод.';
     }
-    if (m.phases === 3 && m.connFactor < 0.99) {
+    if (m.catalog && m.phases === 3 && m.connFactor < 0.99) {
       return 'Схема Y при 380 В для двигателя 380/660 снижает момент примерно в 3 раза. Переключите на Δ; после этого проверьте пуск.';
     }
     if (state.loadType === 'constpower') {
@@ -1183,10 +1183,7 @@
       if (m.p2 > 7.5) add('warn', `Однофазный двигатель ${nf(m.p2, 1)} кВт — редкий случай: типовые данные до 11 кВт ориентировочные, выше — оценка. Для такой мощности обычно применяют 3 фазы или специальный двигатель.`);
       if (state.voltage > 260) add('warn', `Для однофазного двигателя напряжение ${nf(state.voltage, 0)} В необычно — обычно 220/230 В. Проверьте данные.`);
     }
-    const cat = D.MOTOR_DB.find(x => x.type === state.catType);
-    if (m.phases === 3 && m.connFactor < 0.99) {
-      add('warn', 'Схема Y при 380 В для двигателя 380/660 снижает момент примерно в 3 раза. Переключите на Δ; после этого проверьте пуск.');
-    }
+    const cat = state.mode === 'catalog' ? D.MOTOR_DB.find(x => x.type === state.catType) : null;
     if (state.loadType === 'constpower') {
       add('warn', 'Постоянная мощность: M = P/ω. При снижении скорости момент растёт к бесконечности; прямой пуск, Y–Δ и автотрансформатор без разгрузки/сцепления не разгонят. Для ПЧ тоже нужна разгрузка и запас по моменту.');
     }

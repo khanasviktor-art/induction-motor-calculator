@@ -2,7 +2,7 @@
 
 Офлайн-приложение для расчёта асинхронного двигателя: ток, мощность, момент, кабель, защита, графики характеристик и переходные процессы пуска. Один HTML-файл, без сервера, CDN и интернета.
 
-**Версия:** 0.7.1 · **Лицензия:** MIT · **Сборка:** `index.html` (~280 КБ) · [![CI](https://github.com/khanasviktor-art/induction-motor-calculator/actions/workflows/ci.yml/badge.svg)](https://github.com/khanasviktor-art/induction-motor-calculator/actions/workflows/ci.yml)
+**Версия:** 0.7.2 · **Лицензия:** MIT · **Сборка:** `index.html` (~280 КБ) · [![CI](https://github.com/khanasviktor-art/induction-motor-calculator/actions/workflows/ci.yml/badge.svg)](https://github.com/khanasviktor-art/induction-motor-calculator/actions/workflows/ci.yml)
 
 ### ВТХ по каталогам
 

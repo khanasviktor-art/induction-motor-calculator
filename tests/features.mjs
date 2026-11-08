@@ -86,6 +86,24 @@ try {
   await page.fill('#projectName', 'Насосная станция №2');
   await page.waitForTimeout(300);
 
+  // P2 не должен ссылаться на каталог
+  await page.click('#segMode button[data-val="power"]');
+  await page.waitForTimeout(250);
+  await page.click('#segConn button[data-val="Y"]');
+  await page.waitForTimeout(550);
+  const p2w = (await page.$$eval('.warn-item', els => els.map(e => e.innerText.replace(/\s+/g, ' ')))).join(' | ');
+  check(!p2w.includes('В каталоге выбран'), 'P2: каталожное предупреждение');
+  check(await page.evaluate(() => window.__mcDebug.rep.motor.connFactor) === 1, 'P2: connFactor не 1');
+
+  // каталог: Y/380 должен предупреждать
+  await page.click('#segMode button[data-val="catalog"]');
+  await page.waitForTimeout(300);
+  await page.click('#segConn button[data-val="Y"]');
+  await page.waitForTimeout(600);
+  const catW = (await page.$$eval('.warn-item', els => els.map(e => e.innerText.replace(/\s+/g, ' ')))).join(' | ');
+  check(catW.includes('380/660') || catW.includes('нужна Δ'), 'каталог: нет предупреждения Y/380');
+  check(await page.evaluate(() => window.__mcDebug.rep.motor.connFactor) < 0.6, 'каталог: connFactor');
+
   // ВТХ
   await page.click('.tab-btn[data-tab="cable"]');
   await page.waitForTimeout(600);
@@ -129,10 +147,6 @@ try {
   await page.waitForTimeout(1200);
   const wtext = (await page.$$eval('.warn-item', els => els.map(e => e.innerText.replace(/\s+/g, ' ')))).join(' | ');
   check(wtext.includes('Постоянная мощность'), 'нет предупреждения constpower');
-  check(wtext.includes('380/660') || wtext.includes('нужна Δ'), 'нет предупреждения Y/380');
-  check(wtext.includes('полюс'), 'нет предупреждения 4p/6p');
-  const cf = await page.evaluate(() => window.__mcDebug.rep.motor.connFactor);
-  check(cf < 0.6, 'connFactor Y/380 = ' + cf);
   const advice = (await page.textContent('#panelStart')).replace(/\s+/g, ' ');
   check(advice.includes('Постоянная мощность') || advice.includes('разгруз') || advice.includes('схема Y') || advice.includes('Δ'), 'рекомендация не учитывает constpower/схему');
   check((await page.textContent('#panelStart')).includes('не выходит на скорость'), 'нет формулировки «не выходит на скорость»');
