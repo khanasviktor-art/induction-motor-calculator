@@ -601,6 +601,15 @@
       return;
     }
     lastRep = rep;
+    if (rep.breaker && rep.breaker.series && rep.breaker.series !== state.breakerSeries) {
+      state.breakerSeries = rep.breaker.series;
+      state.breakerType = rep.breaker.type;
+      state.curve = rep.breaker.curve || state.curve;
+      fillBreakerCurves();
+      if ($('#brkSeries')) $('#brkSeries').value = state.breakerSeries;
+      if ($('#brkCurve')) $('#brkCurve').value = state.curve;
+      syncSeg('#segBrk', state.breakerType);
+    }
     if (state.autoTypical || state.mode === 'catalog') {
       state.eff = +rep.motor.eff.toFixed(1);
       state.cos = +rep.motor.cos.toFixed(3);
@@ -866,7 +875,7 @@
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.5.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.6.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     const w = window.open('', '_blank');
@@ -1714,7 +1723,20 @@
     bindSeg('#segStd', 'cable.standard', () => renderRef());
     bindSeg('#segMat', 'cable.material', () => renderRef());
     bindSeg('#segCurve', 'curve');
-    bindSeg('#segBrk', 'breakerType', () => { $('#fieldCurve').classList.toggle('hidden', state.breakerType === 'mccb'); $('#fieldMccb').classList.toggle('hidden', state.breakerType !== 'mccb'); });
+    bindSeg('#segBrk', 'breakerType', () => {
+      const cur = MC.vtc.get(state.breakerSeries);
+      const next = MC.vtc.list().find(x => x.type === state.breakerType && x.brand === cur.brand)
+        || MC.vtc.list().find(x => x.type === state.breakerType);
+      if (next) {
+        state.breakerSeries = next.id;
+        fillBreakerCurves();
+        if ($('#brkSeries')) $('#brkSeries').value = next.id;
+        if ($('#brkCurve')) $('#brkCurve').value = state.curve;
+        syncSeg('#segBrk', state.breakerType);
+      }
+      $('#fieldCurve').classList.toggle('hidden', state.breakerType === 'mccb');
+      $('#fieldMccb').classList.toggle('hidden', state.breakerType !== 'mccb');
+    });
     bindSeg('#segSimSpeed', 'sim.speed');
 
     // числа

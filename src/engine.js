@@ -547,11 +547,18 @@
   }
 
   function selectBreaker(Iwork, Ist, opt) {
-    const s = V.get(opt.series);
+    let s = V.get(opt.series);
     const sm = opt.startMethod;
     const rise = sm === 'vfd' ? 1.10 : (sm === 'yd' || sm === 'soft' || sm === 'autotr') ? 1.15 : 1.25;
+    let needed = Iwork * (s.type === 'mcb' ? rise : 1.2);
+    if (s.type === 'mcb' && needed > Math.max.apply(null, s.ratings)) {
+      const alt = V.list().find(x => x.type === 'mccb' && x.brand === s.brand && Math.max.apply(null, x.ratings) >= needed)
+        || V.list().find(x => x.type === 'mccb' && Math.max.apply(null, x.ratings) >= needed)
+        || V.list().find(x => x.type === 'mccb');
+      if (alt) { s = V.get(alt.id); needed = Iwork * 1.2; }
+    }
     const type = s.type;
-    const In = V.pickIn(s, Iwork * (type === 'mccb' ? 1.2 : rise));
+    const In = V.pickIn(s, needed);
     let curve = null, mag;
     if (type === 'mccb') {
       mag = +opt.magSet || 10;

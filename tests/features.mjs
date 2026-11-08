@@ -138,6 +138,22 @@ try {
   await page.waitForTimeout(400);
   check((await page.textContent('#vtcFoot')).includes('Селективность'), 'ВТХ: нет селективности');
 
+  // тип аппарата: MCB/MCCB и авто по току
+  await page.click('#segBrk button[data-val="mccb"]');
+  await page.waitForTimeout(400);
+  check(await page.evaluate(() => window.__mcDebug.rep.breaker.type) === 'mccb', 'тип: MCCB не применился');
+  check(await page.evaluate(() => MC.vtc.get(window.__mcDebug.state.breakerSeries).type) === 'mccb', 'тип: серия не MCCB');
+  await page.click('#segBrk button[data-val="mcb"]');
+  await page.waitForTimeout(400);
+  check(await page.evaluate(() => window.__mcDebug.rep.breaker.type) === 'mcb', 'тип: MCB не применился');
+  await page.click('#segMode button[data-val="power"]');
+  await page.waitForTimeout(200);
+  await page.fill('#p2', '100');
+  await page.waitForTimeout(900);
+  check(await page.evaluate(() => window.__mcDebug.rep.breaker.type) === 'mccb', 'авто: не переключился на MCCB');
+  check(await page.evaluate(() => window.__mcDebug.rep.breaker.In) >= 200, 'авто: малый номинал');
+  check(await page.$eval('#segBrk button[data-val="mccb"]', el => el.classList.contains('active')), 'авто: UI не MCCB');
+
   // отчёт
   const [pop] = await Promise.all([ctx.waitForEvent('page'), page.click('#btnPrint')]);
   await pop.waitForTimeout(1200);
