@@ -99,7 +99,7 @@ try {
     chk(near(r.sim.peakI, r.cmp.peakI, 0.03), `peakI ${r.sim.peakI} vs ${r.cmp.peakI}`);
     chk(near(r.sim.peakT, r.cmp.peakT, 0.03), `peakT ${r.sim.peakT} vs ${r.cmp.peakT}`);
     chk(r.last.n >= r.m.n * 0.97, `nEnd ${r.last.n} vs ${r.m.n}`);
-    chk(row.includes('разгон') && !row.includes('не разгоняется'), 'статус ' + row);
+    chk(row.includes('разгон') && !row.includes('не выходит'), 'статус ' + row);
     chk(r.first.U >= item.uMin && r.first.U <= item.uMax, `first U ${r.first.U}`);
     chk(r.first.I <= r.m.i * item.iFrac * 1.15, `first I ${r.first.I} vs ${r.m.i * item.iFrac}`);
     chk(r.charts.n[0].last[1] >= r.sim.n * 0.98, 'chart n last');
@@ -118,7 +118,7 @@ try {
   const row3 = await statusRow('soft');
   const p3 = [];
   if (fail3.sim.tStart != null) p3.push('неожиданный разгон');
-  if (!row3.includes('не разгоняется')) p3.push('статус ' + row3);
+  if (!row3.includes('не выходит на скорость')) p3.push('статус ' + row3);
   if (fail3.sim.peakI > fail3.m.i * 3.3) p3.push('ток ' + fail3.sim.peakI);
   if (p3.length) failed++;
   log(`${p3.length ? 'FAIL' : 'ok  '} soft 3x tStart=${fail3.sim.tStart} peakI=${fail3.sim.peakI.toFixed(0)} status=${row3}`);

@@ -134,9 +134,15 @@ try {
   const cf = await page.evaluate(() => window.__mcDebug.rep.motor.connFactor);
   check(cf < 0.6, 'connFactor Y/380 = ' + cf);
   const advice = (await page.textContent('#panelStart')).replace(/\s+/g, ' ');
-  check(advice.includes('Постоянная мощность') || advice.includes('разгруз'), 'рекомендация не учитывает constpower');
+  check(advice.includes('Постоянная мощность') || advice.includes('разгруз') || advice.includes('схема Y') || advice.includes('Δ'), 'рекомендация не учитывает constpower/схему');
+  check((await page.textContent('#panelStart')).includes('не выходит на скорость'), 'нет формулировки «не выходит на скорость»');
+  check((await page.textContent('#panelStart')).includes('схема Y') || (await page.textContent('#panelStart')).includes('Δ'), 'нет причины Y/Δ');
+  check((await page.$$('.tip-btn[data-tip="loadUnload"]')).length === 1, 'нет подсказки «Разгрузка на пуске»');
+  check((await page.$$('.tip-btn[data-tip="loadRelease"]')).length === 1, 'нет подсказки «Снять при»');
+  check((await page.$$('.tip-btn[data-tip="motorHotStart"]')).length === 1, 'нет подсказки «Горячий пуск»');
+  check((await page.$$('.tip-btn[data-tip="brkSeries"]')).length === 1, 'нет подсказки «Серия»');
   const rows = await page.$$eval('#compareTable tbody tr', trs => trs.map(tr => tr.textContent.replace(/\s+/g, ' ').trim()));
-  check(rows.length === 5 && rows.every(r => r.includes('не разгоняется')), 'сравнение должно быть без разгона: ' + rows.join(' || '));
+  check(rows.length === 5 && rows.every(r => r.includes('не выходит на скорость')), 'сравнение должно быть без разгона: ' + rows.join(' || '));
 
   // тема
   await page.click('#segTheme button[data-val="light"]');

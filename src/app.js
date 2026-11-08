@@ -168,6 +168,19 @@
     motorAmbient: 'Температура окружающей среды для тепловой модели обмотки. Обычно 40 °C.',
     loadType: 'Характер момента сопротивления: постоянный, вентиляторный (∝ n²), линейный (∝ n) или постоянная мощность. Постоянная мощность: M = P/ω, при нулевой скорости момент стремится к бесконечности; пуск без разгрузки/сцепления или ПЧ с разгрузкой невозможен.',
     jExtra: 'J нагрузки — приведённый к валу момент инерции механизма, кг·м². Это «инертность» нагрузки: чем больше J, тем медленнее разгон и больше нагрев при пуске. Ориентир: вентилятор 0,1…1 от J двигателя, конвейер 1…5, пресс 3…10. Если неизвестно — начните с 0,3…1.',
+    loadUnload: 'Разгрузка на пуске: на сколько процентов снижается момент нагрузки, пока двигатель не достигнет скорости снятия. 0 — без разгрузки; для компрессора, дробилки, пресса 50…90 %.',
+    loadRelease: 'Скорость, при которой разгрузка снимается, % от номинальной. Обычно 20…40 %; после этого нагрузка восстанавливается.',
+    loadCurve: 'Своя кривая M(n): пары «%n:%Mн» через «;». Масштаб задаёт ползунок нагрузки. Например: 0:0; 50:50; 100:100.',
+    motorHotStart: 'Горячий пуск: обмотка уже нагрета после предыдущей работы. Время до предела температуры меньше, чем при холодном пуске.',
+    motorHotPct: 'Начальный нагрев в % от (предел − температура среды). 70 % — типичный горячий старт; 0 — холодный.',
+    motorClassOv: 'Класс перегрузки 10/20/30: допустимое время перегрузки. 20 — вдвое, 30 — втрое больше, чем 10.',
+    motorStarts: 'Пусков в час — тепловой запас. 0 — не учитывать; для частых пусков укажите реальное число.',
+    motorCoolTau: 'Постоянная охлаждения двигателя, мин. Используется для оценки теплового режима между пусками.',
+    brkSeries: 'Серия автомата: IEK, CHINT, ABB; MCB или MCCB. От неё зависят кривые и уставки.',
+    brkCurve: 'Кривая MCB (B/C/D/K/Z) или уставка MCCB (TMD/TMA). Для 380/660 и пуска часто нужна D.',
+    vtcUpstream: 'Номинал вышестоящего автомата для проверки селективности. 0 — не задан.',
+    projectName: 'Название объекта или проекта — попадёт в PDF-отчёт.',
+    projectLogo: 'Логотип для PDF: PNG, JPEG или SVG; приводится к 240 px.',
     segStd: 'Норматив таблиц кабелей и поправок: ПУЭ (Россия) или IEC 60364 (международный).',
     segMat: 'Материал жил: медь или алюминий. Алюминий имеет меньше допустимый ток и большее сопротивление.',
     insulation: 'Изоляция: ПВХ/резина (70 °C) или XLPE (90 °C). XLPE допускает больший ток и нагрев.',
@@ -243,10 +256,15 @@
   }
   function decorateTips() {
     document.querySelectorAll('.field').forEach(field => {
-      const ctrl = field.querySelector('input[id], select[id], .seg[id]');
+      const ctrl = field.querySelector('input[id], select[id], textarea[id], .seg[id]');
       if (!ctrl || !TIPS[ctrl.id]) return;
       const label = field.querySelector('label');
       if (label && !label.querySelector('.tip-btn')) label.insertAdjacentHTML('beforeend', tipButton(ctrl.id));
+    });
+    document.querySelectorAll('.check').forEach(field => {
+      const ctrl = field.querySelector('input[id]');
+      if (!ctrl || !TIPS[ctrl.id]) return;
+      if (!field.querySelector('.tip-btn')) field.insertAdjacentHTML('beforeend', tipButton(ctrl.id));
     });
     const lt = document.querySelector('.loadbar-title');
     if (lt && !lt.querySelector('.tip-btn')) lt.insertAdjacentHTML('beforeend', tipButton('loadPct'));
@@ -830,7 +848,7 @@
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.0.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.1.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     const w = window.open('', '_blank');
@@ -932,7 +950,7 @@
   function renderStartPanel(rep) {
     const m = rep.motor;
     const cmp = (compareData || []).find(x => x.method === state.startMethod);
-    const tStart = cmp && cmp.tStart != null ? nf(cmp.tStart, 2) + ' с' : (cmp ? 'не разгоняется' : '—');
+    const tStart = cmp && cmp.tStart != null ? nf(cmp.tStart, 2) + ' с' : (cmp ? 'не выходит на скорость' : '—');
     const ratio = cmp ? ' / ' + nf(cmp.peakI / m.i, 1) + '×Iн' : '';
     $('#panelStart').innerHTML = `<div class="kv">
       ${kv('Пусковой ток Iп', nf(m.ist, 1), 'А (' + nf(m.kst, 1) + '×Iн)')}
@@ -940,19 +958,41 @@
       ${kv('Максимальный момент', nf(m.mmaxReal.t, 1), 'Н·м (' + nf(m.mmaxReal.t / m.mn, 2) + '×Mн)')}
       ${kv('Момент при выбранном пуске', cmp ? nf(cmp.peakT, 0) : '—', cmp ? 'Н·м' : '')}
       ${kv('Пиковый ток пуска (с линией)', cmp ? nf(cmp.peakI, 0) : '—', cmp ? 'А' + ratio : '')}
-      ${kv('Время разгона', tStart, '')}
+      ${kv('Разгон', tStart, '')}
       ${kv('Пусковая мощность Sп', nf((m.phases === 3 ? Math.sqrt(3) : 1) * m.U * m.ist / 1000, 1), 'кВ·А')}
       ${kv('Инерция привода J∑', nf(m.j + (+state.jExtra || 0), 4), 'кг·м²')}
       ${kv('Способ пуска', methodLabel(state.startMethod), '')}
       ${kv('Способ задания', m.mode === 'catalog' ? 'каталог АИР' : m.mode === 'current' ? 'по току' : m.mode === 'torque' ? 'по моменту' : 'по мощности', '')}
     </div>
-    <div class="note-line">${startAdvice(m)}</div>`;
+    <div class="note-line">${startAdvice(m)}</div>
+    ${cmp && cmp.tStart == null ? `<div class="note-line bad" style="color:var(--pink)">${startDiagnosis(rep, cmp)}</div>` : ''}`;
+  }
+
+  function startDiagnosis(rep, cmp) {
+    const m = rep.motor;
+    if (m.phases === 3 && m.connFactor < 0.99) {
+      return 'Причина: схема Y при 380 В для 380/660 снижает момент примерно в 3 раза. Переключите обмотки на Δ и повторите расчёт.';
+    }
+    if (state.loadType === 'constpower') {
+      return 'Причина: постоянная мощность — момент при нулевой скорости стремится к бесконечности. Нужна разгрузка/сцепление или ПЧ с разгрузкой.';
+    }
+    const load0 = E.loadTorque(m, 0.05 * m.n, buildCfg().load);
+    if (cmp && cmp.peakT < load0) {
+      return 'Причина: пусковой момент меньше момента нагрузки уже на малой скорости. Уменьшите нагрузку, добавьте разгрузку или выберите другой способ пуска.';
+    }
+    if (+state.loadPct > 100) {
+      return 'Причина: нагрузка выше номинальной; двигатель не дотягивает до рабочей точки. Проверьте запас по моменту.';
+    }
+    return 'Причина: двигатель не выходит на рабочую скорость. Проверьте момент нагрузки, схему обмоток и способ пуска.';
   }
 
   function startAdvice(m) {
     if (m.phases === 1) {
       if (m.p2 <= 1.5) return 'Однофазный: прямой пуск с пусковой обмоткой/конденсатором; для регулирования — частотный привод.';
       return 'Однофазный: проверьте пусковой ток и сечение; при частых пусках — частотный привод.';
+    }
+    if (m.phases === 3 && m.connFactor < 0.99) {
+      return 'Схема Y при 380 В для двигателя 380/660 снижает момент примерно в 3 раза. Переключите на Δ; после этого проверьте пуск.';
     }
     if (state.loadType === 'constpower') {
       return 'Постоянная мощность: при нулевой скорости момент стремится к бесконечности. Прямой пуск, Y–Δ и автотрансформатор не подходят; нужна разгрузка/сцепление или ПЧ с разгрузкой и запасом по моменту.';
@@ -1144,6 +1184,9 @@
       if (state.voltage > 260) add('warn', `Для однофазного двигателя напряжение ${nf(state.voltage, 0)} В необычно — обычно 220/230 В. Проверьте данные.`);
     }
     const cat = D.MOTOR_DB.find(x => x.type === state.catType);
+    if (m.phases === 3 && m.connFactor < 0.99) {
+      add('warn', 'Схема Y при 380 В для двигателя 380/660 снижает момент примерно в 3 раза. Переключите на Δ; после этого проверьте пуск.');
+    }
     if (state.loadType === 'constpower') {
       add('warn', 'Постоянная мощность: M = P/ω. При снижении скорости момент растёт к бесконечности; прямой пуск, Y–Δ и автотрансформатор без разгрузки/сцепления не разгонят. Для ПЧ тоже нужна разгрузка и запас по моменту.');
     }
@@ -1355,7 +1398,7 @@
       try {
         compareData = S.compare(lastRep.motor, Object.assign(simCfg(), { cable: lastRep.cable }));
         renderCompare();
-        if (document.querySelector('[data-panel="calc"]').classList.contains('active')) renderStartPanel(lastRep);
+        if (document.querySelector('[data-panel="calc"]').classList.contains('active') || document.querySelector('[data-panel="start"]').classList.contains('active')) renderStartPanel(lastRep);
       } catch (e) { console.error(e); }
     }, 120);
   }
@@ -1371,7 +1414,7 @@
         <td class="num">${ok ? nf(x.tStart, 2) : '—'}</td>
         <td class="num">${nf(x.peakI, 0)} <span style="color:var(--muted-2)">(${nf(x.peakI / m.i, 1)}×)</span></td>
         <td class="num">${nf(x.peakT, 0)} <span style="color:var(--muted-2)">(${nf(x.peakT / m.mn, 1)}×)</span></td>
-        <td>${x.stalled || !ok ? '<span class="badge bad">не разгоняется</span>' : '<span class="badge ok">разгон</span>'}</td>
+        <td>${x.stalled || !ok ? `<span class="badge bad" title="${startDiagnosis(lastRep, x).replace(/"/g, '&quot;')}">не выходит на скорость</span>` : '<span class="badge ok">разгон</span>'}</td>
       </tr>`;
     }).join('');
     $('#compareTable').innerHTML = `<table>
@@ -1518,7 +1561,7 @@
       if (st.tStart != null) stage = 'работа';
       else {
         const lim = st.cfg.method === 'vfd' ? (st.cfg.tRamp || 10) + 3 : st.cfg.method === 'soft' ? (st.cfg.tRamp || 6) + 2 : 4;
-        stage = st.t > lim && st.nNow < 0.9 * st.motor.n ? 'не разгоняется' : 'разгон';
+        stage = st.t > lim && st.nNow < 0.9 * st.motor.n ? 'не выходит на скорость' : 'разгон';
       }
     }
     if (simFollow && st.running) stage += ' · слежение';
@@ -2052,7 +2095,7 @@
     if (compareData) {
       sheets.push({ name: 'Сравнение пусков', rows: [
         ['Способ', 'Время разгона, с', 'Пиковый ток, А', 'Пиковый момент, Н·м', 'Результат'],
-        ...compareData.map(x => [methodLabel(x.method), x.tStart == null ? '—' : rnd(x.tStart, 2), rnd(x.peakI, 1), rnd(x.peakT, 1), x.stalled || x.tStart == null ? 'не разгоняется' : 'разгон'])
+        ...compareData.map(x => [methodLabel(x.method), x.tStart == null ? '—' : rnd(x.tStart, 2), rnd(x.peakI, 1), rnd(x.peakT, 1), x.stalled || x.tStart == null ? 'не выходит на скорость' : 'разгон'])
       ]});
     }
     sheets.push({ name: 'Проверки', rows: [
