@@ -7,7 +7,7 @@
 <title>Асинхронный двигатель — инженерный расчёт</title>
 <meta name="author" content="Виктор Ханас">
 <meta name="generator" content="DeepSeek">
-<meta name="version" content="0.5.2">
+<meta name="version" content="0.6.0">
 <meta name="description" content="Расчёт мощности, тока, момента, кабеля и защиты асинхронного двигателя. Графики характеристик и переходные процессы пуска.">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -31,6 +31,9 @@
     <button class="btn icon mobile-only" id="btnMenu" aria-label="Открыть параметры">
       <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M4 6h12M4 10h12M4 14h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
       Параметры
+    </button>
+    <button class="btn icon" id="btnShare" title="Поделиться расчётом" aria-label="Поделиться расчётом">
+      <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M8 12l4-4M8.5 6.5l1.8-1.8a2.8 2.8 0 0 1 4 4L12.5 10.5M11.5 13.5l-1.8 1.8a2.8 2.8 0 0 1-4-4L7.5 9.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
     </button>
     <button class="btn icon" id="btnTour" title="Обучение" aria-label="Пройти обучение">
       <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><circle cx="10" cy="10" r="7.4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7.9 7.7a2.2 2.2 0 1 1 3.3 1.9c-.7.4-1.2 1-1.2 1.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="14" r="0.9" fill="currentColor"/></svg>
@@ -254,7 +257,23 @@
             <option value="constant" selected>Постоянный момент</option>
             <option value="linear">Линейный (T ∝ n)</option>
             <option value="constpower">Постоянная мощность</option>
+            <option value="custom">Своя кривая M(n)</option>
           </select>
+        </div>
+        <div class="field hidden" id="fieldLoadCurve">
+          <label for="loadCurve">Кривая M(n), %n:%M</label>
+          <textarea id="loadCurve" class="load-curve" rows="3" spellcheck="false">0:0; 25:25; 50:55; 75:80; 100:100</textarea>
+          <div class="hint">Точки в % от nн и Mн через «;». Например: 0:0; 50:50; 100:100. Масштаб задаёт ползунок нагрузки.</div>
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label for="loadUnload">Разгрузка на пуске</label>
+            <div class="input-wrap"><input id="loadUnload" type="number" min="0" max="95" step="5" value="0"><span class="unit">%</span></div>
+          </div>
+          <div class="field">
+            <label for="loadRelease">Снять при</label>
+            <div class="input-wrap"><input id="loadRelease" type="number" min="1" max="100" step="5" value="20"><span class="unit">% n</span></div>
+          </div>
         </div>
         <div class="field">
           <label for="jExtra">J нагрузки (приведённый)</label>
@@ -389,12 +408,25 @@
         </button>
       </section>
 
+      <section class="side-block">
+        <h2 class="side-title"><span class="tick"></span>Проект</h2>
+        <div class="field">
+          <label for="projectName">Объект / проект</label>
+          <div class="input-wrap"><input id="projectName" type="text" placeholder="Например, насосная станция №2" maxlength="80"></div>
+        </div>
+        <div class="field">
+          <label for="projectLogo">Логотип для PDF</label>
+          <input id="projectLogo" type="file" accept="image/png,image/jpeg,image/svg+xml" class="file-input">
+          <div class="hint" id="logoHint">PNG/JPEG/SVG, приводится к 240 px</div>
+        </div>
+      </section>
+
       <div class="side-actions">
         <button class="btn ghost" id="btnSaveProject">Сохранить проект</button>
         <button class="btn ghost" id="btnLoadProject">Открыть проект</button>
       </div>
       <div class="side-foot">
-        <span>v1.2</span>
+        <span>v0.6.0</span>
         <span>ПУЭ · IEC 60364</span>
       </div>
     </div>
@@ -497,26 +529,31 @@
             <div class="panel-head"><h3>Механическая характеристика</h3><span class="panel-tag">M(n)</span></div>
             <div class="chart-box"><canvas id="chartTorque"></canvas></div>
             <div class="panel-foot">Пересечение момента двигателя и момента нагрузки — рабочая точка.</div>
+            <details class="chart-data"><summary>Данные графика</summary><div class="table-wrap" id="dataTorque"></div></details>
           </section>
           <section class="panel chart-panel" data-chart-panel="iu">
             <div class="panel-head"><h3>Ток и напряжение от нагрузки</h3><span class="panel-tag">I(U)</span></div>
             <div class="chart-box"><canvas id="chartIU"></canvas></div>
             <div class="panel-foot">Напряжение — на зажимах двигателя с учётом кабеля; ток — при этом напряжении, поэтому на 100 % он может быть на 1–2 % выше Iн.</div>
+            <details class="chart-data"><summary>Данные графика</summary><div class="table-wrap" id="dataIU"></div></details>
           </section>
           <section class="panel chart-panel" data-chart-panel="speed">
             <div class="panel-head"><h3>Скорость, скольжение, частота ротора</h3><span class="panel-tag">n(s,f₂)</span></div>
             <div class="chart-box"><canvas id="chartSpeed"></canvas></div>
             <div class="panel-foot">f₂ = s·f₁ — частота ЭДС в роторе.</div>
+            <details class="chart-data"><summary>Данные графика</summary><div class="table-wrap" id="dataSpeed"></div></details>
           </section>
           <section class="panel chart-panel" data-chart-panel="eff">
             <div class="panel-head"><h3>КПД и коэффициент мощности</h3><span class="panel-tag">η(cosφ)</span></div>
             <div class="chart-box"><canvas id="chartEff"></canvas></div>
             <div class="panel-foot">При снижении нагрузки КПД и cosφ падают.</div>
+            <details class="chart-data"><summary>Данные графика</summary><div class="table-wrap" id="dataEff"></div></details>
           </section>
           <section class="panel chart-panel" data-chart-panel="power">
             <div class="panel-head"><h3>Потребляемая и полезная мощность</h3><span class="panel-tag">P₁(P₂)</span></div>
             <div class="chart-box"><canvas id="chartPower"></canvas></div>
             <div class="panel-foot">Разница P₁ − P₂ — потери в двигателе.</div>
+            <details class="chart-data"><summary>Данные графика</summary><div class="table-wrap" id="dataPower"></div></details>
           </section>
         </div>
       </div>
@@ -617,7 +654,7 @@
         <section class="panel">
           <div class="panel-head"><h3>Сравнение способов пуска</h3><span class="panel-tag">при текущей нагрузке</span></div>
           <div class="table-wrap" id="compareTable"></div>
-          <div class="panel-foot">Если способ не разгоняет: у софтстартера момент растёт примерно как (I/Iп)² — увеличьте ограничение тока; у Y–Δ момент в 3 раза ниже.</div>
+          <div class="panel-foot">Если способ не разгоняет: у софтстартера момент растёт примерно как (I/Iп)² — увеличьте ограничение тока; у Y–Δ момент в 3 раза ниже. Пик Y–Δ/AT — после переключения; в звезде/АТ ток ниже.</div>
         </section>
       </div>
 
@@ -689,7 +726,7 @@
 <div class="tip-pop" id="tipPop" role="tooltip" aria-hidden="true"></div>
 
 <footer class="footer">
-  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.5.2</span>
+  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.6.0</span>
   <span class="footer-credit">Сделано с помощью <b>DeepSeek</b> · идея: <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></span>
   <span id="footerStamp"></span>
 </footer>

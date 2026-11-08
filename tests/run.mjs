@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
-const files = ['smoke.mjs', 'charts-static.mjs', 'charts-transient.mjs', 'features.mjs'];
+const files = ['engine.mjs', 'smoke.mjs', 'charts-static.mjs', 'charts-transient.mjs', 'features.mjs'];
 let failed = 0;
 for (const f of files) {
   console.log('\n=== ' + f + ' ===');

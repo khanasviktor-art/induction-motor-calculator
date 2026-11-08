@@ -51,7 +51,38 @@
     return n;
   }
 
-  function sheetXml(sheet) {
+  function dataUrlBytes(url) {
+    const b64 = String(url).split(',')[1] || '';
+    const bin = atob(b64);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  function drawingXml(images) {
+    const anchors = images.map((im, i) => {
+      const row = 2 + i * 18, row2 = row + 16, col = 1, col2 = 9;
+      return `<xdr:twoCellAnchor editAs="oneCell">` +
+        `<xdr:from><xdr:col>${col}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${row}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>` +
+        `<xdr:to><xdr:col>${col2}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${row2}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>` +
+        `<xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${i + 1}" name="chart${i + 1}.png"/><xdr:cNvPicPr/></xdr:nvPicPr>` +
+        `<xdr:blipFill><a:blip r:embed="rId${i + 1}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>` +
+        `<xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic>` +
+        `<xdr:clientData/></xdr:twoCellAnchor>`;
+    }).join('');
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+      `<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
+      anchors + `</xdr:wsDr>`;
+  }
+
+  function drawingRels(images) {
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+      `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+      images.map((im, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image${i + 1}.png"/>`).join('') +
+      `</Relationships>`;
+  }
+
+  function sheetXml(sheet, hasDrawing) {
     const rows = sheet.rows || [];
     const widths = [];
     rows.forEach(r => r.forEach((v, i) => {
@@ -66,9 +97,9 @@
       return `<row r="${ri + 1}">${cells}</row>`;
     }).join('');
     return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
-      `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+      `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"${hasDrawing ? ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"' : ''}>` +
       `<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` +
-      `<cols>${cols}</cols><sheetData>${xmlRows}</sheetData></worksheet>`;
+      `<cols>${cols}</cols><sheetData>${xmlRows}</sheetData>${hasDrawing ? '<drawing r:id="rId1"/>' : ''}</worksheet>`;
   }
 
   function zip(files) {
@@ -141,9 +172,11 @@
     });
   }
 
-  function build(sheets) {
+  function build(sheets, images) {
     const list = (sheets || []).filter(s => s && s.rows && s.rows.length);
     if (!list.length) throw new Error('Нет данных для XLSX');
+    const imgs = (images || []).filter(im => im && im.data && String(im.data).indexOf('data:image/png') === 0);
+    const drawIdx = imgs.length ? list.findIndex(s => s.name === 'Графики') : -1;
     const names = [];
     list.forEach((s, i) => {
       let n = safeSheetName(s.name, i);
@@ -156,6 +189,7 @@
       `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
       `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
       `<Default Extension="xml" ContentType="application/xml"/>` +
+      (imgs.length ? `<Default Extension="png" ContentType="image/png"/><Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>` : '') +
       `<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>` +
       `<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>` +
       list.map((s, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('') +
@@ -195,8 +229,19 @@
       { name: 'xl/styles.xml', data: enc.encode(styles) }
     ];
     list.forEach((s, i) => {
-      files.push({ name: `xl/worksheets/sheet${i + 1}.xml`, data: enc.encode(sheetXml(s)) });
+      files.push({ name: `xl/worksheets/sheet${i + 1}.xml`, data: enc.encode(sheetXml(s, i === drawIdx)) });
+      if (i === drawIdx) {
+        files.push({
+          name: `xl/worksheets/_rels/sheet${i + 1}.xml.rels`,
+          data: enc.encode(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/></Relationships>`)
+        });
+      }
     });
+    if (imgs.length) {
+      files.push({ name: 'xl/drawings/drawing1.xml', data: enc.encode(drawingXml(imgs)) });
+      files.push({ name: 'xl/drawings/_rels/drawing1.xml.rels', data: enc.encode(drawingRels(imgs)) });
+      imgs.forEach((im, i) => files.push({ name: `xl/media/image${i + 1}.png`, data: dataUrlBytes(im.data) }));
+    }
 
     return zip(files);
   }

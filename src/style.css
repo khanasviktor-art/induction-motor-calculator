@@ -221,6 +221,40 @@ html[data-theme="light"] .tip-pop { box-shadow: 0 14px 36px rgba(15, 25, 40, .18
 .tour-actions .btn { height: 30px; font-size: 11px; padding: 0 10px; }
 .tour-nav { display: flex; gap: 6px; }
 
+/* ---------- кривая нагрузки ---------- */
+.load-curve {
+  width: 100%; min-height: 58px; resize: vertical;
+  padding: 9px 11px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--input-bg, var(--panel-2));
+  color: var(--text); font: 11px/1.5 var(--mono);
+}
+.load-curve:focus { outline: none; border-color: var(--mint); box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .12); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 540px) { .grid2 { grid-template-columns: 1fr; } }
+
+.file-input { width: 100%; font: 10.5px/1.4 var(--sans); color: var(--text-soft); }
+.file-input::file-selector-button {
+  margin-right: 8px; padding: 5px 9px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--panel-2); color: var(--text); font: 10.5px var(--sans); cursor: pointer;
+}
+
+/* ---------- данные графиков ---------- */
+.chart-data { margin: 0 14px 12px; font-size: 11px; color: var(--muted); }
+.chart-data summary { cursor: pointer; padding: 4px 0; color: var(--text-soft); }
+.chart-data summary:hover { color: var(--text); }
+.chart-data .table-wrap { max-height: 230px; overflow: auto; border: 1px solid var(--line); border-radius: 7px; }
+.chart-data table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+.chart-data th, .chart-data td { padding: 3px 7px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.chart-data th { position: sticky; top: 0; background: var(--panel); color: var(--text-soft); font-weight: 500; }
+.chart-data th:first-child, .chart-data td:first-child { text-align: left; }
+
+/* ---------- оценка ---------- */
+.est-badge {
+  display: inline-block; margin-left: 6px; padding: 1px 5px; border-radius: 4px;
+  background: rgba(255, 180, 84, .15); color: var(--amber);
+  font: 9px/1.4 var(--mono); letter-spacing: .04em; vertical-align: 1px;
+}
+
 /* ---------- кнопки ---------- */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;

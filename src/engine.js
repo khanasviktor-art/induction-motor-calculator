@@ -86,31 +86,31 @@
   /* ---------- типовые данные однофазных двигателей ---------- */
   const TYPICAL_1PH = {
     capacitor: {
-      p2:   [0.12, 0.18, 0.25, 0.37, 0.55, 0.75, 1.1, 1.5, 2.2, 3.0, 4.0, 5.5, 7.5],
-      eff:  [52, 56, 60, 64, 67, 70, 73, 75, 78, 80, 82, 84, 85],
-      cos:  [0.80, 0.82, 0.84, 0.85, 0.86, 0.87, 0.88, 0.89, 0.90, 0.91, 0.92, 0.92, 0.93],
-      kst:  [4.5, 4.6, 4.8, 5.0, 5.2, 5.2, 5.5, 5.5, 5.5, 5.2, 5.0, 5.0, 4.8],
-      mst:  [1.6, 1.7, 1.8, 1.8, 1.9, 1.9, 2.0, 2.0, 2.1, 2.1, 2.1, 2.1, 2.0],
-      mmax: [1.8, 1.9, 2.0, 2.0, 2.1, 2.1, 2.2, 2.2, 2.3, 2.3, 2.3, 2.3, 2.2],
-      slip: [6.5, 6.0, 5.5, 5.0, 5.0, 4.5, 4.5, 4.0, 4.0, 3.5, 3.5, 3.0, 2.5]
+      p2:   [0.12, 0.18, 0.25, 0.37, 0.55, 0.75, 1.1, 1.5, 2.2, 3.0, 4.0, 5.5, 7.5, 11.0],
+      eff:  [52, 56, 60, 64, 67, 70, 73, 75, 78, 80, 82, 84, 85, 86],
+      cos:  [0.80, 0.82, 0.84, 0.85, 0.86, 0.87, 0.88, 0.89, 0.90, 0.91, 0.92, 0.92, 0.93, 0.93],
+      kst:  [4.5, 4.6, 4.8, 5.0, 5.2, 5.2, 5.5, 5.5, 5.5, 5.2, 5.0, 5.0, 4.8, 4.8],
+      mst:  [1.6, 1.7, 1.8, 1.8, 1.9, 1.9, 2.0, 2.0, 2.1, 2.1, 2.1, 2.1, 2.0, 2.0],
+      mmax: [1.8, 1.9, 2.0, 2.0, 2.1, 2.1, 2.2, 2.2, 2.3, 2.3, 2.3, 2.3, 2.2, 2.2],
+      slip: [6.5, 6.0, 5.5, 5.0, 5.0, 4.5, 4.5, 4.0, 4.0, 3.5, 3.5, 3.0, 2.5, 2.5]
     },
     split: {
-      p2:   [0.12, 0.18, 0.25, 0.37, 0.55, 0.75, 1.1, 1.5, 2.2, 3.0, 4.0, 5.5],
-      eff:  [48, 52, 56, 60, 63, 66, 69, 71, 74, 76, 78, 80],
-      cos:  [0.60, 0.62, 0.64, 0.66, 0.68, 0.69, 0.70, 0.71, 0.72, 0.72, 0.73, 0.74],
-      kst:  [7.0, 7.2, 7.5, 7.8, 8.0, 8.0, 7.5, 7.5, 7.0, 6.5, 6.0, 5.5],
-      mst:  [1.4, 1.5, 1.5, 1.6, 1.6, 1.7, 1.7, 1.7, 1.7, 1.7, 1.7, 1.7],
-      mmax: [1.6, 1.7, 1.8, 1.8, 1.9, 1.9, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0],
-      slip: [7.0, 6.5, 6.0, 5.5, 5.5, 5.0, 5.0, 4.5, 4.5, 4.0, 4.0, 3.5]
+      p2:   [0.12, 0.18, 0.25, 0.37, 0.55, 0.75, 1.1, 1.5, 2.2, 3.0, 4.0, 5.5, 7.5],
+      eff:  [48, 52, 56, 60, 63, 66, 69, 71, 74, 76, 78, 80, 81],
+      cos:  [0.60, 0.62, 0.64, 0.66, 0.68, 0.69, 0.70, 0.71, 0.72, 0.72, 0.73, 0.74, 0.75],
+      kst:  [7.0, 7.2, 7.5, 7.8, 8.0, 8.0, 7.5, 7.5, 7.0, 6.5, 6.0, 5.5, 5.2],
+      mst:  [1.4, 1.5, 1.5, 1.6, 1.6, 1.7, 1.7, 1.7, 1.7, 1.7, 1.7, 1.7, 1.7],
+      mmax: [1.6, 1.7, 1.8, 1.8, 1.9, 1.9, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0],
+      slip: [7.0, 6.5, 6.0, 5.5, 5.5, 5.0, 5.0, 4.5, 4.5, 4.0, 4.0, 3.5, 3.5]
     },
     psc: {
-      p2:   [0.12, 0.18, 0.25, 0.37, 0.55, 0.75, 1.1, 1.5, 2.2, 3.0, 4.0, 5.5, 7.5],
-      eff:  [55, 58, 61, 64, 67, 69, 72, 74, 77, 79, 81, 83, 84],
-      cos:  [0.90, 0.91, 0.91, 0.92, 0.92, 0.93, 0.93, 0.94, 0.94, 0.95, 0.95, 0.95, 0.95],
-      kst:  [3.5, 3.6, 3.8, 4.0, 4.0, 4.2, 4.2, 4.0, 4.0, 3.8, 3.8, 3.8, 3.6],
-      mst:  [1.2, 1.3, 1.3, 1.4, 1.4, 1.4, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5],
-      mmax: [1.6, 1.7, 1.7, 1.8, 1.8, 1.8, 1.9, 1.9, 1.9, 1.9, 1.9, 1.9, 1.9],
-      slip: [4.5, 4.0, 4.0, 3.5, 3.5, 3.0, 3.0, 3.0, 2.5, 2.5, 2.5, 2.5, 2.5]
+      p2:   [0.12, 0.18, 0.25, 0.37, 0.55, 0.75, 1.1, 1.5, 2.2, 3.0, 4.0, 5.5, 7.5, 11.0],
+      eff:  [55, 58, 61, 64, 67, 69, 72, 74, 77, 79, 81, 83, 84, 85],
+      cos:  [0.90, 0.91, 0.91, 0.92, 0.92, 0.93, 0.93, 0.94, 0.94, 0.95, 0.95, 0.95, 0.95, 0.95],
+      kst:  [3.5, 3.6, 3.8, 4.0, 4.0, 4.2, 4.2, 4.0, 4.0, 3.8, 3.8, 3.8, 3.6, 3.6],
+      mst:  [1.2, 1.3, 1.3, 1.4, 1.4, 1.4, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5],
+      mmax: [1.6, 1.7, 1.7, 1.8, 1.8, 1.8, 1.9, 1.9, 1.9, 1.9, 1.9, 1.9, 1.9, 1.9],
+      slip: [4.5, 4.0, 4.0, 3.5, 3.5, 3.0, 3.0, 3.0, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5]
     }
   };
 
@@ -125,7 +125,7 @@
 
   function typical1ph(p2, poles, type, freq) {
     const t = TYPICAL_1PH[type] || TYPICAL_1PH.capacitor;
-    const p = clamp(p2, 0.05, 8);
+    const p = clamp(p2, 0.05, 12);
     const ns = 120 * (freq || 50) / Math.max(poles, 2);
     const slip = interpArr(t.p2, t.slip, p);
     return {
@@ -216,6 +216,7 @@
     const p1 = p2 / (eff / 100);
     const I = phases === 3 ? p1 * 1000 / (SQRT3 * U * cos) : p1 * 1000 / (U * cos);
     const mn = 9550 * p2 / n;
+    const connFactor = clamp(+cfg.connFactor || 1, 0.25, 1.35);
     const i0rel = phases === 1
       ? clamp((cfg.motor1phType === 'split' ? 0.52 : cfg.motor1phType === 'psc' ? 0.44 : 0.48) - 0.025 * Math.log(Math.max(p2, 0.1)), 0.36, 0.58)
       : clamp(0.40 - 0.045 * Math.log(Math.max(p2, 0.1)) + (poles === 2 ? 0.03 : poles >= 6 ? 0.02 : 0), 0.18, 0.48);
@@ -233,7 +234,7 @@
       motor1phType: cfg.motor1phType || 'capacitor',
       p2: p2, p1: p1, eff: eff, cos: cos, i: I, n: n, sn: sn, mn: mn,
       kst: kst, mst: mst, mmax: mmax, j: +cfg.jMotor > 0 ? +cfg.jMotor : jm, jAuto: jm,
-      i0rel: i0rel, i0: i0rel * I, i2n: I * Math.sqrt(1 - i0rel * i0rel),
+      i0rel: i0rel, i0: i0rel * I, i2n: I * Math.sqrt(1 - i0rel * i0rel), connFactor: connFactor,
       sm: sm, boost: boost, rr1: rr1,
       ist: kst * I, mstAbs: mst * mn, mmaxAbs: mmax * mn,
       pLoss: p1 - p2, pConst: (p1 - p2) * 0.52, pVar: (p1 - p2) * 0.48,
@@ -245,6 +246,11 @@
       motorClass: cfg.motorClass || 'F'
     };
     motor.mmaxReal = peakTorque(motor);
+    if (connFactor < 0.999) {
+      motor.mstAbs = motor.mst * motor.mn * connFactor * connFactor;
+      motor.mmaxAbs = motor.mmax * motor.mn * connFactor * connFactor;
+      motor.ist = currentAt(motor, 1, 1);
+    }
     return motor;
   }
 
@@ -253,9 +259,10 @@
     uF = uF === undefined ? 1 : uF;
     if (s <= 1e-7) return 0;
     s = clamp(s, 0, 1);
+    const uE = uF * (motor.connFactor || 1);
     const tmax = motor.mmax * motor.mn;
     const tk = 2 * tmax / (s / motor.sm + motor.sm / s);
-    return (tk + motor.boost * Math.pow(s, 3)) * uF * uF;
+    return (tk + motor.boost * Math.pow(s, 3)) * uE * uE;
   }
 
   function peakTorque(motor) {
@@ -269,11 +276,12 @@
 
   function currentAt(motor, s, uF) {
     uF = uF === undefined ? 1 : uF;
-    if (s <= 1e-7) return motor.i0 * uF;
+    const uE = uF * (motor.connFactor || 1);
+    if (s <= 1e-7) return motor.i0 * uE;
     const T = torque(motor, s, uF);
     const rr = 1 + (motor.rr1 - 1) * s * s;
     const i2 = motor.i2n * Math.sqrt(Math.max(T / motor.mn, 0) * (s / motor.sn) / rr);
-    return Math.sqrt(Math.pow(motor.i0 * uF, 2) + i2 * i2);
+    return Math.sqrt(Math.pow(motor.i0 * uE, 2) + i2 * i2);
   }
 
   /* ---------- момент нагрузки ---------- */
@@ -286,11 +294,34 @@
       case 'quadratic': t = base * x * x; break;
       case 'linear': t = base * x; break;
       case 'constpower': t = base * (x > 0.12 ? 1 / x : 8); break;
+      case 'custom': {
+        const pts = (load.points || []).slice().sort((a, b) => a[0] - b[0]);
+        if (pts.length < 2) { t = base; break; }
+        const xp = x * 100;
+        let mp = pts[pts.length - 1][1];
+        if (xp <= pts[0][0]) mp = pts[0][1];
+        else if (xp >= pts[pts.length - 1][0]) mp = pts[pts.length - 1][1];
+        else {
+          for (let i = 0; i < pts.length - 1; i++) {
+            const a = pts[i], b = pts[i + 1];
+            if (xp >= a[0] && xp <= b[0]) {
+              const k = (xp - a[0]) / ((b[0] - a[0]) || 1);
+              mp = a[1] + (b[1] - a[1]) * k;
+              break;
+            }
+          }
+        }
+        t = base * mp / 100;
+        break;
+      }
       default: t = base;
     }
     if (load.type !== 'quadratic' && n < 0.02 * motor.ns) {
       const ba = (load.breakaway || 1.0) * base;
       t = Math.max(t, ba);
+    }
+    if (+load.unload > 0 && n < (+load.release || 20) / 100 * motor.n) {
+      t *= 1 - clamp(+load.unload, 0, 95) / 100;
     }
     return t;
   }
@@ -574,10 +605,10 @@
   }
 
   /* ---------- развёртка по нагрузке ---------- */
-  function loadSweep(motor, cable, loadType, Uline) {
+  function loadSweep(motor, cable, loadCfg, Uline) {
     const res = { load: [], I: [], T: [], n: [], s: [], f2: [], eta: [], cos: [], p1: [], p2: [], U: [], dU: [], temp: [] };
     for (let pct = 0; pct <= 150; pct += 1) {
-      const load = { type: loadType, pct: pct };
+      const load = Object.assign({}, loadCfg || { type: 'quadratic' }, { pct: pct });
       let uF = 1, s = 0.01;
       for (let it = 0; it < 2; it++) {
         const r = solveSlip(motor, load, uF);
@@ -645,7 +676,7 @@
     return {
       motor: motor, iStart: iStart, cable: cable, op: op, breaker: breaker, contactor: contactor,
       relay: relay, fuse: fuse, drop: drop, dropStart: dropStart, sc: sc, checks: checks,
-      sweep: loadSweep(motor, cable, cfg.load.type, Uline)
+      sweep: loadSweep(motor, cable, cfg.load, Uline)
     };
   }
 

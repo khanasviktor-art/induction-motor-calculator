@@ -24,7 +24,7 @@
     autoTypical: true, eff: 89, cos: 0.87,
     slip: 2.7, kst: 7, mst: 2.2, mmax: 2.3, jMotor: 0,
     motorClass: 'F', tauMotor: 0, motorAmbient: 40, motor1phType: 'capacitor',
-    loadType: 'quadratic', loadPct: 75, jExtra: 0.3,
+    projectName: '', projectLogo: '', loadType: 'quadratic', loadPct: 75, jExtra: 0.3, loadCurve: [[0, 0], [25, 25], [50, 55], [75, 80], [100, 100]], loadUnload: 0, loadRelease: 20,
     cable: { standard: 'pue', material: 'cu', insulation: 'pvc', laying: 'open', length: 50, ambient: 25, group: 1, loaded: 3, parallel: 'auto', startDropLimit: 15, considerStartDrop: true },
     dropLimit: 5, startMethod: 'dol', curve: 'D', isc: 6,
     breakerType: 'mcb', mccbMag: 10, upstreamIn: 0,
@@ -48,6 +48,20 @@
     });
     return a;
   }
+  // ссылка на расчёт: ?p=<base64url state>
+  try {
+    const sp = new URLSearchParams(location.search).get('p');
+    if (sp) {
+      const b64 = sp.replace(/-/g, '+').replace(/_/g, '/');
+      const bin = atob(b64 + '='.repeat((4 - b64.length % 4) % 4));
+      const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+      const shared = JSON.parse(new TextDecoder().decode(bytes));
+      state = deepMerge(JSON.parse(JSON.stringify(DEFAULTS)), shared);
+      state.tab = shared.tab || 'calc';
+      try { localStorage.setItem('motor-tour-v1', '1'); } catch (e) { }
+    }
+  } catch (e) { }
+
   const getPath = (o, p) => p.split('.').reduce((x, k) => (x == null ? x : x[k]), o);
   const setPath = (o, p, v) => { const ks = p.split('.'); let x = o; for (let i = 0; i < ks.length - 1; i++) x = x[ks[i]]; x[ks[ks.length - 1]] = v; };
 
@@ -57,22 +71,28 @@
   /* ---------- графики ---------- */
   const charts = {};
   function initCharts() {
+    const aria = (id, label) => { const el = document.getElementById(id); if (el) { el.setAttribute('role', 'img'); el.setAttribute('aria-label', label); } };
+    aria('chartTorque', 'Механическая характеристика: момент двигателя и момент нагрузки от скорости');
     charts.torque = new MC.Chart($('#chartTorque'), {
       xLabel: 'n, об/мин', yLabel: 'M, Н·м', xFmt: v => nf(v, 0), yFmt: v => nf(v, 0),
       pad: { l: 58, r: 22, t: 34, b: 40 }
     });
+    aria('chartIU', 'Ток и напряжение от нагрузки');
     charts.iu = new MC.Chart($('#chartIU'), {
       xLabel: 'нагрузка, %', yLabel: 'I, А', y2Label: 'U, В', xFmt: v => nf(v, 0),
       pad: { l: 56, r: 58, t: 34, b: 40 }
     });
+    aria('chartSpeed', 'Скорость, скольжение и частота ротора от нагрузки');
     charts.speed = new MC.Chart($('#chartSpeed'), {
       xLabel: 'нагрузка, %', yLabel: 'n, об/мин', y2Label: 's, % / f₂, Гц', xFmt: v => nf(v, 0),
       pad: { l: 58, r: 62, t: 34, b: 40 }
     });
+    aria('chartEff', 'КПД и коэффициент мощности от нагрузки');
     charts.eff = new MC.Chart($('#chartEff'), {
       xLabel: 'нагрузка, %', yLabel: 'η, %', xFmt: v => nf(v, 0), yFmt: v => nf(v, 0),
       pad: { l: 56, r: 22, t: 34, b: 40 }
     });
+    aria('chartPower', 'Потребляемая, полезная мощность и потери от нагрузки');
     charts.power = new MC.Chart($('#chartPower'), {
       xLabel: 'нагрузка, %', yLabel: 'P, кВт', xFmt: v => nf(v, 0), yFmt: v => nf(v, 1),
       pad: { l: 56, r: 22, t: 34, b: 40 }
@@ -257,7 +277,11 @@
     setIfIdle('p2', state.p2);
     $('#poles').value = state.poles;
     $('#catPoles').value = state.catPoles;
+    $('#projectName').value = state.projectName || '';
     $('#loadType').value = state.loadType;
+    $('#loadCurve').value = (state.loadCurve || []).map(p => p[0] + ':' + p[1]).join('; ');
+    $('#loadUnload').value = state.loadUnload;
+    $('#loadRelease').value = state.loadRelease;
     $('#insulation').value = state.cable.insulation;
     $('#parallel').value = state.cable.parallel;
     $('#loaded').value = state.cable.loaded;
@@ -355,6 +379,8 @@
     $('#torqueBlock').classList.toggle('hidden', state.mode !== 'torque');
     $('#fieldPoles').classList.toggle('hidden', state.mode === 'catalog');
     $('#fieldConn').classList.toggle('hidden', state.phases === 1);
+    const flc = $('#fieldLoadCurve');
+    if (flc) flc.classList.toggle('hidden', state.loadType !== 'custom');
     $('#connHint').textContent = state.conn === 'Y'
       ? 'Фазное напряжение ' + nf(state.voltage / Math.sqrt(3), 0) + ' В'
       : 'Фазное напряжение ' + nf(state.voltage, 0) + ' В (равно линейному)';
@@ -415,6 +441,14 @@
       : 'Фазное напряжение ' + nf(state.voltage, 0) + ' В (равно линейному)';
   }
 
+  function connFactorFor(cat, U, conn, phases) {
+    if (phases !== 3 || !cat || !cat.un || cat.un.indexOf('/') < 0) return 1;
+    const pair = cat.un.split('/').map(Number);
+    const nom = Math.min(pair[0], pair[1]);
+    const act = conn === 'D' ? U : U / Math.sqrt(3);
+    return act / nom;
+  }
+
   function recommendConn(m, U) {
     if (m.un === '220/380') return U <= 250 ? 'D' : 'Y';
     if (m.un === '380/660') return U <= 440 ? 'D' : 'Y';
@@ -426,8 +460,9 @@
     let catalog = null;
     if (state.mode === 'catalog' && state.phases === 3) {
       catalog = D.MOTOR_DB.find(m => m.type === state.catType) || D.MOTOR_DB[0];
-      if (catalog && state.connAuto) state.conn = recommendConn(catalog, state.voltage);
     }
+    const catForConn = catalog || (state.phases === 3 ? D.MOTOR_DB.find(m => m.type === state.catType) : null);
+    if (catForConn && state.connAuto) state.conn = recommendConn(catForConn, state.voltage);
     return {
       mode: catalog ? 'catalog' : (state.mode === 'catalog' ? 'power' : state.mode),
       catalog: catalog,
@@ -435,6 +470,7 @@
       voltage: +state.voltage,
       freq: +state.freq,
       conn: state.conn,
+      connFactor: connFactorFor(catForConn, state.voltage, state.conn, state.phases),
       poles: catalog ? catalog.poles : +state.poles,
       p2: +state.p2, current: +state.current, torque: +state.torque,
       speedRpm: +state.speedRpm,
@@ -445,7 +481,7 @@
       kst: +state.kst, mst: +state.mst, mmax: +state.mmax, slip: +state.slip,
       jMotor: +state.jMotor,
       motorClass: state.motorClass, tauMotor: +state.tauMotor, motorAmbient: +state.motorAmbient, motor1phType: state.motor1phType,
-      load: { type: state.loadType, pct: +state.loadPct, breakaway: 1.15 },
+      load: loadCfg(),
       cable: Object.assign({}, state.cable),
       dropLimit: +state.dropLimit,
       softLimit: +state.sim.iLimit,
@@ -466,7 +502,7 @@
       uStart: +state.sim.uStart,
       iLimit: +state.sim.iLimit,
       duration: 3600,
-      load: { type: state.loadType, pct: +state.loadPct, breakaway: 1.15 },
+      load: loadCfg(),
       jExtra: +state.jExtra,
       speed: +state.sim.speed
     };
@@ -697,8 +733,8 @@
   @media print { .noprint { display: none; } .grid { gap: 8px; } }
 </style></head><body>
 <div class="noprint"><button onclick="window.print()">Печать / PDF</button><button onclick="window.close()">Закрыть</button></div>
-<h1>Асинхронный двигатель — расчёт</h1>
-<p class="sub">${m.catalog ? m.catalog.type : (m.phases === 1 ? 'Однофазный двигатель ' : 'Двигатель ') + nf(m.p2, 1) + ' кВт'} · ${nf(m.U, 0)} В · ${m.p2.toFixed(1)} кВт · ${new Date().toLocaleString('ru-RU')}</p>
+<div class="head"><div><h1>${state.projectName ? state.projectName : 'Асинхронный двигатель — расчёт'}</h1>
+<p class="sub">${state.projectName ? 'Асинхронный двигатель — расчёт · ' : ''}${m.catalog ? m.catalog.type : (m.phases === 1 ? 'Однофазный двигатель ' : 'Двигатель ') + nf(m.p2, 1) + ' кВт'}${m.phases === 1 && m.p2 > 7.5 ? ' · оценка (типовые данные до 7,5 кВт)' : ''} · ${nf(m.U, 0)} В · ${m.p2.toFixed(1)} кВт · ${new Date().toLocaleString('ru-RU')}</p></div>${state.projectLogo ? `<img class="logo" src="${state.projectLogo}" alt="">` : ''}</div>
 
 <div class="two">
 <div>
@@ -758,7 +794,7 @@
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.5.2.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.6.0.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     const w = window.open('', '_blank');
@@ -797,8 +833,9 @@
 
   function renderKpis(rep) {
     const m = rep.motor;
+    const est = m.phases === 1 && m.p2 > 7.5;
     $('#kpis').innerHTML =
-      kpi('Мощность P₂', nf(m.p2, 2), 'кВт', 'P₁ ' + nf(m.p1, 2) + ' кВт', C.mint) +
+      kpi('Мощность P₂' + (est ? ' <span class="est-badge">оценка</span>' : ''), nf(m.p2, 2), 'кВт', est ? 'типовые данные ограничены 7,5 кВт' : 'P₁ ' + nf(m.p1, 2) + ' кВт', C.mint) +
       kpi('Номинальный ток', nf(m.i, 1), 'А', 'Iп ' + nf(m.ist, 0) + ' А', C.blue) +
       kpi('Момент Mн', nf(m.mn, 1), 'Н·м', 'Mmax ' + nf(m.mmaxAbs, 0) + ' Н·м', C.violet) +
       kpi('Скорость', nf(m.n, 0), 'об/мин', 's ' + nf(m.sn * 100, 2) + '%', C.cyan) +
@@ -881,6 +918,9 @@
     }
     if (state.loadType === 'constpower') {
       return 'Постоянная мощность: при нулевой скорости момент стремится к бесконечности. Прямой пуск, Y–Δ и автотрансформатор не подходят; нужна разгрузка/сцепление или ПЧ с разгрузкой и запасом по моменту.';
+    }
+    if (state.loadType === 'constant' && +state.loadPct > (m.mst / 3) * 100) {
+      return 'Нагрузка выше пускового момента в звезде (Mп/3): Y–Δ и автотрансформатор не разгонят. Нужен прямой пуск, софтстартер или ПЧ с проверкой момента.';
     }
     if (m.p2 <= 4) return 'Рекомендация: прямой пуск допустим — пусковой ток невелик, сеть обычно выдерживает.';
     if (m.p2 <= 15) return 'Рекомендация: прямой пуск или «звезда–треугольник»; при частых пусках — софтстартер.';
@@ -968,7 +1008,7 @@
     if (m.phases === 1) {
       const tn = { capacitor: 'конденсаторный', split: 'с расщеплённой фазой', psc: 'PSC' }[m.motor1phType] || 'конденсаторный';
       add('ok', `Однофазный режим: I = P₁/(U·cosφ), кабель 2-жильный (L + N), автомат 1P. Типовые данные — ${tn}.`);
-      if (m.p2 > 7.5) add('warn', `Однофазный двигатель ${nf(m.p2, 1)} кВт — редкий случай: типовые данные ограничены 7,5 кВт, расчёт ориентировочный. Для такой мощности обычно применяют 3 фазы или специальный двигатель.`);
+      if (m.p2 > 7.5) add('warn', `Однофазный двигатель ${nf(m.p2, 1)} кВт — редкий случай: типовые данные до 11 кВт ориентировочные, выше — оценка. Для такой мощности обычно применяют 3 фазы или специальный двигатель.`);
       if (state.voltage > 260) add('warn', `Для однофазного двигателя напряжение ${nf(state.voltage, 0)} В необычно — обычно 220/230 В. Проверьте данные.`);
     }
     const cat = D.MOTOR_DB.find(x => x.type === state.catType);
@@ -976,7 +1016,7 @@
       add('warn', 'Постоянная мощность: M = P/ω. При снижении скорости момент растёт к бесконечности; прямой пуск, Y–Δ и автотрансформатор без разгрузки/сцепления не разгонят. Для ПЧ тоже нужна разгрузка и запас по моменту.');
     }
     if (cat && /380\/660/.test(cat.un) && state.voltage >= 360 && state.voltage <= 415 && m.conn === 'Y') {
-      add('warn', `В каталоге выбран ${cat.type} (380/660 В), но схема Y при ${nf(state.voltage, 0)} В: на фазе 220 В, момент ~1/3. Для 380 В нужна Δ.`);
+      add('warn', `В каталоге выбран ${cat.type} (380/660 В), но схема Y при ${nf(state.voltage, 0)} В: на фазе 220 В. Момент и ток снижены примерно в ${(m.connFactor * m.connFactor).toFixed(2)} раза; для 380 В нужна Δ.`);
     }
     if (cat && cat.poles !== state.poles) {
       add('warn', `В каталоге выбран ${cat.type} (${cat.poles} полюса), а расчёт по току — для ${state.poles} полюсов. Это разные двигатели; проверьте полюса и тип.`);
@@ -1039,6 +1079,13 @@
   }
 
   /* ---------- графики расчёта ---------- */
+  function fillChartTable(id, head, rows) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = '<table><thead><tr>' + head.map(h => `<th>${h}</th>`).join('') +
+      '</tr></thead><tbody>' + rows.map(r => '<tr>' + r.map(v => `<td>${v}</td>`).join('') + '</tr>').join('') + '</tbody></table>';
+  }
+
   function renderCharts(rep) {
     const m = rep.motor, sw = rep.sweep;
 
@@ -1050,7 +1097,7 @@
       const s = 1 - n / m.ns;
       nArr.push([n, 0]);
       tEm.push([n, E.torque(m, s, uOp)]);
-      tLoad.push([n, E.loadTorque(m, n, { type: state.loadType, pct: state.loadPct, breakaway: 1.15 })]);
+      tLoad.push([n, E.loadTorque(m, n, loadCfg())]);
     }
     charts.torque.setData([
       { name: 'M двигателя', color: C.mint, data: tEm, width: 2.2 },
@@ -1091,6 +1138,19 @@
       { name: 'ΔP', color: C.pink, data: sw.load.map((x, i) => [x, sw.p1[i] - sw.p2[i]]), width: 1.5, dash: [4, 3] }
     ]);
     charts.power.setOptions({ markerX: state.loadPct, xRange: [0, 150] });
+
+    const idxs = [0, 25, 50, 75, 100, 125, 150];
+    fillChartTable('dataIU', ['Нагрузка, %', 'I, А', 'U, В'], idxs.map(i => [sw.load[i], nf(sw.I[i], 1), nf(sw.U[i], 1)]));
+    fillChartTable('dataSpeed', ['Нагрузка, %', 'n, об/мин', 's, %', 'f₂, Гц'], idxs.map(i => [sw.load[i], nf(sw.n[i], 0), nf(sw.s[i], 2), nf(sw.f2[i], 2)]));
+    fillChartTable('dataEff', ['Нагрузка, %', 'η, %', 'cosφ×100'], idxs.map(i => [sw.load[i], nf(sw.eta[i], 1), nf(sw.cos[i] * 100, 1)]));
+    fillChartTable('dataPower', ['Нагрузка, %', 'P₁, кВт', 'P₂, кВт', 'ΔP, кВт'], idxs.map(i => [sw.load[i], nf(sw.p1[i], 2), nf(sw.p2[i], 2), nf(sw.p1[i] - sw.p2[i], 2)]));
+    const tRows = [];
+    for (let k = 0; k <= 4; k++) {
+      const n = m.ns * k / 4;
+      const s = 1 - n / m.ns;
+      tRows.push([nf(n, 0), nf(E.torque(m, s, Math.min(1.05, Math.max(0.7, rep.op.U / m.U))), 1), nf(E.loadTorque(m, n, loadCfg()), 1)]);
+    }
+    fillChartTable('dataTorque', ['n, об/мин', 'M двигателя, Н·м', 'M нагрузки, Н·м'], tRows);
   }
 
   /* ---------- вкладка «Кабель и защита» ---------- */
@@ -1465,7 +1525,7 @@
     $('#poles').addEventListener('change', e => { state.poles = +e.target.value; schedule(); });
     $('#catPoles').addEventListener('change', e => { state.catPoles = +e.target.value; fillCatalog(false); schedule(); });
     $('#catMotor').addEventListener('change', e => { state.catType = e.target.value; applyCatalog(true); schedule(); });
-    $('#loadType').addEventListener('change', e => { state.loadType = e.target.value; schedule(); });
+    $('#loadType').addEventListener('change', e => { state.loadType = e.target.value; updateVisibility(); schedule(); });
     $('#insulation').addEventListener('change', e => { state.cable.insulation = e.target.value; schedule(); });
     $('#laying').addEventListener('change', e => { state.cable.laying = e.target.value; schedule(); });
     $('#parallel').addEventListener('change', e => { state.cable.parallel = e.target.value === 'auto' ? 'auto' : +e.target.value; schedule(); });
@@ -1547,6 +1607,39 @@
       }
     });
 
+    // проект: название и логотип
+    $('#projectName').addEventListener('input', e => { state.projectName = e.target.value; saveState(); });
+    $('#projectLogo').addEventListener('change', e => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const w = 240, h = Math.max(1, Math.round(img.height * w / img.width));
+          const c = document.createElement('canvas');
+          c.width = w; c.height = h;
+          c.getContext('2d').drawImage(img, 0, 0, w, h);
+          state.projectLogo = c.toDataURL('image/png');
+          $('#logoHint').textContent = 'логотип загружен';
+          saveState();
+          setStatus('логотип загружен', 'ok');
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(f);
+      e.target.value = '';
+    });
+
+    // поделиться
+    $('#btnShare').addEventListener('click', shareState);
+    $('#loadCurve').addEventListener('input', e => {
+      const pts = parseLoadCurve(e.target.value);
+      if (pts) { state.loadCurve = pts; schedule(); }
+    });
+    bindNum('loadUnload', 'loadUnload', 0, 95);
+    bindNum('loadRelease', 'loadRelease', 1, 100);
+
     // обучение
     $('#btnTour').addEventListener('click', tourStart);
     $('#btnTour2').addEventListener('click', tourStart);
@@ -1606,7 +1699,21 @@
         else $('#btnReset').click();
       });
     });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Tab') {
+        const container = tour.active ? tour.card : (document.body.classList.contains('drawer-open') ? $('#sidebar') : null);
+        if (container) {
+          const f = Array.from(container.querySelectorAll('button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])'))
+            .filter(el => !el.disabled && el.offsetParent !== null);
+          if (f.length) {
+            const first = f[0], last = f[f.length - 1];
+            if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+            else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+          }
+        }
+      }
+      if (e.key === 'Escape') closeDrawer();
+    });
     window.addEventListener('resize', () => { if (window.innerWidth > 980) closeDrawer(); });
 
     // печать: принудительно светлая палитра для графиков
@@ -1738,7 +1845,7 @@
     const sheets = [];
     sheets.push({ name: 'Параметры', rows: [
       ['Параметр', 'Значение', 'Ед.'],
-      ['Тип двигателя', m.catalog ? m.catalog.type : (m.phases === 1 ? 'Однофазный (' + t1name + ')' : '—'), ''],
+      ['Тип двигателя', m.catalog ? m.catalog.type : (m.phases === 1 ? 'Однофазный (' + t1name + ')' : '—') + (m.phases === 1 && m.p2 > 7.5 ? ' — оценка >7,5 кВт' : ''), ''],
       ['Питание', m.phases === 1 ? '1 фаза' : '3 фазы', ''],
       ['Схема', m.phases === 1 ? '1 фаза, L/N' : (m.conn === 'D' ? 'Δ' : 'Y'), ''],
       ['Способ задания', modeName, ''],
@@ -1810,7 +1917,18 @@
         ...vars.map(v => [v.name, rnd(v.p2, 1), rnd(v.i, 1), v.brk, v.cable, rnd(v.dU, 2), rnd(v.dUs, 1), methodShort(v.method)])
       ]});
     }
-    const blob = MC.xlsx.build(sheets);
+    let chartImgs = [];
+    try {
+      chartImgs = [
+        { name: 'Момент — скорость', data: charts.torque.toPNGData('#ffffff') },
+        { name: 'Ток и напряжение', data: charts.iu.toPNGData('#ffffff') },
+        { name: 'Скорость и скольжение', data: charts.speed.toPNGData('#ffffff') },
+        { name: 'КПД и cosφ', data: charts.eff.toPNGData('#ffffff') },
+        { name: 'Мощности', data: charts.power.toPNGData('#ffffff') }
+      ];
+      sheets.push({ name: 'Графики', rows: [['График', 'Изображение'], ...chartImgs.map(x => [x.name, ''])] });
+    } catch (e) { chartImgs = []; }
+    const blob = MC.xlsx.build(sheets, chartImgs);
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'motor-report.xlsx';
@@ -1869,8 +1987,19 @@
   }
 
   /* ---------- мобильная панель ---------- */
-  function openDrawer() { document.body.classList.add('drawer-open'); }
-  function closeDrawer() { document.body.classList.remove('drawer-open'); }
+  let drawerLastFocus = null;
+  function openDrawer() {
+    drawerLastFocus = document.activeElement;
+    document.body.classList.add('drawer-open');
+    setTimeout(() => {
+      const first = $('#sidebar').querySelector('button, input, select, textarea, a[href]');
+      if (first) first.focus();
+    }, 40);
+  }
+  function closeDrawer() {
+    document.body.classList.remove('drawer-open');
+    if (drawerLastFocus && drawerLastFocus.focus) drawerLastFocus.focus();
+  }
 
 
   /* ---------- обучение ---------- */
@@ -1923,6 +2052,7 @@
     if (tour.active) return;
     hideTip();
     tour.active = true;
+    tour.lastFocus = document.activeElement;
     tour.i = 0;
     tour.prevTab = state.tab || 'calc';
     if (tour.prevTab !== 'calc') switchTab('calc');
@@ -1961,6 +2091,8 @@
     const sel = isMobile && step.mobile ? step.mobile : (step.desktop || step.sel);
     const el = sel ? document.querySelector(sel) : null;
     tour.target = el;
+    const focusBtn = tour.card.querySelector('button');
+    if (focusBtn) setTimeout(() => focusBtn.focus(), 30);
     if (!el) {
       tour.card.classList.add('centered');
       tour.hole.style.display = 'none';
@@ -2023,6 +2155,7 @@
     window.removeEventListener('resize', tourPlace);
     window.removeEventListener('scroll', tourPlace, true);
     try { localStorage.setItem(TOUR_KEY, '1'); } catch (e) { }
+    if (tour.lastFocus && tour.lastFocus.focus) tour.lastFocus.focus();
     const back = tour.prevTab;
     if (back && back !== state.tab) switchTab(back);
   }
@@ -2042,6 +2175,58 @@
   }
 
   /* ---------- запуск ---------- */
+  function encodeShare(s) {
+    const bytes = new TextEncoder().encode(JSON.stringify(s));
+    let bin = '';
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  function copyText(text) {
+    const done = () => setStatus('ссылка на расчёт скопирована', 'ok');
+    const fallback = () => {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); } catch (e) { }
+      ta.remove(); done();
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(fallback);
+    } else fallback();
+  }
+
+  function shareState() {
+    try {
+      const url = location.href.split(/[?#]/)[0] + '?p=' + encodeShare(state);
+      window.__lastShare = url;
+      copyText(url);
+    } catch (e) {
+      setStatus('не удалось создать ссылку', 'bad');
+    }
+  }
+
+  function parseLoadCurve(str) {
+    const pts = String(str).split(/[;\n]+/).map(s => s.trim()).filter(Boolean).map(s => {
+      const m = s.split(/[:;,]/).map(Number);
+      if (m.length < 2 || !isFinite(m[0]) || !isFinite(m[1])) return null;
+      return [Math.max(0, Math.min(150, m[0])), Math.max(0, Math.min(300, m[1]))];
+    }).filter(Boolean).sort((a, b) => a[0] - b[0]);
+    return pts.length >= 2 ? pts : null;
+  }
+
+  function loadCfg(pct) {
+    return {
+      type: state.loadType,
+      pct: pct == null ? +state.loadPct : +pct,
+      breakaway: 1.15,
+      points: state.loadCurve,
+      unload: +state.loadUnload,
+      release: +state.loadRelease
+    };
+  }
+
   function init() {
     initCharts();
     addChartTools();

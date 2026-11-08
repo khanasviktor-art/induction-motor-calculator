@@ -38,6 +38,8 @@ try {
   check(xbuf[0] === 0x50 && xbuf[1] === 0x4b, 'XLSX не ZIP');
   check(xbuf.includes(Buffer.from('<worksheet')), 'нет worksheet');
   check(xbuf.includes(Buffer.from('Параметры')), 'нет листа Параметры');
+  check(xbuf.includes(Buffer.from('xl/media/image1.png')), 'XLSX без картинок графиков');
+  check(xbuf.includes(Buffer.from('xl/drawings/drawing1.xml')), 'XLSX без drawing');
 
   // CSV
   const [csvDl] = await Promise.all([page.waitForEvent('download'), page.click('#btnCsv')]);
@@ -57,10 +59,38 @@ try {
   await page.waitForTimeout(900);
   check((await page.inputValue('#p2')) === '15', 'проект не загрузился');
 
+  // share-ссылка
+  await page.click('#btnShare');
+  await page.waitForTimeout(400);
+  const shareUrl = await page.evaluate(() => window.__lastShare);
+  check(shareUrl && shareUrl.includes('?p='), 'share: нет ?p=');
+  const sharedPage = await ctx.newPage();
+  await sharedPage.goto(shareUrl);
+  await sharedPage.waitForTimeout(800);
+  check((await sharedPage.inputValue('#p2')) === '15', 'share: p2 не восстановился');
+  await sharedPage.close();
+
+  // своя кривая + разгрузка
+  await page.selectOption('#loadType', 'custom');
+  await page.waitForTimeout(200);
+  check(!(await page.$eval('#fieldLoadCurve', e => e.classList.contains('hidden'))), 'custom: поле скрыто');
+  await page.fill('#loadCurve', '0:0; 50:50; 100:100');
+  await page.fill('#loadUnload', '80');
+  await page.fill('#loadRelease', '25');
+  await page.waitForTimeout(600);
+  check(await page.evaluate(() => window.__mcDebug.state.loadType) === 'custom', 'custom: state');
+  check(await page.evaluate(() => window.__mcDebug.state.loadUnload) === 80, 'unload: state');
+  check((await page.textContent('#dataTorque')).includes('M нагрузки'), 'custom: нет таблицы графика');
+
+  // объект в отчёте
+  await page.fill('#projectName', 'Насосная станция №2');
+  await page.waitForTimeout(300);
+
   // отчёт
   const [pop] = await Promise.all([ctx.waitForEvent('page'), page.click('#btnPrint')]);
   await pop.waitForTimeout(1200);
   check((await pop.$$('img')).length === 5, 'в отчёте не 5 графиков');
+  check((await pop.textContent('h1')).includes('Насосная станция'), 'в отчёте нет названия объекта');
   await pop.close();
 
   // однофазный режим
@@ -76,6 +106,7 @@ try {
   const warnText = (await page.$$eval('.warn-item', els => els.map(e => e.innerText.replace(/\s+/g, ' ')))).join(' | ');
   check(warnText.includes('7,5') || warnText.includes('редкий'), 'нет предупреждения >7,5 кВт');
   check((await page.inputValue('#p2')) === '15', 'p2 15');
+  check((await page.textContent('#kpis')).includes('оценка'), 'нет бейджа оценки 1ф');
 
   // реальный проект: постоянная мощность 95 %, Y/380, 6 полюсов
   await page.setInputFiles('#fileProject', path.resolve('tests/fixtures/constpower-y-6p.json'));
@@ -84,6 +115,8 @@ try {
   check(wtext.includes('Постоянная мощность'), 'нет предупреждения constpower');
   check(wtext.includes('380/660') || wtext.includes('нужна Δ'), 'нет предупреждения Y/380');
   check(wtext.includes('полюс'), 'нет предупреждения 4p/6p');
+  const cf = await page.evaluate(() => window.__mcDebug.rep.motor.connFactor);
+  check(cf < 0.6, 'connFactor Y/380 = ' + cf);
   const advice = (await page.textContent('#panelStart')).replace(/\s+/g, ' ');
   check(advice.includes('Постоянная мощность') || advice.includes('разгруз'), 'рекомендация не учитывает constpower');
   const rows = await page.$$eval('#compareTable tbody tr', trs => trs.map(tr => tr.textContent.replace(/\s+/g, ' ').trim()));
