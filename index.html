@@ -7,7 +7,7 @@
 <title>Асинхронный двигатель — инженерный расчёт</title>
 <meta name="author" content="Виктор Ханас">
 <meta name="generator" content="DeepSeek">
-<meta name="version" content="0.7.3">
+<meta name="version" content="0.7.4">
 <meta name="description" content="Расчёт мощности, тока, момента, кабеля и защиты асинхронного двигателя. Графики характеристик и переходные процессы пуска.">
 <style>
 /* ============================================================
@@ -1552,11 +1552,6 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
           </select>
         </div>
         <div class="field">
-          <label for="upstream">Вышестоящий аппарат</label>
-          <div class="input-wrap"><input id="upstream" type="number" min="0" max="3000" step="1" value="0"><span class="unit">А</span></div>
-          <div class="hint">0 — селективность не проверять</div>
-        </div>
-        <div class="field">
           <label for="isc">Ток КЗ в точке подключения</label>
           <div class="input-wrap"><input id="isc" type="number" min="0.5" max="100" step="0.5" value="6"><span class="unit">кА</span></div>
         </div>
@@ -1584,7 +1579,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
         <button class="btn ghost" id="btnLoadProject">Открыть проект</button>
       </div>
       <div class="side-foot">
-        <span>v0.7.3</span>
+        <span>v0.7.4</span>
         <span>ПУЭ · IEC 60364</span>
       </div>
     </div>
@@ -1847,7 +1842,8 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
             <div class="field"><label for="brkCurve">Кривая / уставка</label><select id="brkCurve"></select></div>
             <div class="field"><label for="vtcUpstream">Вышестоящий, А</label><div class="input-wrap"><input id="vtcUpstream" type="number" min="0" max="3000" step="1" value="0"><span class="unit">А</span></div></div>
           </div>
-          <div class="chart-box vtc-box"><canvas id="chartVTC"></canvas></div>
+          <div class="chart-box vtc-box"><canvas id="chartVTC" role="img" aria-label="Время-токовая характеристика: автомат, пуск, кабель и вышестоящая защита"></canvas></div>
+          <details class="chart-data"><summary>Данные ВТХ</summary><div class="table-wrap" id="dataVTC"></div></details>
           <div class="panel-foot" id="vtcFoot">Кривая автомата, точка пуска, кабель и вышестоящая защита. Источники — docs/VTC_SOURCES.md.</div>
         </section>
 
@@ -1906,7 +1902,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
 <div class="tip-pop" id="tipPop" role="tooltip" aria-hidden="true"></div>
 
 <footer class="footer">
-  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.7.3</span>
+  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.7.4</span>
   <span class="footer-credit">Сделано с помощью <b>DeepSeek</b> · идея: <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></span>
   <span id="footerStamp"></span>
 </footer>
@@ -2584,7 +2580,12 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     let S = (motor.phases === 3 ? SQRT3 * Uline * I : Uline * I) / 1000;
     let cos = S > 1e-9 ? clamp(p1 / S, 0, 1) : 0;
     const tss = motor.tempAmbient + motor.riseRated * Math.pow(I / motor.i, 2);
-    const t0 = motor.hotStart ? motor.tempHot : motor.tempAmbient;
+    let t0 = motor.hotStart ? motor.tempHot : motor.tempAmbient;
+    if (motor.startsPerHour > 0) {
+      const interval = 60 / motor.startsPerHour;
+      const residual = motor.tempAmbient + (motor.tempLimit - motor.tempAmbient) * Math.exp(-interval / Math.max(1, motor.coolTau));
+      t0 = Math.max(t0, residual);
+    }
     let tLim = Infinity;
     if (tss > motor.tempLimit) {
       if (t0 >= motor.tempLimit) tLim = 0;
@@ -4141,6 +4142,11 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       state = deepMerge(JSON.parse(JSON.stringify(DEFAULTS)), shared);
       state.tab = shared.tab || 'calc';
       try { localStorage.setItem('motor-tour-v1', '1'); } catch (e) { }
+      try {
+        const u = new URL(location.href);
+        u.searchParams.delete('p');
+        history.replaceState(null, '', u.pathname + (u.search ? u.search : '') + u.hash);
+      } catch (e) { }
     }
   } catch (e) { }
 
@@ -4361,7 +4367,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     voltage: 'voltage', p2: 'p2', current: 'current', torque: 'torque', speedRpm: 'speedRpm',
     eff: 'eff', cos: 'cos', slip: 'slip', kst: 'kst', mst: 'mst', mmax: 'mmax',
     jMotor: 'jMotor', jExtra: 'jExtra', tauMotor: 'tauMotor', motorAmbient: 'motorAmbient', len: 'cable.length', ambient: 'cable.ambient',
-    group: 'cable.group', dropLimit: 'dropLimit', isc: 'isc', startDrop: 'cable.startDropLimit', upstream: 'upstreamIn'
+    group: 'cable.group', dropLimit: 'dropLimit', isc: 'isc', startDrop: 'cable.startDropLimit'
   };
 
   function setIfIdle(id, v) {
@@ -4791,6 +4797,8 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       try {
         const obj = JSON.parse(String(reader.result));
         const st = obj && obj.state ? obj.state : obj;
+        if (st && st.motorClassOv != null && st.motorOverloadClass == null) st.motorOverloadClass = st.motorClassOv;
+        if (st) delete st.motorClassOv;
         state = deepMerge(JSON.parse(JSON.stringify(DEFAULTS)), st);
         fillCatalog(true);
         if (state.mode === 'catalog') applyCatalog(false);
@@ -4940,7 +4948,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.3.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.4.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     const w = window.open('', '_blank');
@@ -5177,9 +5185,12 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       g.fillStyle = color; g.fillRect(lx, ly - 7, 8, 2); g.fillStyle = C.soft; g.fillText(txt, lx + 12, ly);
       lx += g.measureText(txt).width + 34;
     });
-    $('#tagVTC').textContent = rep.checks.breakerMag ? 'пуск проходит' : 'отсечка на пуске';
-    $('#tagVTC').className = 'panel-tag ' + (rep.checks.breakerMag ? 'ok' : 'bad');
-    $('#vtcFoot').textContent = 'Серия ' + s.brand + ' ' + s.series + ', ' + In + ' А, ' + (s.type === 'mccb' ? 'MCCB' : 'кривая ' + curve) + '. Пик пуска ' + nf(Istart, 0) + ' А; отсечка ' + nf(b.magTrip, 0) + ' А.';
+    const selBad = b.upstream && !b.okSel;
+    $('#tagVTC').textContent = !rep.checks.breakerMag ? 'отсечка на пуске' : selBad ? 'селективность недостаточна' : 'пуск проходит';
+    $('#tagVTC').className = 'panel-tag ' + (!rep.checks.breakerMag ? 'bad' : selBad ? 'warn' : 'ok');
+    const selTxt = b.upstream ? ' Селективность ' + nf(b.selRatio, 1) + '× ' + (b.okSel ? 'обеспечена' : 'недостаточна') + '.' : '';
+    $('#vtcFoot').textContent = 'Серия ' + s.brand + ' ' + s.series + ', ' + In + ' А, ' + (s.type === 'mccb' ? 'MCCB' : 'кривая ' + curve) + '. Пик пуска ' + nf(Istart, 0) + ' А; отсечка ' + nf(b.magTrip, 0) + ' А.' + selTxt;
+    fillChartTable('dataVTC', ['I, А', 'I/Iн', 't, с'], pts.map(p => [nf(p[0], 0), nf(p[0] / In, 2), nf(p[1], 3)]));
   }
 
   function renderProtectPanel(rep) {
@@ -5781,7 +5792,6 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     bindNum('group', 'cable.group', 1, 9);
     bindNum('dropLimit', 'dropLimit', 1, 20);
     bindNum('isc', 'isc', 0.5, 200);
-    bindNum('upstream', 'upstreamIn', 0, 3000);
     $('#brkSeries').addEventListener('change', e => {
       state.breakerSeries = e.target.value;
       fillBreakerCurves();
@@ -6458,7 +6468,9 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
 
   /* ---------- запуск ---------- */
   function encodeShare(s) {
-    const bytes = new TextEncoder().encode(JSON.stringify(s));
+    const copy = Object.assign({}, s);
+    if (copy.projectLogo && copy.projectLogo.length > 20000) copy.projectLogo = '';
+    const bytes = new TextEncoder().encode(JSON.stringify(copy));
     let bin = '';
     for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
     return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');

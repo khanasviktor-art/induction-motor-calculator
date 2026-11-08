@@ -60,6 +60,11 @@
       state = deepMerge(JSON.parse(JSON.stringify(DEFAULTS)), shared);
       state.tab = shared.tab || 'calc';
       try { localStorage.setItem('motor-tour-v1', '1'); } catch (e) { }
+      try {
+        const u = new URL(location.href);
+        u.searchParams.delete('p');
+        history.replaceState(null, '', u.pathname + (u.search ? u.search : '') + u.hash);
+      } catch (e) { }
     }
   } catch (e) { }
 
@@ -280,7 +285,7 @@
     voltage: 'voltage', p2: 'p2', current: 'current', torque: 'torque', speedRpm: 'speedRpm',
     eff: 'eff', cos: 'cos', slip: 'slip', kst: 'kst', mst: 'mst', mmax: 'mmax',
     jMotor: 'jMotor', jExtra: 'jExtra', tauMotor: 'tauMotor', motorAmbient: 'motorAmbient', len: 'cable.length', ambient: 'cable.ambient',
-    group: 'cable.group', dropLimit: 'dropLimit', isc: 'isc', startDrop: 'cable.startDropLimit', upstream: 'upstreamIn'
+    group: 'cable.group', dropLimit: 'dropLimit', isc: 'isc', startDrop: 'cable.startDropLimit'
   };
 
   function setIfIdle(id, v) {
@@ -710,6 +715,8 @@
       try {
         const obj = JSON.parse(String(reader.result));
         const st = obj && obj.state ? obj.state : obj;
+        if (st && st.motorClassOv != null && st.motorOverloadClass == null) st.motorOverloadClass = st.motorClassOv;
+        if (st) delete st.motorClassOv;
         state = deepMerge(JSON.parse(JSON.stringify(DEFAULTS)), st);
         fillCatalog(true);
         if (state.mode === 'catalog') applyCatalog(false);
@@ -859,7 +866,7 @@
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.3.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.4.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     const w = window.open('', '_blank');
@@ -1096,9 +1103,12 @@
       g.fillStyle = color; g.fillRect(lx, ly - 7, 8, 2); g.fillStyle = C.soft; g.fillText(txt, lx + 12, ly);
       lx += g.measureText(txt).width + 34;
     });
-    $('#tagVTC').textContent = rep.checks.breakerMag ? 'пуск проходит' : 'отсечка на пуске';
-    $('#tagVTC').className = 'panel-tag ' + (rep.checks.breakerMag ? 'ok' : 'bad');
-    $('#vtcFoot').textContent = 'Серия ' + s.brand + ' ' + s.series + ', ' + In + ' А, ' + (s.type === 'mccb' ? 'MCCB' : 'кривая ' + curve) + '. Пик пуска ' + nf(Istart, 0) + ' А; отсечка ' + nf(b.magTrip, 0) + ' А.';
+    const selBad = b.upstream && !b.okSel;
+    $('#tagVTC').textContent = !rep.checks.breakerMag ? 'отсечка на пуске' : selBad ? 'селективность недостаточна' : 'пуск проходит';
+    $('#tagVTC').className = 'panel-tag ' + (!rep.checks.breakerMag ? 'bad' : selBad ? 'warn' : 'ok');
+    const selTxt = b.upstream ? ' Селективность ' + nf(b.selRatio, 1) + '× ' + (b.okSel ? 'обеспечена' : 'недостаточна') + '.' : '';
+    $('#vtcFoot').textContent = 'Серия ' + s.brand + ' ' + s.series + ', ' + In + ' А, ' + (s.type === 'mccb' ? 'MCCB' : 'кривая ' + curve) + '. Пик пуска ' + nf(Istart, 0) + ' А; отсечка ' + nf(b.magTrip, 0) + ' А.' + selTxt;
+    fillChartTable('dataVTC', ['I, А', 'I/Iн', 't, с'], pts.map(p => [nf(p[0], 0), nf(p[0] / In, 2), nf(p[1], 3)]));
   }
 
   function renderProtectPanel(rep) {
@@ -1700,7 +1710,6 @@
     bindNum('group', 'cable.group', 1, 9);
     bindNum('dropLimit', 'dropLimit', 1, 20);
     bindNum('isc', 'isc', 0.5, 200);
-    bindNum('upstream', 'upstreamIn', 0, 3000);
     $('#brkSeries').addEventListener('change', e => {
       state.breakerSeries = e.target.value;
       fillBreakerCurves();
@@ -2377,7 +2386,9 @@
 
   /* ---------- запуск ---------- */
   function encodeShare(s) {
-    const bytes = new TextEncoder().encode(JSON.stringify(s));
+    const copy = Object.assign({}, s);
+    if (copy.projectLogo && copy.projectLogo.length > 20000) copy.projectLogo = '';
+    const bytes = new TextEncoder().encode(JSON.stringify(copy));
     let bin = '';
     for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
     return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');

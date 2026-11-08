@@ -7,7 +7,7 @@
 <title>Асинхронный двигатель — инженерный расчёт</title>
 <meta name="author" content="Виктор Ханас">
 <meta name="generator" content="DeepSeek">
-<meta name="version" content="0.7.3">
+<meta name="version" content="0.7.4">
 <meta name="description" content="Расчёт мощности, тока, момента, кабеля и защиты асинхронного двигателя. Графики характеристик и переходные процессы пуска.">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -395,11 +395,6 @@
           </select>
         </div>
         <div class="field">
-          <label for="upstream">Вышестоящий аппарат</label>
-          <div class="input-wrap"><input id="upstream" type="number" min="0" max="3000" step="1" value="0"><span class="unit">А</span></div>
-          <div class="hint">0 — селективность не проверять</div>
-        </div>
-        <div class="field">
           <label for="isc">Ток КЗ в точке подключения</label>
           <div class="input-wrap"><input id="isc" type="number" min="0.5" max="100" step="0.5" value="6"><span class="unit">кА</span></div>
         </div>
@@ -427,7 +422,7 @@
         <button class="btn ghost" id="btnLoadProject">Открыть проект</button>
       </div>
       <div class="side-foot">
-        <span>v0.7.3</span>
+        <span>v0.7.4</span>
         <span>ПУЭ · IEC 60364</span>
       </div>
     </div>
@@ -690,7 +685,8 @@
             <div class="field"><label for="brkCurve">Кривая / уставка</label><select id="brkCurve"></select></div>
             <div class="field"><label for="vtcUpstream">Вышестоящий, А</label><div class="input-wrap"><input id="vtcUpstream" type="number" min="0" max="3000" step="1" value="0"><span class="unit">А</span></div></div>
           </div>
-          <div class="chart-box vtc-box"><canvas id="chartVTC"></canvas></div>
+          <div class="chart-box vtc-box"><canvas id="chartVTC" role="img" aria-label="Время-токовая характеристика: автомат, пуск, кабель и вышестоящая защита"></canvas></div>
+          <details class="chart-data"><summary>Данные ВТХ</summary><div class="table-wrap" id="dataVTC"></div></details>
           <div class="panel-foot" id="vtcFoot">Кривая автомата, точка пуска, кабель и вышестоящая защита. Источники — docs/VTC_SOURCES.md.</div>
         </section>
 
@@ -749,7 +745,7 @@
 <div class="tip-pop" id="tipPop" role="tooltip" aria-hidden="true"></div>
 
 <footer class="footer">
-  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.7.3</span>
+  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.7.4</span>
   <span class="footer-credit">Сделано с помощью <b>DeepSeek</b> · идея: <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></span>
   <span id="footerStamp"></span>
 </footer>

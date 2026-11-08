@@ -1,0 +1,16 @@
+{
+  "app": "motor-calc",
+  "version": 2,
+  "state": {
+    "phases": 3,
+    "voltage": 380,
+    "freq": 50,
+    "mode": "power",
+    "p2": 15,
+    "poles": 4,
+    "conn": "D",
+    "loadType": "quadratic",
+    "loadPct": 75,
+    "motorClassOv": 20
+  }
+}

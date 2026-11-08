@@ -20,7 +20,7 @@ jobs:
 
       - name: Chrome
         id: chrome
-        uses: browser-actions/setup-chrome@v1
+        uses: browser-actions/setup-chrome@v2
 
       - name: Install
         run: npm ci

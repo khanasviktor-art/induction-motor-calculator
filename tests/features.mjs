@@ -68,6 +68,9 @@ try {
   await page.setInputFiles('#fileProject', projPath);
   await page.waitForTimeout(900);
   check((await page.inputValue('#p2')) === '15', 'проект не загрузился');
+  await page.setInputFiles('#fileProject', 'tests/fixtures/legacy-motor-class.json');
+  await page.waitForTimeout(800);
+  check(await page.evaluate(() => window.__mcDebug.state.motorOverloadClass) === 20, 'legacy: класс не мигрировал');
 
   // share-ссылка
   await page.click('#btnShare');
@@ -129,6 +132,10 @@ try {
   await page.fill('#vtcUpstream', '100');
   await page.waitForTimeout(400);
   check(await page.evaluate(() => window.__mcDebug.state.upstreamIn) === 100, 'ВТХ: upstream');
+  check((await page.textContent('#dataVTC')).includes('I/Iн'), 'ВТХ: нет таблицы данных');
+  await page.fill('#vtcUpstream', '200');
+  await page.waitForTimeout(400);
+  check((await page.textContent('#vtcFoot')).includes('Селективность'), 'ВТХ: нет селективности');
 
   // отчёт
   const [pop] = await Promise.all([ctx.waitForEvent('page'), page.click('#btnPrint')]);
@@ -222,6 +229,15 @@ try {
   await page.waitForTimeout(500);
   const classLim = await page.evaluate(() => window.__mcDebug.rep.op.timeToLimit);
   check(classLim > hotLim * 1.5, 'thermal: класс 20 не удлиняет');
+  const beforeStarts = await page.evaluate(() => window.__mcDebug.rep.op.timeToLimit);
+  await page.fill('#motorStarts', '6');
+  await page.waitForTimeout(450);
+  const afterStarts = await page.evaluate(() => window.__mcDebug.rep.op.timeToLimit);
+  check(afterStarts < beforeStarts, 'thermal: пуски в час не влияют');
+  await page.fill('#motorCoolTau', '10');
+  await page.waitForTimeout(450);
+  const afterCool = await page.evaluate(() => window.__mcDebug.rep.op.timeToLimit);
+  check(afterCool > afterStarts, 'thermal: охлаждение не влияет');
   check((await page.textContent('#thermalFoot')).includes('Класс 20'), 'thermal: подпись класса');
 
 

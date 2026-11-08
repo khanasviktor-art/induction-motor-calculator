@@ -380,7 +380,12 @@
     let S = (motor.phases === 3 ? SQRT3 * Uline * I : Uline * I) / 1000;
     let cos = S > 1e-9 ? clamp(p1 / S, 0, 1) : 0;
     const tss = motor.tempAmbient + motor.riseRated * Math.pow(I / motor.i, 2);
-    const t0 = motor.hotStart ? motor.tempHot : motor.tempAmbient;
+    let t0 = motor.hotStart ? motor.tempHot : motor.tempAmbient;
+    if (motor.startsPerHour > 0) {
+      const interval = 60 / motor.startsPerHour;
+      const residual = motor.tempAmbient + (motor.tempLimit - motor.tempAmbient) * Math.exp(-interval / Math.max(1, motor.coolTau));
+      t0 = Math.max(t0, residual);
+    }
     let tLim = Infinity;
     if (tss > motor.tempLimit) {
       if (t0 >= motor.tempLimit) tLim = 0;
