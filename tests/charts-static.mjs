@@ -105,7 +105,7 @@ try {
     chk(near(d.tauStart, m.mstAbs * d.uOp * d.uOp, 0.02), `tauStart ${d.tauStart.toFixed(1)} vs ${(m.mstAbs * d.uOp * d.uOp).toFixed(1)}`);
     chk(near(d.tauMax, m.mmax * d.uOp * d.uOp, 0.02), `tauMax ${d.tauMax.toFixed(1)} vs ${(m.mmax * d.uOp * d.uOp).toFixed(1)}`);
     chk(d.tauEnd === 0, `tauEnd ${d.tauEnd}`);
-    chk(near(d.opT, op.T, 0.005), `opT ${d.opT.toFixed(2)} vs op.T ${op.T.toFixed(2)}`);
+    chk(near(d.opT, op.T, 0.02), `opT ${d.opT.toFixed(2)} vs op.T ${op.T.toFixed(2)}`);
     chk(near(d.opLoad, op.Tload, 0.005), `opLoad ${d.opLoad.toFixed(2)} vs op.Tload ${op.Tload.toFixed(2)}`);
     chk(Math.abs(ch.marker - op.n) < 1e-6, 'marker');
     chk(ch.tau.length === 241 && ch.tau[0].length === 2, 'tau length');

@@ -86,6 +86,22 @@ try {
   await page.fill('#projectName', 'Насосная станция №2');
   await page.waitForTimeout(300);
 
+  // ВТХ
+  await page.click('.tab-btn[data-tab="cable"]');
+  await page.waitForTimeout(600);
+  check(await page.$('#chartVTC') !== null, 'нет canvas ВТХ');
+  const seriesOpts = await page.$$eval('#brkSeries option', os => os.map(o => o.value));
+  check(seriesOpts.length === 6, 'ВТХ: не 6 серий');
+  await page.selectOption('#brkSeries', 'iek-ba47-29');
+  await page.waitForTimeout(500);
+  check(await page.evaluate(() => window.__mcDebug.rep.breaker.brand) === 'IEK', 'ВТХ: серия не применилась');
+  check((await page.textContent('#vtcFoot')).includes('IEK'), 'ВТХ: подпись не обновилась');
+  await page.selectOption('#brkCurve', 'D');
+  await page.waitForTimeout(400);
+  await page.fill('#vtcUpstream', '100');
+  await page.waitForTimeout(400);
+  check(await page.evaluate(() => window.__mcDebug.state.upstreamIn) === 100, 'ВТХ: upstream');
+
   // отчёт
   const [pop] = await Promise.all([ctx.waitForEvent('page'), page.click('#btnPrint')]);
   await pop.waitForTimeout(1200);
@@ -160,6 +176,24 @@ try {
   const pbuf = fs.readFileSync(pngPath);
   check(pbuf[0] === 0x89 && pbuf[1] === 0x50 && pbuf[2] === 0x4e && pbuf[3] === 0x47, 'PNG сигнатура');
   check(pbuf.length > 5000, 'PNG слишком мал');
+
+  // тепловой режим: горячий/холодный, класс 20
+  await page.click('.tab-btn[data-tab="start"]');
+  await page.waitForTimeout(400);
+  await page.$eval('#loadRange', el => { el.value = 150; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  await page.waitForTimeout(600);
+  const coldLim = await page.evaluate(() => window.__mcDebug.rep.op.timeToLimit);
+  check(Number.isFinite(coldLim) && coldLim > 0, 'thermal: нет предела при 150%');
+  await page.check('#motorHotStart');
+  await page.waitForTimeout(500);
+  const hotLim = await page.evaluate(() => window.__mcDebug.rep.op.timeToLimit);
+  check(hotLim < coldLim, 'thermal: горячий пуск не короче');
+  await page.selectOption('#motorClassOv', '20');
+  await page.waitForTimeout(500);
+  const classLim = await page.evaluate(() => window.__mcDebug.rep.op.timeToLimit);
+  check(classLim > hotLim * 1.5, 'thermal: класс 20 не удлиняет');
+  check((await page.textContent('#thermalFoot')).includes('Класс 20'), 'thermal: подпись класса');
+
 
   failed += reportErrors(errors) ? 0 : 1;
   await ctx.close();

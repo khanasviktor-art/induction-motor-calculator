@@ -24,10 +24,11 @@
     autoTypical: true, eff: 89, cos: 0.87,
     slip: 2.7, kst: 7, mst: 2.2, mmax: 2.3, jMotor: 0,
     motorClass: 'F', tauMotor: 0, motorAmbient: 40, motor1phType: 'capacitor',
+    motorHotStart: false, motorHotPct: 70, motorCoolTau: 30, motorStartsPerHour: 0, motorOverloadClass: 10,
     projectName: '', projectLogo: '', loadType: 'quadratic', loadPct: 75, jExtra: 0.3, loadCurve: [[0, 0], [25, 25], [50, 55], [75, 80], [100, 100]], loadUnload: 0, loadRelease: 20,
     cable: { standard: 'pue', material: 'cu', insulation: 'pvc', laying: 'open', length: 50, ambient: 25, group: 1, loaded: 3, parallel: 'auto', startDropLimit: 15, considerStartDrop: true },
     dropLimit: 5, startMethod: 'dol', curve: 'D', isc: 6,
-    breakerType: 'mcb', mccbMag: 10, upstreamIn: 0,
+    breakerType: 'mcb', breakerSeries: 'abb-s200', mccbMag: 10, upstreamIn: 0,
     sim: { tSwitch: 2, tRamp: 6, uStart: 30, iLimit: 3, speed: 1, overlay: 'none' },
     charts: { torque: true, iu: true, speed: true, eff: true, power: true },
     tab: 'calc', theme: 'dark'
@@ -289,9 +290,19 @@
     $('#fieldMccb').classList.toggle('hidden', state.breakerType !== 'mccb');
     $('#laying').value = state.cable.laying;
     $('#startMethod').value = state.startMethod;
+    fillBreakerSeries();
+    $('#brkSeries').value = state.breakerSeries;
+    fillBreakerCurves();
+    $('#brkCurve').value = state.curve;
+    $('#vtcUpstream').value = state.upstreamIn;
     $('#mccbMag').value = state.mccbMag;
     $('#motorClass').value = state.motorClass;
     $('#motor1phType').value = state.motor1phType;
+    $('#motorHotStart').checked = !!state.motorHotStart;
+    $('#motorHotPct').value = state.motorHotPct;
+    $('#motorClassOv').value = state.motorOverloadClass;
+    $('#motorStarts').value = state.motorStartsPerHour;
+    $('#motorCoolTau').value = state.motorCoolTau;
     $('#simMethod').value = state.startMethod;
     $('#simSwitch').value = state.sim.tSwitch;
     $('#simRamp').value = state.sim.tRamp;
@@ -369,6 +380,29 @@
       $('#loadPower').textContent = nf(op.p2, 2) + ' кВт';
       $('#loadSpeed').textContent = nf(op.n, 0) + ' об/мин';
     }
+  }
+
+  function fillBreakerSeries() {
+    const el = $('#brkSeries');
+    if (!el || el.options.length) return;
+    MC.vtc.list().forEach(s => {
+      const o = document.createElement('option');
+      o.value = s.id;
+      o.textContent = s.brand + ' ' + s.series + ' · ' + (s.type === 'mccb' ? 'MCCB' : 'MCB');
+      el.appendChild(o);
+    });
+  }
+
+  function fillBreakerCurves() {
+    const s = MC.vtc.get(state.breakerSeries);
+    const el = $('#brkCurve');
+    const cur = s.curves.includes(state.curve) ? state.curve : s.curves[0];
+    el.innerHTML = s.curves.map(c => `<option value="${c}">${s.type === 'mccb' ? 'Уставка ' + c : 'Кривая ' + c}</option>`).join('');
+    el.value = cur;
+    state.curve = cur;
+    state.breakerType = s.type;
+    $('#fieldCurve').classList.toggle('hidden', s.type === 'mccb');
+    $('#fieldMccb').classList.toggle('hidden', s.type !== 'mccb');
   }
 
   function updateVisibility() {
@@ -481,6 +515,7 @@
       kst: +state.kst, mst: +state.mst, mmax: +state.mmax, slip: +state.slip,
       jMotor: +state.jMotor,
       motorClass: state.motorClass, tauMotor: +state.tauMotor, motorAmbient: +state.motorAmbient, motor1phType: state.motor1phType,
+      motorHotStart: state.motorHotStart, motorHotPct: +state.motorHotPct, motorCoolTau: +state.motorCoolTau, motorStartsPerHour: +state.motorStartsPerHour, motorOverloadClass: +state.motorOverloadClass,
       load: loadCfg(),
       cable: Object.assign({}, state.cable),
       dropLimit: +state.dropLimit,
@@ -488,6 +523,7 @@
       startMethod: state.startMethod,
       curve: state.curve,
       breakerType: state.breakerType,
+      series: state.breakerSeries,
       mccbMag: +state.mccbMag,
       upstreamIn: +state.upstreamIn,
       isc: +state.isc
@@ -794,7 +830,7 @@
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.6.0.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.0.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     const w = window.open('', '_blank');
@@ -813,6 +849,7 @@
     renderProtectPanel(rep);
     renderCablePanel(rep);
     renderPoint(rep);
+    renderThermal(rep);
     renderWarnings(rep);
     renderCharts(rep);
     if (state.tab === 'cable') renderCableTab(rep);
@@ -821,6 +858,7 @@
     $('#tagMode').textContent = ({ catalog: 'база', power: 'P₂', current: 'I', torque: 'M' })[rep.motor.mode] || '—';
     $('#tagStart').textContent = methodShort(state.startMethod);
     decorateTips();
+    if (state.tab === 'cable') drawVTC(rep);
   }
 
   function kpi(label, value, unit, sub, color) {
@@ -928,6 +966,90 @@
     return 'Рекомендация: частотный привод или софтстартер с ограничением тока; прямой пуск требует отдельной проверки сети.';
   }
 
+  function drawVTC(rep) {
+    const cv = $('#chartVTC');
+    if (!cv || !rep) return;
+    const box = cv.parentElement;
+    const dpr = window.devicePixelRatio || 1;
+    const W = Math.max(320, box.clientWidth), H = Math.max(260, box.clientHeight || 390);
+    cv.width = W * dpr; cv.height = H * dpr;
+    cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    const g = cv.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, W, H);
+    const cs = getComputedStyle(document.documentElement);
+    const col = n => cs.getPropertyValue(n).trim();
+    const C = {
+      line: col('--line') || '#2a3a4a', text: col('--muted') || '#7f8c9a', soft: col('--text-soft') || '#aab6c2',
+      mint: col('--mint') || '#3ddc97', red: col('--red') || '#ff6b6b', blue: col('--blue') || '#59a9ff',
+      amber: col('--amber') || '#ffb454', violet: col('--violet') || '#a78bfa'
+    };
+    const pad = { l: 54, r: 18, t: 22, b: 34 };
+    const xmin = 1, xmax = 100000, ymin = 0.01, ymax = 10000;
+    const X = I => pad.l + (Math.log10(Math.max(I, xmin)) - Math.log10(xmin)) / (Math.log10(xmax) - Math.log10(xmin)) * (W - pad.l - pad.r);
+    const Y = t => pad.t + (Math.log10(ymax) - Math.log10(Math.max(t, ymin))) / (Math.log10(ymax) - Math.log10(ymin)) * (H - pad.t - pad.b);
+    const line = (pts, color, width, dash) => {
+      if (!pts.length) return;
+      g.save(); g.strokeStyle = color; g.lineWidth = width || 1.6; g.setLineDash(dash || []); g.beginPath();
+      pts.forEach((p, i) => { const x = X(p[0]), y = Y(p[1]); if (i) g.lineTo(x, y); else g.moveTo(x, y); });
+      g.stroke(); g.restore();
+    };
+    // сетка и подписи
+    g.font = '10px ui-monospace, monospace'; g.fillStyle = C.text; g.strokeStyle = C.line; g.lineWidth = 1;
+    for (const d of [1, 10, 100, 1000, 10000, 100000]) {
+      const x = X(d); g.globalAlpha = .35; g.beginPath(); g.moveTo(x, pad.t); g.lineTo(x, H - pad.b); g.stroke(); g.globalAlpha = 1;
+      g.textAlign = 'center'; g.fillText(d >= 1000 ? (d / 1000) + 'к' : d, x, H - 14);
+    }
+    for (const t of [0.01, 0.1, 1, 10, 100, 1000, 10000]) {
+      const y = Y(t); g.globalAlpha = .35; g.beginPath(); g.moveTo(pad.l, y); g.lineTo(W - pad.r, y); g.stroke(); g.globalAlpha = 1;
+      g.textAlign = 'right'; g.fillText(t >= 1000 ? (t / 1000) + 'к' : t, pad.l - 6, y + 3);
+    }
+    g.textAlign = 'left'; g.fillStyle = C.soft; g.fillText('I, А', W - pad.r - 30, H - 2);
+    g.save(); g.translate(12, pad.t + 40); g.rotate(-Math.PI / 2); g.fillText('t, с', 0, 0); g.restore();
+    const b = rep.breaker, s = MC.vtc.get(b.series || state.breakerSeries), In = b.In;
+    const curve = b.curve && s.curves.includes(b.curve) ? b.curve : s.curves[0];
+    // тепловая зона выбранного автомата
+    const pts = MC.vtc.thermalPoints(s, curve, In);
+    line(pts, C.amber, 2.2);
+    g.save(); g.globalAlpha = .10; g.fillStyle = C.amber; g.beginPath();
+    pts.forEach((p, i) => { const x = X(p[0]), y = Y(p[1]); if (i) g.lineTo(x, y); else g.moveTo(x, y); });
+    g.lineTo(X(pts[pts.length - 1][0]), H - pad.b); g.lineTo(X(pts[0][0]), H - pad.b); g.closePath(); g.fill(); g.restore();
+    // отсечка
+    const mag = s.mag[curve] || [10, 10];
+    g.save(); g.strokeStyle = C.red; g.lineWidth = 1.4; g.setLineDash([4, 3]);
+    [mag[0] * In, mag[1] * In].forEach(I => { g.beginPath(); g.moveTo(X(I), Y(0.02)); g.lineTo(X(I), Y(10000)); g.stroke(); });
+    g.restore();
+    // вышестоящий
+    const up = +state.upstreamIn;
+    if (up > 0) {
+      const upS = MC.vtc.get(state.breakerSeries);
+      const upCurve = upS.curves.includes(state.curve) ? state.curve : upS.curves[0];
+      line(MC.vtc.thermalPoints(upS, upCurve, up), C.violet, 1.5, [6, 4]);
+    }
+    // кабель: адиабатическая стойкость
+    const k = state.cable.insulation === 'xlpe' ? 143 : 115;
+    const S = rep.cable.section;
+    line([[1, k * k * S * S / 1], [100000, k * k * S * S / 100000]], C.blue, 1.4, [2, 4]);
+    // пуск
+    const cmp = (compareData || []).find(x => x.method === state.startMethod);
+    const tS = cmp && cmp.tStart != null ? cmp.tStart : 0.6;
+    const Istart = rep.iStart || rep.motor.ist;
+    g.save(); g.fillStyle = C.mint; g.beginPath(); g.arc(X(Istart), Y(Math.max(tS, 0.02)), 4.5, 0, Math.PI * 2); g.fill();
+    g.font = '10px ui-monospace, monospace'; g.fillStyle = C.mint; g.textAlign = 'left';
+    g.fillText('пуск ' + nf(Istart, 0) + ' А / ' + (cmp && cmp.tStart != null ? nf(tS, 2) + ' с' : '?'), X(Istart) + 7, Y(Math.max(tS, 0.02)) - 5);
+    g.restore();
+    // легенда
+    const leg = [['Автомат ' + s.brand + ' ' + s.series + ' ' + In + ' А', C.amber], ['Отсечка', C.red], ['Пуск', C.mint], ['Кабель', C.blue], ['Вышестоящий', C.violet]];
+    g.font = '10px -apple-system, sans-serif'; let lx = pad.l + 8, ly = pad.t + 10;
+    leg.forEach(([txt, color]) => {
+      g.fillStyle = color; g.fillRect(lx, ly - 7, 8, 2); g.fillStyle = C.soft; g.fillText(txt, lx + 12, ly);
+      lx += g.measureText(txt).width + 34;
+    });
+    $('#tagVTC').textContent = rep.checks.breakerMag ? 'пуск проходит' : 'отсечка на пуске';
+    $('#tagVTC').className = 'panel-tag ' + (rep.checks.breakerMag ? 'ok' : 'bad');
+    $('#vtcFoot').textContent = 'Серия ' + s.brand + ' ' + s.series + ', ' + In + ' А, ' + (s.type === 'mccb' ? 'MCCB' : 'кривая ' + curve) + '. Пик пуска ' + nf(Istart, 0) + ' А; отсечка ' + nf(b.magTrip, 0) + ' А.';
+  }
+
   function renderProtectPanel(rep) {
     const m = rep.motor;
     const b = rep.breaker, r = rep.relay, c = rep.contactor, f = rep.fuse;
@@ -944,7 +1066,7 @@
       ${kv('Контактор ' + (m.phases === 1 ? '1P/2P' : 'AC-3'), nf(c.i, 0), m.phases === 1 ? 'А' : 'А · ' + nf(c.kw, 1) + ' кВт')}
       ${kv('Предохранитель aM', nf(f, 0), 'А')}
       ${kv('УЗО (рекомендация)', (m.phases === 1 ? '2P · ' : '') + (state.startMethod === 'vfd' ? 'тип B' : 'тип A'), b.In <= 63 ? '30 мА' : b.In <= 250 ? '100 мА' : '300 мА')}
-      ${kv('Серия (пример)', b.type === 'mccb' ? 'Tmax XT1 · NSX100' : (m.phases === 1 ? 'S201 · iC60N 1P' : 'S200 · iC60N · BA47-29'), '')}
+      ${kv('Серия', (b.brand || '') + ' ' + (b.seriesName || ''), '')}
     </div>`;
   }
 
@@ -968,6 +1090,16 @@
       ${kv('Эквивалентное R', nf(d.R, 4), 'Ом')}
       ${kv('Эквивалентное X', nf(d.X, 4), 'Ом')}
     </div>`;
+  }
+
+  function renderThermal(rep) {
+    const m = rep.motor, op = rep.op;
+    if (!$('#thermalTag')) return;
+    $('#thermalTag').textContent = m.hotStart ? 'горячий' : 'холодный';
+    $('#thermalTag').className = 'panel-tag ' + (m.hotStart ? 'warn' : 'ok');
+    const lim = isFinite(op.timeToLimit) ? 'до предела ' + nf(op.timeToLimit, 0) + ' с' : 'предел не достигается';
+    $('#thermalFoot').innerHTML = 'Начальная <b>' + nf(op.tempStart || m.tempAmbient, 0) + ' °C</b> · установившаяся <b>' + nf(op.temp, 0) + ' °C</b> · предел ' + m.tempLimit + ' °C · ' + lim +
+      '. Класс ' + m.overloadClass + ' · пусков/час ' + m.startsPerHour + ' · охлаждение ' + m.coolTau + ' мин.';
   }
 
   function renderPoint(rep) {
@@ -1471,7 +1603,10 @@
         updateCompare();
       }
       if (tab === 'ref') renderRef();
-      if (tab === 'cable' && lastRep) renderCableTab(lastRep);
+      if (tab === 'cable' && lastRep) {
+        renderCableTab(lastRep);
+        drawVTC(lastRep);
+      }
     });
   }
 
@@ -1515,6 +1650,20 @@
     bindNum('dropLimit', 'dropLimit', 1, 20);
     bindNum('isc', 'isc', 0.5, 200);
     bindNum('upstream', 'upstreamIn', 0, 3000);
+    $('#brkSeries').addEventListener('change', e => {
+      state.breakerSeries = e.target.value;
+      fillBreakerCurves();
+      $('#brkCurve').value = state.curve;
+      syncSeg('#segBrk', state.breakerType);
+      schedule();
+    });
+    $('#brkCurve').addEventListener('change', e => { state.curve = e.target.value; schedule(); });
+    bindNum('vtcUpstream', 'upstreamIn', 0, 3000);
+    $('#motorHotStart').addEventListener('change', e => { state.motorHotStart = e.target.checked; schedule(); });
+    bindNum('motorHotPct', 'motorHotPct', 0, 95);
+    bindNum('motorCoolTau', 'motorCoolTau', 1, 180);
+    bindNum('motorStarts', 'motorStartsPerHour', 0, 60);
+    $('#motorClassOv').addEventListener('change', e => { state.motorOverloadClass = +e.target.value; schedule(); });
     bindNum('startDrop', 'cable.startDropLimit', 3, 30);
     bindNum('simSwitch', 'sim.tSwitch', 0.2, 60);
     bindNum('simRamp', 'sim.tRamp', 0.2, 300);

@@ -7,7 +7,7 @@
 <title>Асинхронный двигатель — инженерный расчёт</title>
 <meta name="author" content="Виктор Ханас">
 <meta name="generator" content="DeepSeek">
-<meta name="version" content="0.6.0">
+<meta name="version" content="0.7.0">
 <meta name="description" content="Расчёт мощности, тока, момента, кабеля и защиты асинхронного двигателя. Графики характеристик и переходные процессы пуска.">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -426,7 +426,7 @@
         <button class="btn ghost" id="btnLoadProject">Открыть проект</button>
       </div>
       <div class="side-foot">
-        <span>v0.6.0</span>
+        <span>v0.7.0</span>
         <span>ПУЭ · IEC 60364</span>
       </div>
     </div>
@@ -656,6 +656,17 @@
           <div class="table-wrap" id="compareTable"></div>
           <div class="panel-foot">Если способ не разгоняет: у софтстартера момент растёт примерно как (I/Iп)² — увеличьте ограничение тока; у Y–Δ момент в 3 раза ниже. Пик Y–Δ/AT — после переключения; в звезде/АТ ток ниже.</div>
         </section>
+        <section class="panel">
+          <div class="panel-head"><h3>Тепловой режим</h3><span class="panel-tag" id="thermalTag">—</span></div>
+          <div class="thermal-grid">
+            <label class="check"><input type="checkbox" id="motorHotStart"> Горячий пуск</label>
+            <div class="field"><label for="motorHotPct">Начальный нагрев</label><div class="input-wrap"><input id="motorHotPct" type="number" min="0" max="95" step="5" value="70"><span class="unit">%</span></div></div>
+            <div class="field"><label for="motorClassOv">Класс перегрузки</label><select id="motorClassOv"><option value="10">10</option><option value="20">20</option><option value="30">30</option></select></div>
+            <div class="field"><label for="motorStarts">Пусков в час</label><div class="input-wrap"><input id="motorStarts" type="number" min="0" max="60" step="1" value="0"><span class="unit">/ч</span></div></div>
+            <div class="field"><label for="motorCoolTau">Охлаждение</label><div class="input-wrap"><input id="motorCoolTau" type="number" min="1" max="180" step="1" value="30"><span class="unit">мин</span></div></div>
+          </div>
+          <div class="panel-foot" id="thermalFoot">Горячий пуск учитывает начальную температуру обмотки; класс 10/20/30 — допустимое время перегрузки; пусков в час — тепловой запас.</div>
+        </section>
       </div>
 
       <!-- КАБЕЛЬ -->
@@ -671,6 +682,17 @@
             <div class="table-wrap" id="protectTable"></div>
           </section>
         </div>
+        <section class="panel">
+          <div class="panel-head"><h3>ВТХ: защита и пуск</h3><span class="panel-tag" id="tagVTC">—</span></div>
+          <div class="vtc-controls">
+            <div class="field"><label for="brkSeries">Серия</label><select id="brkSeries"></select></div>
+            <div class="field"><label for="brkCurve">Кривая / уставка</label><select id="brkCurve"></select></div>
+            <div class="field"><label for="vtcUpstream">Вышестоящий, А</label><div class="input-wrap"><input id="vtcUpstream" type="number" min="0" max="3000" step="1" value="0"><span class="unit">А</span></div></div>
+          </div>
+          <div class="chart-box vtc-box"><canvas id="chartVTC"></canvas></div>
+          <div class="panel-foot" id="vtcFoot">Кривая автомата, точка пуска, кабель и вышестоящая защита. Источники — docs/VTC_SOURCES.md.</div>
+        </section>
+
         <section class="panel">
           <div class="panel-head"><h3>Проверка условий</h3><span class="panel-tag" id="checksTag">—</span></div>
           <div class="panel-body" id="checksBody"></div>
@@ -726,12 +748,13 @@
 <div class="tip-pop" id="tipPop" role="tooltip" aria-hidden="true"></div>
 
 <footer class="footer">
-  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.6.0</span>
+  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.7.0</span>
   <span class="footer-credit">Сделано с помощью <b>DeepSeek</b> · идея: <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></span>
   <span id="footerStamp"></span>
 </footer>
 
 <script src="data.js"></script>
+<script src="vtc.js"></script>
 <script src="engine.js"></script>
 <script src="charts.js"></script>
 <script src="sim.js"></script>

@@ -4,6 +4,7 @@
 (function (root) {
   'use strict';
   const D = root.MC.data;
+  const V = root.MC.vtc;
   const SQRT3 = Math.sqrt(3);
   const PI2 = 2 * Math.PI;
   const TEMP_CLASS = {
@@ -245,6 +246,17 @@
       tauMin: +cfg.tauMotor > 0 ? +cfg.tauMotor : clamp(10 * Math.pow(p2, 0.35), 12, 90),
       motorClass: cfg.motorClass || 'F'
     };
+    const hotStart = !!cfg.motorHotStart;
+    const hotPct = clamp(+cfg.motorHotPct || 0, 0, 95);
+    const overloadClass = +cfg.motorOverloadClass || 10;
+    const coolTau = +cfg.motorCoolTau || 30;
+    const startsPerHour = +cfg.motorStartsPerHour || 0;
+    motor.hotStart = hotStart;
+    motor.hotPct = hotPct;
+    motor.overloadClass = overloadClass;
+    motor.coolTau = coolTau;
+    motor.startsPerHour = startsPerHour;
+    motor.tempHot = motor.tempAmbient + (motor.tempLimit - motor.tempAmbient) * hotPct / 100;
     motor.mmaxReal = peakTorque(motor);
     if (connFactor < 0.999) {
       motor.mstAbs = motor.mst * motor.mn * connFactor * connFactor;
@@ -368,11 +380,16 @@
     let S = (motor.phases === 3 ? SQRT3 * Uline * I : Uline * I) / 1000;
     let cos = S > 1e-9 ? clamp(p1 / S, 0, 1) : 0;
     const tss = motor.tempAmbient + motor.riseRated * Math.pow(I / motor.i, 2);
+    const t0 = motor.hotStart ? motor.tempHot : motor.tempAmbient;
     let tLim = Infinity;
     if (tss > motor.tempLimit) {
-      const den = tss - motor.tempAmbient;
-      if (den > 0 && tss > motor.tempLimit) tLim = -motor.tauMin * Math.log((tss - motor.tempLimit) / den);
-    }
+      if (t0 >= motor.tempLimit) tLim = 0;
+      else {
+        const den = tss - t0;
+        if (den > 0) tLim = -motor.tauMin * Math.log((tss - motor.tempLimit) / den);
+      }
+    } else if (t0 >= motor.tempLimit) tLim = 0;
+    if (isFinite(tLim)) tLim *= (motor.overloadClass || 10) / 10;
     let dUinfo = cable && cable.section
       ? voltageDrop(I, cable.length, cable.section, cable.material, cos, Uline, motor.phases, cable.insulation, cable.parallel)
       : { dU: 0, pct: 0, R: 0, X: 0 };
@@ -391,6 +408,7 @@
       Q: Math.sqrt(Math.max(S * S - p1 * p1, 0)), f2: s * motor.f,
       U: Um, dU: dUinfo.dU, dUpt: dUinfo.pct, stalled: stalled,
       loadPct: (T / motor.mn) * 100, temp: tss, tempLimit: motor.tempLimit, timeToLimit: tLim,
+      tempStart: t0, hotStart: motor.hotStart, overloadClass: motor.overloadClass, startsPerHour: motor.startsPerHour, coolTau: motor.coolTau,
       slipPct: s * 100
     };
   }
@@ -524,31 +542,31 @@
   }
 
   function selectBreaker(Iwork, Ist, opt) {
+    const s = V.get(opt.series);
     const sm = opt.startMethod;
-    let type = opt.type === 'mccb' ? 'mccb' : 'mcb';
     const rise = sm === 'vfd' ? 1.10 : (sm === 'yd' || sm === 'soft' || sm === 'autotr') ? 1.15 : 1.25;
-    let In, curve, mag;
+    const type = s.type;
+    const In = V.pickIn(s, Iwork * (type === 'mccb' ? 1.2 : rise));
+    let curve = null, mag;
     if (type === 'mccb') {
-      In = nextUp(D.BREAKERS, Iwork * 1.2);
-    } else {
-      In = nextUp(D.BREAKERS, Iwork * rise);
-      if (In > 125) { type = 'mccb'; In = nextUp(D.BREAKERS, Iwork * 1.2); }
-    }
-    if (type === 'mccb') {
-      curve = null;
       mag = +opt.magSet || 10;
     } else {
-      curve = opt.curve || 'D';
-      mag = D.CURVE_MAG[curve] ? D.CURVE_MAG[curve][0] : 10;
+      curve = s.curves.includes(opt.curve) ? opt.curve : s.curves[0];
+      mag = s.mag[curve] ? s.mag[curve][0] : 10;
     }
     const magTrip = mag * In;
     const okMag = magTrip > Ist * 1.1;
-    const icu = type === 'mccb' ? (In <= 250 ? 36 : 50) : (In <= 63 ? 6 : In <= 125 ? 10 : 36);
     const upstream = +opt.upstream || 0;
     const selRatio = upstream ? upstream / In : 0;
+    const sel = V.selectivity(
+      { In: In, mag: s.mag[curve] || [mag, mag], type: type },
+      { In: upstream, mag: s.mag[curve] || [mag, mag], type: type },
+      0
+    );
     return {
       In: In, type: type, curve: curve, mag: mag, magTrip: magTrip, okMag: okMag,
-      rise: rise, icu: icu, upstream: upstream, selRatio: selRatio, okSel: !upstream || selRatio >= 1.6,
+      rise: rise, icu: s.icu, upstream: upstream, selRatio: selRatio,
+      okSel: !upstream || sel.ok, series: s.id, brand: s.brand, seriesName: s.series,
       poles: +opt.phases === 1 ? 1 : 3
     };
   }
@@ -647,7 +665,7 @@
     const motor = buildMotor(cfg);
     const Is = motor.i;
     const iStart = startingCurrent(motor, cfg);
-    const breaker0 = selectBreaker(Is, iStart, { startMethod: cfg.startMethod, curve: cfg.curve, type: cfg.breakerType, magSet: cfg.mccbMag, upstream: cfg.upstreamIn, phases: motor.phases });
+    const breaker0 = selectBreaker(Is, iStart, { startMethod: cfg.startMethod, curve: cfg.curve, type: cfg.breakerType, series: cfg.series, magSet: cfg.mccbMag, upstream: cfg.upstreamIn, phases: motor.phases });
     const Uline = motor.U;
     // Кабель выбирается и по рабочему току, и по номиналу аппарата защиты
     const cable = selectCable(Math.max(Is, breaker0.In), iStart, Object.assign({}, cfg.cable, { voltage: Uline, phases: motor.phases, Irun: Is, dropLimit: cfg.dropLimit, cosphi: motor.cos }));
