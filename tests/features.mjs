@@ -49,6 +49,16 @@ try {
   check(csv.includes('load_pct') && csv.includes('I_A'), 'CSV без заголовка');
   check(csv.split('\n').length > 100, 'CSV слишком короткий');
 
+  // разгрузка: release disabled при 0, включён при >0
+  await page.fill('#loadUnload', '0');
+  await page.waitForTimeout(350);
+  check(await page.$eval('#loadRelease', el => el.disabled), 'release не заблокирован при 0');
+  await page.fill('#loadUnload', '60');
+  await page.waitForTimeout(350);
+  check(!(await page.$eval('#loadRelease', el => el.disabled)), 'release не включился при 60');
+  await page.fill('#loadUnload', '0');
+  await page.waitForTimeout(250);
+
   // проект
   const [projDl] = await Promise.all([page.waitForEvent('download'), page.click('#btnSaveProject')]);
   const projPath = path.join(OUT, 'project.json');

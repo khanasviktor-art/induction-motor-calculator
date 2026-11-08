@@ -301,6 +301,7 @@
     $('#loadCurve').value = (state.loadCurve || []).map(p => p[0] + ':' + p[1]).join('; ');
     $('#loadUnload').value = state.loadUnload;
     $('#loadRelease').value = state.loadRelease;
+    updateUnloadUI();
     $('#insulation').value = state.cable.insulation;
     $('#parallel').value = state.cable.parallel;
     $('#loaded').value = state.cable.loaded;
@@ -398,6 +399,16 @@
       $('#loadPower').textContent = nf(op.p2, 2) + ' кВт';
       $('#loadSpeed').textContent = nf(op.n, 0) + ' об/мин';
     }
+  }
+
+  function updateUnloadUI() {
+    const on = +state.loadUnload > 0;
+    const el = $('#loadRelease');
+    if (el) el.disabled = !on;
+    const hint = $('#loadReleaseHint');
+    if (hint) hint.textContent = on
+      ? 'Скорость, при которой снимается разгрузка, % от nн. Не проценты нагрузки.'
+      : 'Задайте разгрузку > 0, чтобы использовать это поле.';
   }
 
   function fillBreakerSeries() {
@@ -848,7 +859,7 @@
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.2.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.3.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     const w = window.open('', '_blank');
@@ -1827,6 +1838,7 @@
       if (pts) { state.loadCurve = pts; schedule(); }
     });
     bindNum('loadUnload', 'loadUnload', 0, 95);
+    $('#loadUnload').addEventListener('input', updateUnloadUI);
     bindNum('loadRelease', 'loadRelease', 1, 100);
 
     // обучение

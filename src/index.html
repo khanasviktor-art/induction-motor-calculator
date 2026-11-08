@@ -7,7 +7,7 @@
 <title>Асинхронный двигатель — инженерный расчёт</title>
 <meta name="author" content="Виктор Ханас">
 <meta name="generator" content="DeepSeek">
-<meta name="version" content="0.7.2">
+<meta name="version" content="0.7.3">
 <meta name="description" content="Расчёт мощности, тока, момента, кабеля и защиты асинхронного двигателя. Графики характеристик и переходные процессы пуска.">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -271,8 +271,9 @@
             <div class="input-wrap"><input id="loadUnload" type="number" min="0" max="95" step="5" value="0"><span class="unit">%</span></div>
           </div>
           <div class="field">
-            <label for="loadRelease">Снять при</label>
+            <label for="loadRelease">Снять разгрузку при</label>
             <div class="input-wrap"><input id="loadRelease" type="number" min="1" max="100" step="5" value="20"><span class="unit">% n</span></div>
+            <div class="hint" id="loadReleaseHint">Скорость снятия разгрузки, % от nн. Работает только при разгрузке &gt; 0.</div>
           </div>
         </div>
         <div class="field">
@@ -426,7 +427,7 @@
         <button class="btn ghost" id="btnLoadProject">Открыть проект</button>
       </div>
       <div class="side-foot">
-        <span>v0.7.2</span>
+        <span>v0.7.3</span>
         <span>ПУЭ · IEC 60364</span>
       </div>
     </div>
@@ -748,7 +749,7 @@
 <div class="tip-pop" id="tipPop" role="tooltip" aria-hidden="true"></div>
 
 <footer class="footer">
-  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.7.2</span>
+  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.7.3</span>
   <span class="footer-credit">Сделано с помощью <b>DeepSeek</b> · идея: <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></span>
   <span id="footerStamp"></span>
 </footer>

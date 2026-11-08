@@ -7,7 +7,7 @@
 <title>Асинхронный двигатель — инженерный расчёт</title>
 <meta name="author" content="Виктор Ханас">
 <meta name="generator" content="DeepSeek">
-<meta name="version" content="0.7.2">
+<meta name="version" content="0.7.3">
 <meta name="description" content="Расчёт мощности, тока, момента, кабеля и защиты асинхронного двигателя. Графики характеристик и переходные процессы пуска.">
 <style>
 /* ============================================================
@@ -1428,8 +1428,9 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
             <div class="input-wrap"><input id="loadUnload" type="number" min="0" max="95" step="5" value="0"><span class="unit">%</span></div>
           </div>
           <div class="field">
-            <label for="loadRelease">Снять при</label>
+            <label for="loadRelease">Снять разгрузку при</label>
             <div class="input-wrap"><input id="loadRelease" type="number" min="1" max="100" step="5" value="20"><span class="unit">% n</span></div>
+            <div class="hint" id="loadReleaseHint">Скорость снятия разгрузки, % от nн. Работает только при разгрузке &gt; 0.</div>
           </div>
         </div>
         <div class="field">
@@ -1583,7 +1584,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
         <button class="btn ghost" id="btnLoadProject">Открыть проект</button>
       </div>
       <div class="side-foot">
-        <span>v0.7.2</span>
+        <span>v0.7.3</span>
         <span>ПУЭ · IEC 60364</span>
       </div>
     </div>
@@ -1905,7 +1906,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
 <div class="tip-pop" id="tipPop" role="tooltip" aria-hidden="true"></div>
 
 <footer class="footer">
-  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.7.2</span>
+  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.7.3</span>
   <span class="footer-credit">Сделано с помощью <b>DeepSeek</b> · идея: <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></span>
   <span id="footerStamp"></span>
 </footer>
@@ -4381,6 +4382,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     $('#loadCurve').value = (state.loadCurve || []).map(p => p[0] + ':' + p[1]).join('; ');
     $('#loadUnload').value = state.loadUnload;
     $('#loadRelease').value = state.loadRelease;
+    updateUnloadUI();
     $('#insulation').value = state.cable.insulation;
     $('#parallel').value = state.cable.parallel;
     $('#loaded').value = state.cable.loaded;
@@ -4478,6 +4480,16 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       $('#loadPower').textContent = nf(op.p2, 2) + ' кВт';
       $('#loadSpeed').textContent = nf(op.n, 0) + ' об/мин';
     }
+  }
+
+  function updateUnloadUI() {
+    const on = +state.loadUnload > 0;
+    const el = $('#loadRelease');
+    if (el) el.disabled = !on;
+    const hint = $('#loadReleaseHint');
+    if (hint) hint.textContent = on
+      ? 'Скорость, при которой снимается разгрузка, % от nн. Не проценты нагрузки.'
+      : 'Задайте разгрузку > 0, чтобы использовать это поле.';
   }
 
   function fillBreakerSeries() {
@@ -4928,7 +4940,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.2.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.3.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     const w = window.open('', '_blank');
@@ -5907,6 +5919,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       if (pts) { state.loadCurve = pts; schedule(); }
     });
     bindNum('loadUnload', 'loadUnload', 0, 95);
+    $('#loadUnload').addEventListener('input', updateUnloadUI);
     bindNum('loadRelease', 'loadRelease', 1, 100);
 
     // обучение
