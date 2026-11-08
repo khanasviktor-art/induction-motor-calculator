@@ -71,7 +71,7 @@
   const getPath = (o, p) => p.split('.').reduce((x, k) => (x == null ? x : x[k]), o);
   const setPath = (o, p, v) => { const ks = p.split('.'); let x = o; for (let i = 0; i < ks.length - 1; i++) x = x[ks[i]]; x[ks[ks.length - 1]] = v; };
 
-  let lastRep = null, lastKey = '', compareData = null, compareTimer = 0;
+  let lastRep = null, lastKey = '', compareData = null, compareTimer = 0, lastCompareKey = '';
   let simState = null, ghostState = null, simRunning = false, simMotorKey = '', simMethodKey = '', simFollow = false;
 
   /* ---------- графики ---------- */
@@ -866,7 +866,7 @@
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.4.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.5.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     const w = window.open('', '_blank');
@@ -1029,7 +1029,8 @@
     if (!cv || !rep) return;
     const box = cv.parentElement;
     const dpr = window.devicePixelRatio || 1;
-    const W = Math.max(320, box.clientWidth), H = Math.max(260, box.clientHeight || 390);
+    const W = Math.max(320, box.clientWidth);
+    const H = Math.max(300, Math.min(460, Math.round(W * 0.30)));
     cv.width = W * dpr; cv.height = H * dpr;
     cv.style.width = W + 'px'; cv.style.height = H + 'px';
     const g = cv.getContext('2d');
@@ -1100,8 +1101,10 @@
     const leg = [['Автомат ' + s.brand + ' ' + s.series + ' ' + In + ' А', C.amber], ['Отсечка', C.red], ['Пуск', C.mint], ['Кабель', C.blue], ['Вышестоящий', C.violet]];
     g.font = '10px -apple-system, sans-serif'; let lx = pad.l + 8, ly = pad.t + 10;
     leg.forEach(([txt, color]) => {
+      const tw = g.measureText(txt).width;
+      if (lx + tw + 34 > W - pad.r) { lx = pad.l + 8; ly += 16; }
       g.fillStyle = color; g.fillRect(lx, ly - 7, 8, 2); g.fillStyle = C.soft; g.fillText(txt, lx + 12, ly);
-      lx += g.measureText(txt).width + 34;
+      lx += tw + 34;
     });
     const selBad = b.upstream && !b.okSel;
     $('#tagVTC').textContent = !rep.checks.breakerMag ? 'отсечка на пуске' : selBad ? 'селективность недостаточна' : 'пуск проходит';
@@ -1408,13 +1411,38 @@
   }
 
   /* ---------- сравнение способов пуска ---------- */
+  function compareKey(rep) {
+    const m = rep.motor;
+    return [
+      m.p2.toFixed(3), m.i.toFixed(3), m.n.toFixed(1), m.mn.toFixed(2),
+      m.mst.toFixed(3), m.mmax.toFixed(3), m.mmaxReal.t.toFixed(2), m.j.toFixed(4),
+      m.U.toFixed(1), m.phases, m.conn, (m.connFactor || 1).toFixed(3), m.sn.toFixed(5), m.f,
+      state.startMethod, state.loadType, state.loadPct, state.loadUnload, state.loadRelease,
+      JSON.stringify(state.loadCurve), state.sim.tSwitch, state.sim.tRamp, state.sim.uStart, state.sim.iLimit,
+      rep.cable.section, rep.cable.parallel, rep.cable.length
+    ].join('|');
+  }
+
   function updateCompare() {
     if (!lastRep) return;
     clearTimeout(compareTimer);
+    const topKey = compareKey(lastRep);
+    if (topKey === lastCompareKey && compareData) {
+      renderCompare();
+      if (document.querySelector('[data-panel="calc"]').classList.contains('active') || document.querySelector('[data-panel="start"]').classList.contains('active')) renderStartPanel(lastRep);
+      return;
+    }
     compareTimer = setTimeout(function () {
       if (!lastRep) return;
       try {
+        const key = compareKey(lastRep);
+        if (key === lastCompareKey && compareData) {
+          renderCompare();
+          if (document.querySelector('[data-panel="calc"]').classList.contains('active') || document.querySelector('[data-panel="start"]').classList.contains('active')) renderStartPanel(lastRep);
+          return;
+        }
         compareData = S.compare(lastRep.motor, Object.assign(simCfg(), { cable: lastRep.cable }));
+        lastCompareKey = key;
         renderCompare();
         if (document.querySelector('[data-panel="calc"]').classList.contains('active') || document.querySelector('[data-panel="start"]').classList.contains('active')) renderStartPanel(lastRep);
       } catch (e) { console.error(e); }

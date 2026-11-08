@@ -121,6 +121,7 @@ try {
   await page.click('.tab-btn[data-tab="cable"]');
   await page.waitForTimeout(600);
   check(await page.$('#chartVTC') !== null, 'нет canvas ВТХ');
+  check(await page.$eval('#chartVTC', c => c.height) > 300, 'ВТХ: высота canvas');
   const seriesOpts = await page.$$eval('#brkSeries option', os => os.map(o => o.value));
   check(seriesOpts.length === 6, 'ВТХ: не 6 серий');
   await page.selectOption('#brkSeries', 'iek-ba47-29');
@@ -213,6 +214,21 @@ try {
   const pbuf = fs.readFileSync(pngPath);
   check(pbuf[0] === 0x89 && pbuf[1] === 0x50 && pbuf[2] === 0x4e && pbuf[3] === 0x47, 'PNG сигнатура');
   check(pbuf.length > 5000, 'PNG слишком мал');
+
+  // кэш сравнения: thermal не должен пересчитывать 5 способов
+  await page.evaluate(() => {
+    window.__cmpCount = 0;
+    const orig = MC.sim.compare;
+    MC.sim.compare = function (...a) { window.__cmpCount++; return orig.apply(this, a); };
+  });
+  await page.click('.tab-btn[data-tab="start"]');
+  await page.waitForTimeout(300);
+  await page.check('#motorHotStart');
+  await page.waitForTimeout(500);
+  check(await page.evaluate(() => window.__cmpCount) === 0, 'кэш сравнения не работает');
+  await page.uncheck('#motorHotStart');
+  await page.waitForTimeout(300);
+
 
   // тепловой режим: горячий/холодный, класс 20
   await page.click('.tab-btn[data-tab="start"]');
