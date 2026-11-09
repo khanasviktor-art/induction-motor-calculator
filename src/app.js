@@ -553,7 +553,7 @@
     if (!el || !m) return;
     el.textContent = tf('{p} кВт · {n} об/мин · КПД {eff}% · cosφ {cos} · Iп/Iн {kst}{typ}', {
       p: m.p2, n: m.n, eff: m.eff, cos: m.cos, kst: m.kst,
-      typ: m.typical ? t(' · типовые данные') : ''
+      typ: m.typical ? ' ' + t('· типовые данные') : ''
     });
   }
 
@@ -1178,7 +1178,7 @@
     const selBad = b.upstream && !b.okSel;
     $('#tagVTC').textContent = !rep.checks.breakerMag ? t('отсечка на пуске') : selBad ? t('селективность недостаточна') : t('пуск проходит');
     $('#tagVTC').className = 'panel-tag ' + (!rep.checks.breakerMag ? 'bad' : selBad ? 'warn' : 'ok');
-    const selTxt = b.upstream ? tf(' Селективность {r}× {ok}.', { r: nf(b.selRatio, 1), ok: b.okSel ? t('обеспечена') : t('недостаточна') }) : '';
+    const selTxt = b.upstream ? ' ' + tf('Селективность {r}× {ok}.', { r: nf(b.selRatio, 1), ok: b.okSel ? t('обеспечена') : t('недостаточна') }) : '';
     $('#vtcFoot').textContent = tf('Серия {b} {s}, {i} А, {type}. Пик пуска {peak} А; отсечка {mag} А.{sel}', {
       b: s.brand, s: s.series, i: In,
       type: s.type === 'mccb' ? 'MCCB' : tf('кривая {c}', { c: curve }),
@@ -2192,7 +2192,7 @@
     const sheets = [];
     sheets.push({ name: 'Параметры', rows: [
       ['Параметр', 'Значение', 'Ед.'],
-      ['Тип двигателя', m.catalog ? m.catalog.type : (m.phases === 1 ? tf('Однофазный ({t})', { t: t(t1name) }) : '—') + (m.phases === 1 && m.p2 > 7.5 ? t(' — оценка >7,5 кВт') : ''), ''],
+      ['Тип двигателя', m.catalog ? m.catalog.type : (m.phases === 1 ? tf('Однофазный ({t})', { t: t(t1name) }) : '—') + (m.phases === 1 && m.p2 > 7.5 ? t(' ' + t('— оценка >7,5 кВт')) : ''), ''],
       ['Питание', m.phases === 1 ? '1 фаза' : '3 фазы', ''],
       ['Схема', m.phases === 1 ? '1 фаза, L/N' : (m.conn === 'D' ? 'Δ' : 'Y'), ''],
       ['Способ задания', modeName, ''],
