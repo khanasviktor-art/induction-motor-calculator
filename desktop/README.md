@@ -13,7 +13,7 @@ cd desktop && npm install && cd ..
 
 npm run desktop          # собрать index.html в desktop/app и запустить окно
 npm run desktop:dist     # собрать Windows portable exe в desktop/dist
-npm run desktop:dist:mac # собрать macOS DMG (x64 + arm64), нужен macOS
+npm run desktop:dist:mac # собрать macOS DMG (arm64), нужен macOS
 ```
 
 Если `npm install` в `desktop/` запускался через pnpm и Electron не скачался:
@@ -55,7 +55,7 @@ MC_BRIDGE.printReport(html)            // PDF отчёта
 
 ```bash
 # окно, пересчёт, темы, язык, подсказки
-APP_EXE="desktop/dist/MotorCalculator-0.11.3-win-x64.exe" npm run test:desktop
+APP_EXE="desktop/dist/MotorCalculator-0.11.4-win-x64.exe" npm run test:desktop
 
 # macOS: путь к бинарнику внутри .app
 APP_EXE="desktop/dist/mac-arm64/MotorCalculator.app/Contents/MacOS/MotorCalculator" npm run test:desktop
@@ -69,7 +69,7 @@ APP_EXE="..." APP_SAVE_DIR="C:\temp\mc" npm run test:desktop
 
 ## Ограничения сегодняшней версии
 
-- Собраны Windows portable exe и macOS DMG (x64/arm64). Windows-exe в git не
+- Собраны Windows portable exe и macOS DMG (arm64). Windows-exe в git не
   хранится; macOS DMG — в релизе.
 - Нет подписи кода: SmartScreen на Windows и Gatekeeper на macOS покажут
   предупреждение при первом запуске.

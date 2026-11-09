@@ -1100,7 +1100,7 @@ ${vtcImg ? `
 <h2>ВТХ: защита и пуск</h2>
 <figure><h3>Время-токовая характеристика</h3><img src="${vtcImg}" alt=""></figure>
 </section>` : ''}
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.11.3.<br>Для PDF без колонтитулов используйте настольную версию или отключите «Верхние и нижние колонтитулы» в диалоге печати.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.11.4.<br>Для PDF без колонтитулов используйте настольную версию или отключите «Верхние и нижние колонтитулы» в диалоге печати.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     /* настольная версия: отчёт сразу сохраняется в PDF через системный диалог */
@@ -1342,7 +1342,7 @@ ${vtcImg ? `
     const incomplete = !pending && !hasStart;
     const duration = (cmp && cmp.duration) || 25;
     const up = +state.upstreamIn;
-    const pad = { l: 58, r: 18, t: 22, b: 34 };
+    const pad = { l: 58, r: 18, t: 96, b: 34 };
     const ymin = 0.01, ymax = 100000;
     /* ось токов — по данным: от декады ниже ~Iн/4 до декады выше отсечки и пуска */
     const xmin = Math.max(0.5, Math.pow(10, Math.floor(Math.log10(Math.max(In / 4, 1)))));
@@ -1403,14 +1403,19 @@ ${vtcImg ? `
       }
       if (trip != null) { g.globalAlpha = .55; g.strokeStyle = dot; g.lineWidth = 1; g.setLineDash([2, 2]); g.beginPath(); g.moveTo(X(Ieq), ty); g.lineTo(X(Ieq), Y(Math.max(trip, 0.02))); g.stroke(); g.restore(); g.save(); }
       g.font = '10px ui-monospace, monospace'; g.fillStyle = dot; g.textAlign = 'left';
-      startTxt = trip != null
-        ? (eqDiff
-          ? tf('пуск {i} А / {t} с · экв. {ieq} А → автомат {tr} с', { i: nf(Istart, 0), t: nf(tS, 2), ieq: nf(Ieq, 0), tr: nf(Math.max(trip, 0.02), 2) })
-          : tf('пуск {i} А / {t} с · автомат {tr} с', { i: nf(Istart, 0), t: nf(tS, 2), tr: nf(Math.max(trip, 0.02), 2) }))
-        : tf('пуск {i} А / {t} с', { i: nf(Istart, 0), t: nf(tS, 2) });
-      const tw = g.measureText(startTxt).width;
-      const tx = X(Istart) + 7 + tw > W - pad.r ? Math.max(pad.l + 8, X(Istart) - 7 - tw) : X(Istart) + 7;
-      g.fillText(startTxt, tx, ty - 5);
+      const peakTxt = tf('Iп {i} А · {t} с', { i: nf(Istart, 0), t: nf(tS, 2) });
+      const peakW = g.measureText(peakTxt).width;
+      const ptx = X(Istart) + 7 + peakW > W - pad.r ? Math.max(pad.l + 8, X(Istart) - 7 - peakW) : X(Istart) + 7;
+      g.fillText(peakTxt, ptx, ty - 10);
+      if (eqDiff) {
+        const eqTxt = tf('Iэкв {ieq} А', { ieq: nf(Ieq, 0) });
+        g.fillText(eqTxt, Math.max(pad.l + 8, X(Ieq) - 9 - g.measureText(eqTxt).width), ty - 10);
+      }
+      if (trip != null) {
+        const trTxt = tf('tср {tr} с', { tr: nf(Math.max(trip, 0.02), 2) });
+        const trW = g.measureText(trTxt).width;
+        g.fillText(trTxt, Math.min(W - pad.r - trW - 4, X(Ieq) + 7), Y(Math.max(trip, 0.02)) - 6);
+      }
       g.restore();
     } else {
       g.save(); g.strokeStyle = C.red; g.lineWidth = 1.3; g.setLineDash([5, 4]);
@@ -1425,21 +1430,34 @@ ${vtcImg ? `
       g.restore();
     }
 
-    // легенда — только те серии, которые действительно нарисованы
+    // легенда — отдельной полосой над полем графика
     const sec = rep.cable.section;
-    const leg = [[tf('Автомат {b} {s} {i} А', { b: s.brand, s: s.series, i: In }), C.amber]];
-    leg.push([mag[0] !== mag[1]
-      ? tf('Отсечка {a}…{b} А', { a: nf(mag[0] * In, 0), b: nf(mag[1] * In, 0) })
-      : tf('Отсечка {a} А', { a: nf(mag[0] * In, 0) }), C.red]);
-    leg.push([t('Пуск'), dot]);
-    leg.push([tf('Кабель {s} мм²', { s: nf(sec, 1) }), C.blue]);
-    if (up > 0) leg.push([t('Вышестоящий'), C.violet]);
-    g.font = '10px -apple-system, sans-serif'; let lx = pad.l + 8, ly = pad.t + 10;
-    leg.forEach(([txt, color]) => {
-      const tw = g.measureText(txt).width;
-      if (lx + tw + 34 > W - pad.r) { lx = pad.l + 8; ly += 16; }
-      g.fillStyle = color; g.fillRect(lx, ly - 7, 8, 2); g.fillStyle = C.soft; g.fillText(txt, lx + 12, ly);
-      lx += tw + 34;
+    const leg = [
+      { kind: 'line', label: tf('Автомат {b} {s} {i} А', { b: s.brand, s: s.series, i: In }), color: C.amber },
+      { kind: 'dash', label: mag[0] !== mag[1]
+        ? tf('Отсечка {a}…{b} А', { a: nf(mag[0] * In, 0), b: nf(mag[1] * In, 0) })
+        : tf('Отсечка {a} А', { a: nf(mag[0] * In, 0) }), color: C.red },
+      { kind: 'dash', label: tf('Кабель {s} мм²', { s: nf(sec, 1) }), color: C.blue }
+    ];
+    if (up > 0) leg.push({ kind: 'dash', label: t('Вышестоящий'), color: C.violet });
+    if (hasStart) {
+      leg.push({ kind: 'dot', label: t('Пик пуска Iп'), color: dot });
+      if (Ieq != null && Math.abs(Ieq - Istart) / Math.max(Istart, 1) > 0.03) leg.push({ kind: 'circle', label: t('Эквивалентный ток Iэкв'), color: dot });
+      if (trip != null) leg.push({ kind: 'vline', label: t('Время срабатывания tср'), color: dot });
+    }
+    g.font = '10px -apple-system, sans-serif'; let lx = pad.l + 8, ly = 18;
+    leg.forEach(item => {
+      const tw = g.measureText(item.label).width + 30;
+      if (lx + tw > W - pad.r) { lx = pad.l + 8; ly += 17; }
+      g.save(); g.strokeStyle = item.color; g.fillStyle = item.color; g.lineWidth = 1.4;
+      if (item.kind === 'line') { g.beginPath(); g.moveTo(lx, ly - 3); g.lineTo(lx + 10, ly - 3); g.stroke(); }
+      else if (item.kind === 'dash') { g.setLineDash([4, 3]); g.beginPath(); g.moveTo(lx, ly - 3); g.lineTo(lx + 10, ly - 3); g.stroke(); }
+      else if (item.kind === 'dot') { g.beginPath(); g.arc(lx + 5, ly - 3, 3.5, 0, Math.PI * 2); g.fill(); }
+      else if (item.kind === 'circle') { g.beginPath(); g.arc(lx + 5, ly - 3, 3.5, 0, Math.PI * 2); g.stroke(); }
+      else if (item.kind === 'vline') { g.setLineDash([2, 2]); g.beginPath(); g.moveTo(lx + 5, ly - 10); g.lineTo(lx + 5, ly + 2); g.stroke(); }
+      g.setLineDash([]); g.fillStyle = C.soft; g.fillText(item.label, lx + 14, ly);
+      g.restore();
+      lx += tw;
     });
     const selBad = b.upstream && !b.okSel;
     let tagTxt, tagCls;

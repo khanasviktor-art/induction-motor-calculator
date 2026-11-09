@@ -36,7 +36,7 @@ if (process.argv.includes('--dist') || wantMac) {
       '  cd desktop && npm install   (или pnpm install)');
   }
   const args = wantMac
-    ? [builderCli, '--mac', 'dmg', '--x64', '--arm64']
+    ? [builderCli, '--mac', 'dmg', '--arm64']
     : [builderCli, '--win', 'portable', '--x64'];
   console.log('desktop: electron-builder ' + args.slice(1).join(' ') + ' (это может занять пару минут)');
   const r = spawnSync(process.execPath, args, { cwd: desktop, stdio: 'inherit', env: cleanEnv });

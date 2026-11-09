@@ -1,6 +1,6 @@
 {
   "name": "induction-motor-calculator",
-  "version": "0.11.3",
+  "version": "0.11.4",
   "private": true,
   "type": "module",
   "description": "Офлайн-калькулятор асинхронного двигателя: ток, мощность, кабель, защита, графики и переходные процессы пуска.",

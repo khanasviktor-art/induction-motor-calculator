@@ -1,6 +1,13 @@
 /* 15-start-report — статусы незавершённого пуска, исходные данные и печать отчёта */
 window.MC_EN = Object.assign(window.MC_EN || {}, {
   "Ток КЗ": "Short-circuit current",
+  "Пик пуска Iп": "Starting peak Ist",
+  "Эквивалентный ток Iэкв": "Equivalent current Ieq",
+  "Время срабатывания tср": "Breaker trip time ttr",
+  "Iп {i} А · {t} с": "Ist {i} A · {t} s",
+  "Iэкв {ieq} А": "Ieq {ieq} A",
+  "tср {tr} с": "ttr {tr} s",
+
   "J нагрузки": "Load inertia J",
   "уставка": "setting",
   "не задан": "not set",
