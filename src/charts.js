@@ -76,7 +76,7 @@
         xLabel: '', yLabel: '', y2Label: '', legend: true,
         xTicks: 6, yTicks: 5, pad: { l: 56, r: 54, t: 36, b: 36 },
         xFmt: null, yFmt: null, y2Fmt: null,
-        hLines: [], markerX: null, xRange: null, minY: null, maxY: null,
+        hLines: [], vLines: [], markerX: null, markerPoint: null, xRange: null, minY: null, maxY: null,
         minY2: null, maxY2: null, emptyText: 'нет данных', yZero: true
       }, opts || {});
       this.series = [];
@@ -365,6 +365,25 @@
       });
       ctx.restore();
 
+      // вертикальные референсные линии (например Mн на перевёрнутой M(n))
+      (o.vLines || []).forEach(vl => {
+        const px = X(vl.x);
+        if (px < x0 || px > x1) return;
+        ctx.save();
+        ctx.strokeStyle = vl.color || THEME.refLine;
+        ctx.setLineDash([4, 4]);
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(px, y0); ctx.lineTo(px, y1); ctx.stroke();
+        ctx.restore();
+        if (vl.label) {
+          ctx.fillStyle = vl.color || THEME.refText;
+          ctx.font = FONT_UI;
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'top';
+          ctx.fillText(vl.label, px + 4, y0 + 3);
+        }
+      });
+
       // маркер рабочей точки
       if (o.markerX != null) {
         const px = X(o.markerX);
@@ -375,15 +394,29 @@
           ctx.lineWidth = 1;
           ctx.beginPath(); ctx.moveTo(px, y0); ctx.lineTo(px, y1); ctx.stroke();
           ctx.restore();
-          vis.forEach(s => {
-            if ((s.axis || 0) !== 0 || !s.data.length) return;
-            const yv = this._interp(s.data, o.markerX);
-            if (yv == null) return;
-            ctx.fillStyle = s.color;
-            ctx.beginPath();
-            ctx.arc(px, Y(yv), 3.2, 0, Math.PI * 2);
-            ctx.fill();
-          });
+          /* при markerPoint точка ставится явно: на немонотонной кривой
+             интерполяция по X нашла бы ветвь неустойчивого режима */
+          if (!o.markerPoint) {
+            vis.forEach(s => {
+              if ((s.axis || 0) !== 0 || !s.data.length) return;
+              const yv = this._interp(s.data, o.markerX);
+              if (yv == null) return;
+              ctx.fillStyle = s.color;
+              ctx.beginPath();
+              ctx.arc(px, Y(yv), 3.2, 0, Math.PI * 2);
+              ctx.fill();
+            });
+          }
+        }
+      }
+      if (o.markerPoint) {
+        const mp = o.markerPoint;
+        const px = X(mp.x), py = Y(mp.y);
+        if (px >= x0 && px <= x1 && py >= y0 && py <= y1) {
+          ctx.save();
+          ctx.fillStyle = mp.color || 'rgba(70,224,165,1)';
+          ctx.beginPath(); ctx.arc(px, py, 4.2, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
         }
       }
 
@@ -521,12 +554,16 @@
     _dataXBounds() {
       let lo = Infinity, hi = -Infinity;
       this._visible().forEach(s => {
-        if (!s.data.length) return;
-        const a = s.data[0][0], b = s.data[s.data.length - 1][0];
-        if (a < lo) lo = a;
-        if (b > hi) hi = b;
+        /* берём настоящие min/max: у перевёрнутой M(n) момент по X немонотонен,
+           и «первая/последняя точка» давала перевёрнутый диапазон */
+        for (let i = 0; i < s.data.length; i++) {
+          const x = s.data[i][0];
+          if (!isFinite(x)) continue;
+          if (x < lo) lo = x;
+          if (x > hi) hi = x;
+        }
       });
-      return isFinite(lo) ? [lo, hi] : [0, 1];
+      return isFinite(lo) && isFinite(hi) && hi >= lo ? [lo, hi] : [0, 1];
     }
 
     _zoomX(px, factor) {

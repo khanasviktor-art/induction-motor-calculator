@@ -182,16 +182,22 @@
   /* Предрасчёт сценария для сравнения способов пуска */
   function runScenario(motor, cfg, maxT) {
     const st = createState(motor, cfg);
-    st.cfg = Object.assign({}, cfg, { duration: maxT || 30 });
+    const dur = maxT || cfg.duration || 30;
+    st.cfg = Object.assign({}, cfg, { duration: dur });
     const dt = 0.001;
     let guard = 0;
     /* тепловая доза за время пуска: ∫I²dt. По ней считается эквивалентный
        ток — тепловой эффект реальной спадающей кривой, а не пикового тока. */
     let dose = 0;
-    while (!st.done && guard++ < 60000) {
+    /* trace — писать выборку для графиков (используется в отчёте) */
+    const trace = !!cfg.trace;
+    let lastSample = -1;
+    while (!st.done && guard++ < 125000) {
       stepOnce(st, dt);
       if (st.tStart == null || st.t < st.tStart) dose += st.iNow * st.iNow * dt;
-      if (st.t > 0.2 && st.tStart != null && st.t > st.tStart + 1.0) break;
+      if (trace && st.t - lastSample >= 0.02) { lastSample = st.t; sample(st); }
+      /* для сравнения способов хватает секунды после выхода на скорость */
+      if (!trace && st.t > 0.2 && st.tStart != null && st.t > st.tStart + 1.0) break;
     }
     const tSt = st.tStart;
     return {
@@ -203,7 +209,8 @@
       Iend: st.iNow,
       stalled: st.stalled && st.tStart == null,
       /* действующий ток пуска: sqrt(∫I²dt / tпуска) */
-      ieq: tSt && tSt > 0 ? Math.sqrt(dose / tSt) : null
+      ieq: tSt && tSt > 0 ? Math.sqrt(dose / tSt) : null,
+      samples: trace ? st.samples : undefined
     };
   }
 
@@ -222,6 +229,7 @@
     createState: createState,
     advance: advance,
     compare: compare,
+    runScenario: runScenario,
     inertia: inertia
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

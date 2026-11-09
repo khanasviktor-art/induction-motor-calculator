@@ -7,7 +7,7 @@
 <title>Асинхронный двигатель — инженерный расчёт</title>
 <meta name="author" content="Виктор Ханас">
 <meta name="generator" content="DeepSeek">
-<meta name="version" content="0.10.0">
+<meta name="version" content="0.11.0">
 <meta name="description" content="Расчёт мощности, тока, момента, кабеля и защиты асинхронного двигателя. Графики характеристик и переходные процессы пуска.">
 <style>
 /* ============================================================
@@ -1758,7 +1758,7 @@ html[data-tone="light"] .palette-pop { box-shadow: 0 16px 40px rgba(15, 25, 40, 
         <button class="btn ghost" id="btnLoadProject">Открыть проект</button>
       </div>
       <div class="side-foot">
-        <span>v0.10.0</span>
+        <span>v0.11.0</span>
         <span>ПУЭ · IEC 60364</span>
       </div>
     </div>
@@ -1943,6 +1943,10 @@ html[data-tone="light"] .palette-pop { box-shadow: 0 16px 40px rgba(15, 25, 40, 
               <div class="input-wrap"><input id="simIlimit" type="number" min="1" max="8" step="0.1" value="3"><span class="unit">×Iн</span></div>
             </div>
             <div class="field">
+              <label for="simDuration">Время моделирования</label>
+              <div class="input-wrap"><input id="simDuration" type="number" min="2" max="120" step="1" value="20"><span class="unit">с</span></div>
+            </div>
+            <div class="field">
               <label>Скорость времени</label>
               <div class="seg small" id="segSimSpeed">
                 <button data-val="0.25">0.25×</button>
@@ -2081,7 +2085,7 @@ html[data-tone="light"] .palette-pop { box-shadow: 0 16px 40px rgba(15, 25, 40, 
 <div class="tip-pop" id="tipPop" role="tooltip" aria-hidden="true"></div>
 
 <footer class="footer">
-  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.10.0</span>
+  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.11.0</span>
   <span class="footer-credit">Сделано с помощью <b>DeepSeek</b> · идея: <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></span>
   <span id="footerStamp"></span>
 </footer>
@@ -3218,7 +3222,7 @@ html[data-tone="light"] .palette-pop { box-shadow: 0 16px 40px rgba(15, 25, 40, 
         xLabel: '', yLabel: '', y2Label: '', legend: true,
         xTicks: 6, yTicks: 5, pad: { l: 56, r: 54, t: 36, b: 36 },
         xFmt: null, yFmt: null, y2Fmt: null,
-        hLines: [], markerX: null, xRange: null, minY: null, maxY: null,
+        hLines: [], vLines: [], markerX: null, markerPoint: null, xRange: null, minY: null, maxY: null,
         minY2: null, maxY2: null, emptyText: 'нет данных', yZero: true
       }, opts || {});
       this.series = [];
@@ -3507,6 +3511,25 @@ html[data-tone="light"] .palette-pop { box-shadow: 0 16px 40px rgba(15, 25, 40, 
       });
       ctx.restore();
 
+      // вертикальные референсные линии (например Mн на перевёрнутой M(n))
+      (o.vLines || []).forEach(vl => {
+        const px = X(vl.x);
+        if (px < x0 || px > x1) return;
+        ctx.save();
+        ctx.strokeStyle = vl.color || THEME.refLine;
+        ctx.setLineDash([4, 4]);
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(px, y0); ctx.lineTo(px, y1); ctx.stroke();
+        ctx.restore();
+        if (vl.label) {
+          ctx.fillStyle = vl.color || THEME.refText;
+          ctx.font = FONT_UI;
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'top';
+          ctx.fillText(vl.label, px + 4, y0 + 3);
+        }
+      });
+
       // маркер рабочей точки
       if (o.markerX != null) {
         const px = X(o.markerX);
@@ -3517,15 +3540,29 @@ html[data-tone="light"] .palette-pop { box-shadow: 0 16px 40px rgba(15, 25, 40, 
           ctx.lineWidth = 1;
           ctx.beginPath(); ctx.moveTo(px, y0); ctx.lineTo(px, y1); ctx.stroke();
           ctx.restore();
-          vis.forEach(s => {
-            if ((s.axis || 0) !== 0 || !s.data.length) return;
-            const yv = this._interp(s.data, o.markerX);
-            if (yv == null) return;
-            ctx.fillStyle = s.color;
-            ctx.beginPath();
-            ctx.arc(px, Y(yv), 3.2, 0, Math.PI * 2);
-            ctx.fill();
-          });
+          /* при markerPoint точка ставится явно: на немонотонной кривой
+             интерполяция по X нашла бы ветвь неустойчивого режима */
+          if (!o.markerPoint) {
+            vis.forEach(s => {
+              if ((s.axis || 0) !== 0 || !s.data.length) return;
+              const yv = this._interp(s.data, o.markerX);
+              if (yv == null) return;
+              ctx.fillStyle = s.color;
+              ctx.beginPath();
+              ctx.arc(px, Y(yv), 3.2, 0, Math.PI * 2);
+              ctx.fill();
+            });
+          }
+        }
+      }
+      if (o.markerPoint) {
+        const mp = o.markerPoint;
+        const px = X(mp.x), py = Y(mp.y);
+        if (px >= x0 && px <= x1 && py >= y0 && py <= y1) {
+          ctx.save();
+          ctx.fillStyle = mp.color || 'rgba(70,224,165,1)';
+          ctx.beginPath(); ctx.arc(px, py, 4.2, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
         }
       }
 
@@ -3663,12 +3700,16 @@ html[data-tone="light"] .palette-pop { box-shadow: 0 16px 40px rgba(15, 25, 40, 
     _dataXBounds() {
       let lo = Infinity, hi = -Infinity;
       this._visible().forEach(s => {
-        if (!s.data.length) return;
-        const a = s.data[0][0], b = s.data[s.data.length - 1][0];
-        if (a < lo) lo = a;
-        if (b > hi) hi = b;
+        /* берём настоящие min/max: у перевёрнутой M(n) момент по X немонотонен,
+           и «первая/последняя точка» давала перевёрнутый диапазон */
+        for (let i = 0; i < s.data.length; i++) {
+          const x = s.data[i][0];
+          if (!isFinite(x)) continue;
+          if (x < lo) lo = x;
+          if (x > hi) hi = x;
+        }
       });
-      return isFinite(lo) ? [lo, hi] : [0, 1];
+      return isFinite(lo) && isFinite(hi) && hi >= lo ? [lo, hi] : [0, 1];
     }
 
     _zoomX(px, factor) {
@@ -4026,16 +4067,22 @@ html[data-tone="light"] .palette-pop { box-shadow: 0 16px 40px rgba(15, 25, 40, 
   /* Предрасчёт сценария для сравнения способов пуска */
   function runScenario(motor, cfg, maxT) {
     const st = createState(motor, cfg);
-    st.cfg = Object.assign({}, cfg, { duration: maxT || 30 });
+    const dur = maxT || cfg.duration || 30;
+    st.cfg = Object.assign({}, cfg, { duration: dur });
     const dt = 0.001;
     let guard = 0;
     /* тепловая доза за время пуска: ∫I²dt. По ней считается эквивалентный
        ток — тепловой эффект реальной спадающей кривой, а не пикового тока. */
     let dose = 0;
-    while (!st.done && guard++ < 60000) {
+    /* trace — писать выборку для графиков (используется в отчёте) */
+    const trace = !!cfg.trace;
+    let lastSample = -1;
+    while (!st.done && guard++ < 125000) {
       stepOnce(st, dt);
       if (st.tStart == null || st.t < st.tStart) dose += st.iNow * st.iNow * dt;
-      if (st.t > 0.2 && st.tStart != null && st.t > st.tStart + 1.0) break;
+      if (trace && st.t - lastSample >= 0.02) { lastSample = st.t; sample(st); }
+      /* для сравнения способов хватает секунды после выхода на скорость */
+      if (!trace && st.t > 0.2 && st.tStart != null && st.t > st.tStart + 1.0) break;
     }
     const tSt = st.tStart;
     return {
@@ -4047,7 +4094,8 @@ html[data-tone="light"] .palette-pop { box-shadow: 0 16px 40px rgba(15, 25, 40, 
       Iend: st.iNow,
       stalled: st.stalled && st.tStart == null,
       /* действующий ток пуска: sqrt(∫I²dt / tпуска) */
-      ieq: tSt && tSt > 0 ? Math.sqrt(dose / tSt) : null
+      ieq: tSt && tSt > 0 ? Math.sqrt(dose / tSt) : null,
+      samples: trace ? st.samples : undefined
     };
   }
 
@@ -4066,6 +4114,7 @@ html[data-tone="light"] .palette-pop { box-shadow: 0 16px 40px rgba(15, 25, 40, 
     createState: createState,
     advance: advance,
     compare: compare,
+    runScenario: runScenario,
     inertia: inertia
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
@@ -4592,9 +4641,11 @@ Object.assign(window.MC_EN, {
   "вариант сохранён": "variant saved",
   "Вентиляторный (T ∝ n²)": "Fan (T ∝ n²)",
   "Виктор Ханас": "Viktor Khanas",
+  "Время моделирования": "Simulation time",
   "Время переключения": "Changeover time",
   "Время разгона": "Run-up time",
   "Время разгона, с": "Run-up time, s",
+  "Время-токовая характеристика": "Time-current characteristic",
   "Время-токовая характеристика: автомат, пуск, кабель и вышестоящая защита": "Time-current characteristic: breaker, starting, cable and upstream protection",
   "Время, за которое перегрев достигает 63 % установившегося значения.": "Time for the temperature rise to reach 63 % of its steady-state value.",
   "Все": "All",
@@ -4732,6 +4783,7 @@ Object.assign(window.MC_EN, {
   "Кривая M(n) — при U = 368 В (с учётом кабеля); Mmax в таблице — при номинальном напряжении.": "M(n) curve — at U = 368 V (cable taken into account); Mmax in the table — at rated voltage.",
   "Кривая M(n) — при U = 369 В (с учётом кабеля); Mmax в таблице — при номинальном напряжении.": "M(n) curve — at U = 369 V (cable taken into account); Mmax in the table — at rated voltage.",
   "Кривая M(n) — при U = 374 В (с учётом кабеля); Mmax в таблице — при номинальном напряжении.": "M(n) curve — at U = 374 V (cable taken into account); Mmax in the table — at rated voltage.",
+  "Кривая M(n) при U = {u} В (с учётом кабеля): по горизонтали момент, по вертикали скорость. Mmax в таблице — при номинальном напряжении.": "M(n) curve at U = {u} V (cable drop included): torque horizontally, speed vertically. Mmax in the table is at rated voltage.",
   "Кривая M(n), %n:%M": "Curve M(n), %n:%M",
   "Кривая MCB (B/C/D/K/Z) или уставка MCCB (TMD/TMA). Для 380/660 и пуска часто нужна D.": "MCB curve (B/C/D/K/Z) or MCCB setting (TMD/TMA). For 380/660 and starting, curve D is often needed.",
   "Кривая MCB: B — 3…5·Iн, C — 5…10·Iн, D — 10…20·Iн. Для двигателей с прямым пуском обычно D.": "MCB curve: B — 3…5·Iₙ, C — 5…10·Iₙ, D — 10…20·Iₙ. For DOL-started motors, curve D is usual.",
@@ -4773,6 +4825,7 @@ Object.assign(window.MC_EN, {
   "Момент нагрузки в % от Mн при номинальной скорости. Для вентиляторной нагрузки фактический момент зависит от n² — смотрите строку ниже.": "Load torque in % of Mₙ at rated speed. For a fan load the actual torque depends on n² — see the line below.",
   "Момент нагрузки, процент от номинала": "Load torque, percent of rated",
   "Момент при выбранном пуске": "Torque with the selected starting method",
+  "Момент M(t)": "Torque M(t)",
   "Момент Mн": "Torque Mₙ",
   "Момент Mп": "Torque Mst",
   "Момент Mmax": "Torque Mmax",
@@ -4905,6 +4958,7 @@ Object.assign(window.MC_EN, {
   "Перейти к моделированию пуска": "Open the start simulation",
   "Переключение светлой и тёмной темы, повторный запуск обучения и кнопка «Печать / PDF» — отчёт с таблицами и графиками.": "Light/dark theme switch, restart of the guided tour and the \"Print / PDF\" button — a report with tables and charts.",
   "Переходные процессы": "Transients",
+  "Переходные процессы (пуск)": "Transients (start)",
   "Печать / PDF": "Print / PDF",
   "Печать или сохранение в PDF": "Print or save as PDF",
   "Пик пуска {i} А": "Starting peak {i} A",
@@ -5075,6 +5129,7 @@ Object.assign(window.MC_EN, {
   "Скорость времени": "Simulation speed",
   "Скорость и скольжение": "Speed and slip",
   "Скорость и частота": "Speed and frequency",
+  "Скорость n(t)": "Speed n(t)",
   "Скорость nн": "Speed nₙ",
   "Скорость, при которой разгрузка снимается, % от номинальной. Обычно 20…40 %; после этого нагрузка восстанавливается.": "Speed at which the unloading is removed, % of rated. Usually 20…40 %; after that the load is restored.",
   "Скорость, при которой снимается разгрузка, % от nн. Не проценты нагрузки.": "Speed at which the unloading is released, % of nₙ. Not a percentage of load.",
@@ -5148,6 +5203,7 @@ Object.assign(window.MC_EN, {
   "Ток отсечки": "Instantaneous trip current",
   "Ток отсечки (мин.)": "Instantaneous trip (min)",
   "Ток статора": "Stator current",
+  "Ток I(t)": "Current I(t)",
   "Точки в % от nн и Mн через «;». Например: 0:0; 50:50; 100:100. Масштаб задаёт ползунок нагрузки.": "Points in % of nₙ and Mₙ, separated by a semicolon. For example: 0:0; 50:50; 100:100. The load slider sets the scale.",
   "Трёхжильный кабель, 3 нагруженные жилы, воздух, 25 °C (ПУЭ) / 30 °C (IEC). Для однофазной нагрузки — 2 жилы (поправка 1,12).": "Three-core cable, 3 loaded cores, air, 25 °C (PUE) / 30 °C (IEC). For a single-phase load — 2 cores (correction factor 1.12).",
   "Трёхфазный или однофазный двигатель. Для однофазного ток считается по I = P₁/(U·cosφ), без √3.": "Three-phase or single-phase motor. For a single-phase motor the current is calculated as I = P₁/(U·cosφ), without √3.",
@@ -5699,7 +5755,7 @@ Object.assign(window.MC_EN, {
     cable: { standard: 'pue', material: 'cu', insulation: 'pvc', laying: 'open', length: 50, ambient: 25, group: 1, loaded: 3, parallel: 'auto', startDropLimit: 15, considerStartDrop: true },
     dropLimit: 5, startMethod: 'dol', curve: 'D', isc: 6,
     breakerType: 'mcb', breakerSeries: 'abb-s200', mccbMag: 10, upstreamIn: 0,
-    sim: { tSwitch: 2, tRamp: 6, uStart: 30, iLimit: 3, speed: 1, overlay: 'none' },
+    sim: { tSwitch: 2, tRamp: 6, uStart: 30, iLimit: 3, duration: 20, speed: 1, overlay: 'none' },
     charts: { torque: true, iu: true, speed: true, eff: true, power: true },
     tab: 'calc', theme: 'dark'
   };
@@ -6035,6 +6091,7 @@ Object.assign(window.MC_EN, {
     $('#simRamp').value = state.sim.tRamp;
     $('#simUstart').value = state.sim.uStart;
     $('#simIlimit').value = state.sim.iLimit;
+    $('#simDuration').value = state.sim.duration;
     $('#simOverlay').value = state.sim.overlay;
     updateOverlayNote();
     syncSeg('#segPhases', state.phases);
@@ -6285,7 +6342,8 @@ Object.assign(window.MC_EN, {
       tRamp: +state.sim.tRamp,
       uStart: +state.sim.uStart,
       iLimit: +state.sim.iLimit,
-      duration: 3600,
+      /* время моделирования: живой прогон останавливается сам */
+      duration: Math.max(2, +state.sim.duration || 20),
       load: loadCfg(),
       jExtra: +state.jExtra,
       speed: +state.sim.speed
@@ -6509,6 +6567,55 @@ Object.assign(window.MC_EN, {
     return list;
   }
 
+  /* Переходные процессы для отчёта: прогоняем сценарий отдельно, на время
+     выборки, и рисуем графики на скрытых canvas — без вкладки «Пуск». */
+  function reportTransientImages(rep) {
+    if (!MC.Chart || !MC.sim || !rep) return null;
+    const cfg = Object.assign(simCfg(), {
+      method: state.startMethod,
+      duration: Math.max(2, +state.sim.duration || 20),
+      cable: rep.cable,
+      trace: true
+    });
+    let res = null;
+    try { res = MC.sim.runScenario(rep.motor, cfg, cfg.duration); } catch (e) { return null; }
+    const pts = (res && res.samples ? res.samples : []).filter(p => isFinite(p.n) && p.t <= cfg.duration + 0.01);
+    if (pts.length < 2) return null;
+
+    const host = document.createElement('div');
+    host.style.cssText = 'position:fixed;left:-12000px;top:0;width:900px;height:300px;pointer-events:none';
+    document.body.appendChild(host);
+    const make = (series, opts) => {
+      const cv = document.createElement('canvas');
+      cv.style.cssText = 'width:900px;height:280px;display:block';
+      host.appendChild(cv);
+      try {
+        const ch = new MC.Chart(cv, Object.assign({ legend: true, yZero: true, xLabel: t('t, с') }, opts));
+        ch.setData(series);
+        ch.draw();
+        return ch.toPNGData('#ffffff');
+      } catch (e) {
+        return '';
+      } finally {
+        cv.remove();
+      }
+    };
+    const dur = Math.max(2, +state.sim.duration || 20);
+    const refStart = res.tStart || (pts[pts.length - 1] || {}).t || dur;
+    const win = Math.max(2, Math.min(dur, refStart * 2.5));
+    const out = {
+      n: make([{ name: 'n', color: '#0f9d72', data: pts.map(p => [p.t, p.n]) }], { yLabel: t('n, об/мин'), xRange: [0, win] }),
+      i: make([{ name: 'I', color: '#2f7fd1', data: pts.map(p => [p.t, p.I]) }], { yLabel: 'I, А', xRange: [0, win] }),
+      m: make([{ name: 'M', color: '#b5730f', data: pts.map(p => [p.t, p.T]) }], { yLabel: 'M, Н·м', xRange: [0, win] }),
+      u: make([
+        { name: 'U', color: '#7a55c9', data: pts.map(p => [p.t, p.U]) },
+        { name: 'f', color: '#b98bff', data: pts.map(p => [p.t, p.f]), axis: 1 }
+      ], { yLabel: 'U, %', y2Label: t('f, Гц'), xRange: [0, win] })
+    };
+    host.remove();
+    return out;
+  }
+
   function openReport() {
     if (!lastRep) return;
     const m = lastRep.motor, c = lastRep.cable, b = lastRep.breaker, op = lastRep.op;
@@ -6525,6 +6632,14 @@ Object.assign(window.MC_EN, {
       torque: img(charts.torque), iu: img(charts.iu), speed: img(charts.speed),
       eff: img(charts.eff), power: img(charts.power)
     };
+    /* ВТХ и переходные процессы — их в отчёте раньше не было */
+    let vtcImg = '';
+    try {
+      drawVTC(lastRep);
+      const cv = $('#chartVTC');
+      if (cv) vtcImg = cv.toDataURL('image/png');
+    } catch (e) { vtcImg = ''; }
+    const trImgs = reportTransientImages(lastRep);
     document.documentElement.setAttribute('data-theme', prevTheme);
     document.documentElement.setAttribute('data-tone', themeTone(prevTheme));
     if (MC.setChartTheme) MC.setChartTheme(prevTheme);
@@ -6625,7 +6740,20 @@ Object.assign(window.MC_EN, {
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.10.0.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+${trImgs ? `
+<h2>Переходные процессы (пуск)</h2>
+<div class="grid">
+  <figure><h3>Скорость n(t)</h3><img src="${trImgs.n}" alt=""></figure>
+  <figure><h3>Ток I(t)</h3><img src="${trImgs.i}" alt=""></figure>
+  <figure><h3>Момент M(t)</h3><img src="${trImgs.m}" alt=""></figure>
+  <figure><h3>Напряжение и частота</h3><img src="${trImgs.u}" alt=""></figure>
+</div>` : ''}
+${vtcImg ? `
+<h2>ВТХ: защита и пуск</h2>
+<div class="grid">
+  <figure style="grid-column:1/-1"><h3>Время-токовая характеристика</h3><img src="${vtcImg}" alt=""></figure>
+</div>` : ''}
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.11.0.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     /* настольная версия: отчёт сразу сохраняется в PDF через системный диалог */
@@ -7175,26 +7303,31 @@ Object.assign(window.MC_EN, {
   function renderCharts(rep) {
     const m = rep.motor, sw = rep.sweep;
 
-    const nArr = [], tEm = [], tLoad = [];
+    /* Механическая характеристика: по X — момент, по Y — скорость.
+       Точки считаются по (скорость → момент), а на график кладутся как
+       [M, n] — так горизонтальной осью становится момент. */
+    const tEm = [], tLoad = [];
     const N = 240;
     const uOp = Math.min(1.05, Math.max(0.7, rep.op.U / m.U));
     for (let i = 0; i <= N; i++) {
       const n = m.ns * i / N;
       const s = 1 - n / m.ns;
-      nArr.push([n, 0]);
-      tEm.push([n, E.torque(m, s, uOp)]);
-      tLoad.push([n, E.loadTorque(m, n, loadCfg())]);
+      tEm.push([E.torque(m, s, uOp), n]);
+      tLoad.push([E.loadTorque(m, n, loadCfg()), n]);
     }
+    const maxM = Math.max(m.mmaxReal.t, m.mn * 1.15, rep.op.T * 1.1);
     charts.torque.setData([
       { name: t('M двигателя'), color: C.mint, data: tEm, width: 2.2 },
       { name: t('M нагрузки'), color: C.amber, data: tLoad, width: 1.8, dash: [5, 4] }
     ]);
     charts.torque.setOptions({
-      markerX: rep.op.n, xRange: [0, m.ns],
-      hLines: [{ y: m.mn, color: 'rgba(255,255,255,0.22)', label: t('Mн') }]
+      markerX: rep.op.T, markerPoint: { x: rep.op.T, y: rep.op.n, color: C.mint },
+      xRange: [0, maxM * 1.05], minY: 0, maxY: m.ns,
+      xLabel: t('M, Н·м'), yLabel: t('n, об/мин'),
+      vLines: [{ x: m.mn, color: 'rgba(255,255,255,0.22)', label: t('Mн') }]
     });
     const tfoot = document.querySelector('[data-chart-panel="torque"] .panel-foot');
-    if (tfoot) tfoot.textContent = `Кривая M(n) — при U = ${nf(rep.op.U, 0)} В (с учётом кабеля); Mmax в таблице — при номинальном напряжении.`;
+    if (tfoot) tfoot.textContent = tf('Кривая M(n) при U = {u} В (с учётом кабеля): по горизонтали момент, по вертикали скорость. Mmax в таблице — при номинальном напряжении.', { u: nf(rep.op.U, 0) });
 
     charts.iu.setData([
       { name: 'I', color: C.blue, data: sw.load.map((x, i) => [x, sw.I[i]]), width: 2.1 },
@@ -7425,10 +7558,8 @@ Object.assign(window.MC_EN, {
     simMethodKey = state.startMethod;
     if (charts.simN) {
       ['simN', 'simI', 'simT', 'simU'].forEach(k => { charts[k].setData([]); charts[k].resetView(); });
-      charts.simN.setOptions({ xRange: [0, 12] });
-      charts.simI.setOptions({ xRange: [0, 12] });
-      charts.simT.setOptions({ xRange: [0, 12] });
-      charts.simU.setOptions({ xRange: [0, 12] });
+      const d = Math.max(2, +state.sim.duration || 20);
+      ['simN', 'simI', 'simT', 'simU'].forEach(k => charts[k].setOptions({ xRange: [0, d] }));
     }
     updateSimUI();
     if (keepRunning) setSimStage(t('ожидание'));
@@ -7532,11 +7663,14 @@ Object.assign(window.MC_EN, {
     const st = simState;
     const gStart = ghostState && ghostState.tStart ? ghostState.tStart : 0;
     const refStart = Math.max(st.tStart || 0, gStart);
-    const span0 = Math.max(2, Math.min(12, (refStart || (st.t * 1.2 + 0.6)) * 2.5));
-    const span = simFollow ? Math.max(6, span0) : span0;
+    /* окно графика: масштаб под время пуска, но не шире времени моделирования
+       (данные копятся весь прогон — до 120 с) */
+    const dur = Math.max(2, +st.cfg.duration || +state.sim.duration || 20);
+    const span0 = Math.max(2, Math.min(dur, (refStart || (st.t * 1.2 + 0.6)) * 2.5));
+    const span = span0;
     let t0, tEnd;
-    if (simFollow) { t0 = Math.max(0, st.t - span); tEnd = Math.max(span, st.t); }
-    else { t0 = 0; tEnd = Math.max(span, Math.min(st.t, span * 1.5)); }
+    if (simFollow) { t0 = Math.max(0, st.t - Math.max(span, 6)); tEnd = Math.max(span, st.t); }
+    else { t0 = 0; tEnd = Math.max(span, Math.min(st.t + 0.4, dur)); }
     const xr = [t0, tEnd];
     const pts = st.samples.filter(s => s.t >= t0);
     const gPts = ghostState ? ghostState.samples.filter(s => s.t >= t0) : [];
@@ -7681,6 +7815,7 @@ Object.assign(window.MC_EN, {
     bindNum('simRamp', 'sim.tRamp', 0.2, 300);
     bindNum('simUstart', 'sim.uStart', 5, 95);
     bindNum('simIlimit', 'sim.iLimit', 1, 8);
+    bindNum('simDuration', 'sim.duration', 2, 120);
 
     // селекты
     $('#poles').addEventListener('change', e => { state.poles = +e.target.value; schedule(); });
@@ -8169,7 +8304,7 @@ Object.assign(window.MC_EN, {
       const stepT = dt * (+state.sim.speed || 1);
       S.advance(simState, stepT);
       if (ghostState && !ghostState.done) S.advance(ghostState, stepT);
-      if (simState.done) { simState.running = false; simRunning = false; }
+      if (simState.done) { simState.running = false; simRunning = false; simFollow = false; }
       updateSimUI();
       if (state.tab === 'start') drawSimCharts();
     }

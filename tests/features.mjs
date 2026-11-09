@@ -164,7 +164,8 @@ try {
   // отчёт
   const [pop] = await Promise.all([ctx.waitForEvent('page'), page.click('#btnPrint')]);
   await pop.waitForTimeout(1200);
-  check((await pop.$$('img')).length === 5, 'в отчёте не 5 графиков');
+  const reportImgs = (await pop.$$('img')).length;
+  check(reportImgs === 10, 'в отчёте 10 графиков (5 + 4 переходных + ВТХ)', reportImgs);
   check((await pop.textContent('h1')).includes('Насосная станция'), 'в отчёте нет названия объекта');
   await pop.close();
 

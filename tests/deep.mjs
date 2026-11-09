@@ -441,7 +441,10 @@ section('4. экспорты: PNG, CSV, XLSX, отчёт');
     title: document.title,
     text: document.body.innerText
   }));
-  check(repInfo.imgs === 5, 'отчёт: 5 графиков', repInfo.imgs);
+  check(repInfo.imgs === 10, 'отчёт: 10 графиков (5 + переходные + ВТХ)', repInfo.imgs);
+  const repHeads = repInfo.h2.join(' | ');
+  check(/Переходные процессы/.test(repHeads) && /ВТХ/.test(repHeads),
+    'отчёт: есть переходные процессы и ВТХ', repInfo.h2);
   check(repInfo.tables >= 4, 'отчёт: таблицы', repInfo.tables);
   check(repInfo.h2.length >= 4, 'отчёт: разделы', repInfo.h2);
   check(repInfo.printFn, 'отчёт: window.print доступен');
@@ -816,6 +819,89 @@ section('7b. цветовые схемы и инерция нагрузки');
   check(jHint.a.cls.indexOf('bad') >= 0 && jHint.a.warn.length === 1, 'J нагрузки: предупреждение при большом маховике', jHint.a);
   check(/× J ротора/.test(jHint.b.text) && jHint.b.cls.indexOf('bad') < 0 && jHint.b.warn.length === 0,
     'J нагрузки: при разумном значении предупреждения нет', jHint.b);
+}
+
+section('7c. перевёрнутая M(n) и время моделирования');
+{
+  /* ось момента — горизонтальная, ось скорости — вертикальная */
+  await page.click('.tab-btn[data-tab="charts"]');
+  await page.waitForTimeout(600);
+  const tq = await page.evaluate(() => {
+    const ch = window.__mcDebug.charts.torque;
+    const d = ch.series[0].data, o = ch.opts, rep = window.__mcDebug.rep;
+    return {
+      pts: d.length,
+      first: d[0], last: d[d.length - 1],
+      xRange: o.xRange, minY: o.minY, maxY: o.maxY,
+      markerX: o.markerX, markerPoint: o.markerPoint, vLines: (o.vLines || []).length,
+      op: { T: rep.op.T, n: rep.op.n }, ns: rep.motor.ns
+    };
+  });
+  check(Math.abs(tq.first[1]) < 1e-6 && Math.abs(tq.last[1] - tq.ns) < 1e-6,
+    'M(n): по вертикали скорость (0…nс)', { start: tq.first, end: tq.last });
+  check(tq.first[0] > 0 && tq.last[0] < 1e-6,
+    'M(n): по горизонтали момент (пусковой → 0)', { start: tq.first[0], end: tq.last[0] });
+  check(tq.xRange && tq.xRange[0] === 0 && tq.xRange[1] > tq.op.T, 'M(n): диапазон по моменту', tq.xRange);
+  check(tq.minY === 0 && Math.abs(tq.maxY - tq.ns) < 1e-6, 'M(n): диапазон по скорости', { minY: tq.minY, maxY: tq.maxY });
+  check(Math.abs(tq.markerX - tq.op.T) < 1e-6 && tq.markerPoint && Math.abs(tq.markerPoint.y - tq.op.n) < 1e-3,
+    'M(n): маркер на рабочей точке (M; n)', { markerX: tq.markerX, point: tq.markerPoint });
+  check(tq.vLines >= 1, 'M(n): линия Mн на графике', tq.vLines);
+
+  /* время моделирования: прогон останавливается сам */
+  await page.click('.tab-btn[data-tab="start"]');
+  await page.waitForTimeout(500);
+  await page.evaluate(() => {
+    const el = document.querySelector('#simDuration');
+    el.value = '4';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.waitForTimeout(400);
+  await page.click('#simPlay');
+  await page.waitForTimeout(5600);
+  const simStop = await page.evaluate(() => {
+    const st = window.__mcDebug.sim;
+    const tag = document.querySelector('#simStage');
+    return {
+      t: st ? +st.t.toFixed(2) : null,
+      done: st ? !!st.done : null,
+      running: st ? !!st.running : null,
+      samples: st && st.samples ? st.samples.length : 0,
+      lastT: st && st.samples && st.samples.length ? +st.samples[st.samples.length - 1].t.toFixed(2) : null,
+      stage: tag ? tag.textContent : null,
+      xRange: window.__mcDebug.charts.simN.opts.xRange
+    };
+  });
+  check(simStop.done && !simStop.running, 'моделирование: остановилось само', simStop);
+  check(Math.abs(simStop.t - 4) < 0.3, 'моделирование: остановка на заданном времени', simStop.t);
+  check(simStop.samples > 100 && simStop.lastT >= 3.9, 'моделирование: выборка за весь прогон', { n: simStop.samples, lastT: simStop.lastT });
+  check(/завершено/i.test(simStop.stage || ''), 'моделирование: статус «завершено»', simStop.stage);
+  check(simStop.xRange && simStop.xRange[1] <= 4.5, 'моделирование: окно не шире прогона', simStop.xRange);
+
+  /* длинный прогон: данные и окно до 20 с */
+  await page.evaluate(() => {
+    const el = document.querySelector('#simDuration');
+    el.value = '20';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.waitForTimeout(400);
+  await page.click('#simPlay');
+  await page.waitForTimeout(2500);
+  const long = await page.evaluate(() => {
+    const st = window.__mcDebug.sim;
+    return {
+      t: st ? +st.t.toFixed(2) : null,
+      samples: st && st.samples ? st.samples.length : 0,
+      xRange: window.__mcDebug.charts.simN.opts.xRange,
+      dur: window.__mcDebug.state.sim.duration
+    };
+  });
+  check(long.dur === 20, 'моделирование: время 20 с применяется', long.dur);
+  check(long.samples > 50, 'моделирование: данные копятся', long.samples);
+  check(long.xRange && long.xRange[1] > 1.5 && long.xRange[1] <= 20.5, 'моделирование: окно в пределах 20 с', long.xRange);
+  await page.click('#simReset');
+  await page.waitForTimeout(300);
+  await page.click('.tab-btn[data-tab="calc"]');
+  await page.waitForTimeout(300);
 }
 
 section('8. производительность');

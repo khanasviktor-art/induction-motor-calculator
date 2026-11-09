@@ -7,7 +7,7 @@
 <title>Асинхронный двигатель — инженерный расчёт</title>
 <meta name="author" content="Виктор Ханас">
 <meta name="generator" content="DeepSeek">
-<meta name="version" content="0.10.0">
+<meta name="version" content="0.11.0">
 <meta name="description" content="Расчёт мощности, тока, момента, кабеля и защиты асинхронного двигателя. Графики характеристик и переходные процессы пуска.">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -431,7 +431,7 @@
         <button class="btn ghost" id="btnLoadProject">Открыть проект</button>
       </div>
       <div class="side-foot">
-        <span>v0.10.0</span>
+        <span>v0.11.0</span>
         <span>ПУЭ · IEC 60364</span>
       </div>
     </div>
@@ -616,6 +616,10 @@
               <div class="input-wrap"><input id="simIlimit" type="number" min="1" max="8" step="0.1" value="3"><span class="unit">×Iн</span></div>
             </div>
             <div class="field">
+              <label for="simDuration">Время моделирования</label>
+              <div class="input-wrap"><input id="simDuration" type="number" min="2" max="120" step="1" value="20"><span class="unit">с</span></div>
+            </div>
+            <div class="field">
               <label>Скорость времени</label>
               <div class="seg small" id="segSimSpeed">
                 <button data-val="0.25">0.25×</button>
@@ -754,7 +758,7 @@
 <div class="tip-pop" id="tipPop" role="tooltip" aria-hidden="true"></div>
 
 <footer class="footer">
-  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.10.0</span>
+  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.11.0</span>
   <span class="footer-credit">Сделано с помощью <b>DeepSeek</b> · идея: <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></span>
   <span id="footerStamp"></span>
 </footer>

@@ -10,7 +10,7 @@ src/style.css    оформление, темы, адаптив
 src/data.js      справочники: АИР, кабели, аппараты
 src/engine.js    расчётное ядро (без DOM)
 src/sim.js       переходные процессы
-src/charts.js    canvas-графики, зум, PNG
+src/charts.js    canvas-графики, зум, PNG (hLines/vLines, markerX/markerPoint)
 src/xlsx.js      минимальный XLSX-писатель
 src/i18n.js      переключение RU/EN: t/tf/tHtml, nf, translateDom
 src/lang-en.js   словарь RU→EN (собирается из src/lang-en/*.js)

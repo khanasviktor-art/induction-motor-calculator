@@ -67,9 +67,11 @@ try {
         state: { loadPct: st.loadPct, loadType: st.loadType },
         cable: { loaded: r.cable.loaded, section: r.cable.section, parallel: r.cable.parallel },
         breaker: { poles: r.breaker.poles, In: r.breaker.In },
-        tauStart: tau[0][1],
-        tauMax: Math.max(...tau.map(x => x[1])),
-        tauEnd: tau[tau.length - 1][1],
+        tauStart: tau[0][0],
+        tauMax: Math.max(...tau.map(x => x[0])),
+        tauEnd: tau[tau.length - 1][0],
+        tauSpeedStart: tau[0][1],
+        tauSpeedEnd: tau[tau.length - 1][1],
         opT: MC.engine.torque(m, 1 - r.op.n / m.ns, uOp),
         opLoad: MC.engine.loadTorque(m, r.op.n, { type: st.loadType, pct: st.loadPct, breakaway: 1.15 }),
         uOp
@@ -105,9 +107,10 @@ try {
     chk(near(d.tauStart, m.mstAbs * d.uOp * d.uOp, 0.02), `tauStart ${d.tauStart.toFixed(1)} vs ${(m.mstAbs * d.uOp * d.uOp).toFixed(1)}`);
     chk(near(d.tauMax, m.mmax * d.uOp * d.uOp, 0.02), `tauMax ${d.tauMax.toFixed(1)} vs ${(m.mmax * d.uOp * d.uOp).toFixed(1)}`);
     chk(d.tauEnd === 0, `tauEnd ${d.tauEnd}`);
+    chk(Math.abs(d.tauSpeedStart) < 1e-9 && Math.abs(d.tauSpeedEnd - m.ns) < 1e-6, `tauSpeed ${d.tauSpeedStart}/${d.tauSpeedEnd} vs ${m.ns}`);
     chk(near(d.opT, op.T, 0.02), `opT ${d.opT.toFixed(2)} vs op.T ${op.T.toFixed(2)}`);
     chk(near(d.opLoad, op.Tload, 0.005), `opLoad ${d.opLoad.toFixed(2)} vs op.Tload ${op.Tload.toFixed(2)}`);
-    chk(Math.abs(ch.marker - op.n) < 1e-6, 'marker');
+    chk(Math.abs(ch.marker - op.T) < 1e-6, 'marker = момент рабочей точки');
     chk(ch.tau.length === 241 && ch.tau[0].length === 2, 'tau length');
     const eq = (arr, key) => {
       for (let i = 0; i < sw[key].length; i++) {
@@ -125,7 +128,7 @@ try {
     chk(ch.eff[1].every((p, i) => Math.abs(p[1] - sw.cos[i] * 100) < 1e-9), 'eff cos x100');
     chk(s.ph === 1 ? cable.loaded === 2 : cable.loaded === 3, `cable.loaded ${cable.loaded}`);
     chk(s.ph === 1 ? breaker.poles === 1 : breaker.poles === 3, `breaker.poles ${breaker.poles}`);
-    const all = [...sw.I, ...sw.U, ...sw.n, ...sw.eta, ...sw.cos, ...sw.p1, ...sw.p2, ...ch.tau.map(x => x[1])];
+    const all = [...sw.I, ...sw.U, ...sw.n, ...sw.eta, ...sw.cos, ...sw.p1, ...sw.p2, ...ch.tau.map(x => x[0]), ...ch.tauLoad.map(x => x[0])];
     chk(all.every(x => isFinite(x)), 'non-finite');
     const status = problems.length ? 'FAIL' : 'ok';
     if (problems.length) failed++;

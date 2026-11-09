@@ -33,7 +33,7 @@
     cable: { standard: 'pue', material: 'cu', insulation: 'pvc', laying: 'open', length: 50, ambient: 25, group: 1, loaded: 3, parallel: 'auto', startDropLimit: 15, considerStartDrop: true },
     dropLimit: 5, startMethod: 'dol', curve: 'D', isc: 6,
     breakerType: 'mcb', breakerSeries: 'abb-s200', mccbMag: 10, upstreamIn: 0,
-    sim: { tSwitch: 2, tRamp: 6, uStart: 30, iLimit: 3, speed: 1, overlay: 'none' },
+    sim: { tSwitch: 2, tRamp: 6, uStart: 30, iLimit: 3, duration: 20, speed: 1, overlay: 'none' },
     charts: { torque: true, iu: true, speed: true, eff: true, power: true },
     tab: 'calc', theme: 'dark'
   };
@@ -369,6 +369,7 @@
     $('#simRamp').value = state.sim.tRamp;
     $('#simUstart').value = state.sim.uStart;
     $('#simIlimit').value = state.sim.iLimit;
+    $('#simDuration').value = state.sim.duration;
     $('#simOverlay').value = state.sim.overlay;
     updateOverlayNote();
     syncSeg('#segPhases', state.phases);
@@ -619,7 +620,8 @@
       tRamp: +state.sim.tRamp,
       uStart: +state.sim.uStart,
       iLimit: +state.sim.iLimit,
-      duration: 3600,
+      /* время моделирования: живой прогон останавливается сам */
+      duration: Math.max(2, +state.sim.duration || 20),
       load: loadCfg(),
       jExtra: +state.jExtra,
       speed: +state.sim.speed
@@ -843,6 +845,55 @@
     return list;
   }
 
+  /* Переходные процессы для отчёта: прогоняем сценарий отдельно, на время
+     выборки, и рисуем графики на скрытых canvas — без вкладки «Пуск». */
+  function reportTransientImages(rep) {
+    if (!MC.Chart || !MC.sim || !rep) return null;
+    const cfg = Object.assign(simCfg(), {
+      method: state.startMethod,
+      duration: Math.max(2, +state.sim.duration || 20),
+      cable: rep.cable,
+      trace: true
+    });
+    let res = null;
+    try { res = MC.sim.runScenario(rep.motor, cfg, cfg.duration); } catch (e) { return null; }
+    const pts = (res && res.samples ? res.samples : []).filter(p => isFinite(p.n) && p.t <= cfg.duration + 0.01);
+    if (pts.length < 2) return null;
+
+    const host = document.createElement('div');
+    host.style.cssText = 'position:fixed;left:-12000px;top:0;width:900px;height:300px;pointer-events:none';
+    document.body.appendChild(host);
+    const make = (series, opts) => {
+      const cv = document.createElement('canvas');
+      cv.style.cssText = 'width:900px;height:280px;display:block';
+      host.appendChild(cv);
+      try {
+        const ch = new MC.Chart(cv, Object.assign({ legend: true, yZero: true, xLabel: t('t, с') }, opts));
+        ch.setData(series);
+        ch.draw();
+        return ch.toPNGData('#ffffff');
+      } catch (e) {
+        return '';
+      } finally {
+        cv.remove();
+      }
+    };
+    const dur = Math.max(2, +state.sim.duration || 20);
+    const refStart = res.tStart || (pts[pts.length - 1] || {}).t || dur;
+    const win = Math.max(2, Math.min(dur, refStart * 2.5));
+    const out = {
+      n: make([{ name: 'n', color: '#0f9d72', data: pts.map(p => [p.t, p.n]) }], { yLabel: t('n, об/мин'), xRange: [0, win] }),
+      i: make([{ name: 'I', color: '#2f7fd1', data: pts.map(p => [p.t, p.I]) }], { yLabel: 'I, А', xRange: [0, win] }),
+      m: make([{ name: 'M', color: '#b5730f', data: pts.map(p => [p.t, p.T]) }], { yLabel: 'M, Н·м', xRange: [0, win] }),
+      u: make([
+        { name: 'U', color: '#7a55c9', data: pts.map(p => [p.t, p.U]) },
+        { name: 'f', color: '#b98bff', data: pts.map(p => [p.t, p.f]), axis: 1 }
+      ], { yLabel: 'U, %', y2Label: t('f, Гц'), xRange: [0, win] })
+    };
+    host.remove();
+    return out;
+  }
+
   function openReport() {
     if (!lastRep) return;
     const m = lastRep.motor, c = lastRep.cable, b = lastRep.breaker, op = lastRep.op;
@@ -859,6 +910,14 @@
       torque: img(charts.torque), iu: img(charts.iu), speed: img(charts.speed),
       eff: img(charts.eff), power: img(charts.power)
     };
+    /* ВТХ и переходные процессы — их в отчёте раньше не было */
+    let vtcImg = '';
+    try {
+      drawVTC(lastRep);
+      const cv = $('#chartVTC');
+      if (cv) vtcImg = cv.toDataURL('image/png');
+    } catch (e) { vtcImg = ''; }
+    const trImgs = reportTransientImages(lastRep);
     document.documentElement.setAttribute('data-theme', prevTheme);
     document.documentElement.setAttribute('data-tone', themeTone(prevTheme));
     if (MC.setChartTheme) MC.setChartTheme(prevTheme);
@@ -959,7 +1018,20 @@
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.10.0.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+${trImgs ? `
+<h2>Переходные процессы (пуск)</h2>
+<div class="grid">
+  <figure><h3>Скорость n(t)</h3><img src="${trImgs.n}" alt=""></figure>
+  <figure><h3>Ток I(t)</h3><img src="${trImgs.i}" alt=""></figure>
+  <figure><h3>Момент M(t)</h3><img src="${trImgs.m}" alt=""></figure>
+  <figure><h3>Напряжение и частота</h3><img src="${trImgs.u}" alt=""></figure>
+</div>` : ''}
+${vtcImg ? `
+<h2>ВТХ: защита и пуск</h2>
+<div class="grid">
+  <figure style="grid-column:1/-1"><h3>Время-токовая характеристика</h3><img src="${vtcImg}" alt=""></figure>
+</div>` : ''}
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.11.0.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     /* настольная версия: отчёт сразу сохраняется в PDF через системный диалог */
@@ -1509,26 +1581,31 @@
   function renderCharts(rep) {
     const m = rep.motor, sw = rep.sweep;
 
-    const nArr = [], tEm = [], tLoad = [];
+    /* Механическая характеристика: по X — момент, по Y — скорость.
+       Точки считаются по (скорость → момент), а на график кладутся как
+       [M, n] — так горизонтальной осью становится момент. */
+    const tEm = [], tLoad = [];
     const N = 240;
     const uOp = Math.min(1.05, Math.max(0.7, rep.op.U / m.U));
     for (let i = 0; i <= N; i++) {
       const n = m.ns * i / N;
       const s = 1 - n / m.ns;
-      nArr.push([n, 0]);
-      tEm.push([n, E.torque(m, s, uOp)]);
-      tLoad.push([n, E.loadTorque(m, n, loadCfg())]);
+      tEm.push([E.torque(m, s, uOp), n]);
+      tLoad.push([E.loadTorque(m, n, loadCfg()), n]);
     }
+    const maxM = Math.max(m.mmaxReal.t, m.mn * 1.15, rep.op.T * 1.1);
     charts.torque.setData([
       { name: t('M двигателя'), color: C.mint, data: tEm, width: 2.2 },
       { name: t('M нагрузки'), color: C.amber, data: tLoad, width: 1.8, dash: [5, 4] }
     ]);
     charts.torque.setOptions({
-      markerX: rep.op.n, xRange: [0, m.ns],
-      hLines: [{ y: m.mn, color: 'rgba(255,255,255,0.22)', label: t('Mн') }]
+      markerX: rep.op.T, markerPoint: { x: rep.op.T, y: rep.op.n, color: C.mint },
+      xRange: [0, maxM * 1.05], minY: 0, maxY: m.ns,
+      xLabel: t('M, Н·м'), yLabel: t('n, об/мин'),
+      vLines: [{ x: m.mn, color: 'rgba(255,255,255,0.22)', label: t('Mн') }]
     });
     const tfoot = document.querySelector('[data-chart-panel="torque"] .panel-foot');
-    if (tfoot) tfoot.textContent = `Кривая M(n) — при U = ${nf(rep.op.U, 0)} В (с учётом кабеля); Mmax в таблице — при номинальном напряжении.`;
+    if (tfoot) tfoot.textContent = tf('Кривая M(n) при U = {u} В (с учётом кабеля): по горизонтали момент, по вертикали скорость. Mmax в таблице — при номинальном напряжении.', { u: nf(rep.op.U, 0) });
 
     charts.iu.setData([
       { name: 'I', color: C.blue, data: sw.load.map((x, i) => [x, sw.I[i]]), width: 2.1 },
@@ -1759,10 +1836,8 @@
     simMethodKey = state.startMethod;
     if (charts.simN) {
       ['simN', 'simI', 'simT', 'simU'].forEach(k => { charts[k].setData([]); charts[k].resetView(); });
-      charts.simN.setOptions({ xRange: [0, 12] });
-      charts.simI.setOptions({ xRange: [0, 12] });
-      charts.simT.setOptions({ xRange: [0, 12] });
-      charts.simU.setOptions({ xRange: [0, 12] });
+      const d = Math.max(2, +state.sim.duration || 20);
+      ['simN', 'simI', 'simT', 'simU'].forEach(k => charts[k].setOptions({ xRange: [0, d] }));
     }
     updateSimUI();
     if (keepRunning) setSimStage(t('ожидание'));
@@ -1866,11 +1941,14 @@
     const st = simState;
     const gStart = ghostState && ghostState.tStart ? ghostState.tStart : 0;
     const refStart = Math.max(st.tStart || 0, gStart);
-    const span0 = Math.max(2, Math.min(12, (refStart || (st.t * 1.2 + 0.6)) * 2.5));
-    const span = simFollow ? Math.max(6, span0) : span0;
+    /* окно графика: масштаб под время пуска, но не шире времени моделирования
+       (данные копятся весь прогон — до 120 с) */
+    const dur = Math.max(2, +st.cfg.duration || +state.sim.duration || 20);
+    const span0 = Math.max(2, Math.min(dur, (refStart || (st.t * 1.2 + 0.6)) * 2.5));
+    const span = span0;
     let t0, tEnd;
-    if (simFollow) { t0 = Math.max(0, st.t - span); tEnd = Math.max(span, st.t); }
-    else { t0 = 0; tEnd = Math.max(span, Math.min(st.t, span * 1.5)); }
+    if (simFollow) { t0 = Math.max(0, st.t - Math.max(span, 6)); tEnd = Math.max(span, st.t); }
+    else { t0 = 0; tEnd = Math.max(span, Math.min(st.t + 0.4, dur)); }
     const xr = [t0, tEnd];
     const pts = st.samples.filter(s => s.t >= t0);
     const gPts = ghostState ? ghostState.samples.filter(s => s.t >= t0) : [];
@@ -2015,6 +2093,7 @@
     bindNum('simRamp', 'sim.tRamp', 0.2, 300);
     bindNum('simUstart', 'sim.uStart', 5, 95);
     bindNum('simIlimit', 'sim.iLimit', 1, 8);
+    bindNum('simDuration', 'sim.duration', 2, 120);
 
     // селекты
     $('#poles').addEventListener('change', e => { state.poles = +e.target.value; schedule(); });
@@ -2503,7 +2582,7 @@
       const stepT = dt * (+state.sim.speed || 1);
       S.advance(simState, stepT);
       if (ghostState && !ghostState.done) S.advance(ghostState, stepT);
-      if (simState.done) { simState.running = false; simRunning = false; }
+      if (simState.done) { simState.running = false; simRunning = false; simFollow = false; }
       updateSimUI();
       if (state.tab === 'start') drawSimCharts();
     }
