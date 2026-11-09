@@ -38,6 +38,10 @@ try {
   check(xbuf[0] === 0x50 && xbuf[1] === 0x4b, 'XLSX не ZIP');
   check(xbuf.includes(Buffer.from('<worksheet')), 'нет worksheet');
   check(xbuf.includes(Buffer.from('Параметры')), 'нет листа Параметры');
+  check(xbuf.includes(Buffer.from('Исходные данные')), 'нет листа Исходные данные');
+  check(xbuf.includes(Buffer.from('Расчёт')), 'нет листа Расчёт');
+  check(xbuf.includes(Buffer.from('<f>')), 'XLSX без формул');
+  check(xbuf.includes(Buffer.from('fullCalcOnLoad')), 'XLSX без fullCalcOnLoad');
   check(xbuf.includes(Buffer.from('xl/media/image1.png')), 'XLSX без картинок графиков');
   check(xbuf.includes(Buffer.from('xl/drawings/drawing1.xml')), 'XLSX без drawing');
 

@@ -39,6 +39,11 @@
 
   function cell(v, ref, style) {
     const st = style ? ' s="' + style + '"' : '';
+    /* Формула: { f: "B2/(B6/100)", v: 16.85 }. f — без ведущего «=»; v — кэш. */
+    if (v && typeof v === 'object' && typeof v.f === 'string') {
+      const cached = (typeof v.v === 'number' && isFinite(v.v)) ? `<v>${v.v}</v>` : '<v>0</v>';
+      return `<c r="${ref}"${st}><f>${esc(v.f)}</f>${cached}</c>`;
+    }
     if (typeof v === 'number' && isFinite(v)) return `<c r="${ref}"${st}><v>${v}</v></c>`;
     if (v === null || v === undefined || v === '') return '';
     return `<c r="${ref}" t="inlineStr"${st}><is><t xml:space="preserve">${esc(v)}</t></is></c>`;
@@ -86,7 +91,7 @@
     const rows = sheet.rows || [];
     const widths = [];
     rows.forEach(r => r.forEach((v, i) => {
-      const len = String(v == null ? '' : v).length;
+      const len = String(v && typeof v === 'object' && v.f ? (v.v == null ? '' : v.v) : (v == null ? '' : v)).length;
       widths[i] = Math.max(widths[i] || 0, len);
     }));
     const cols = widths.map((w, i) =>
@@ -176,7 +181,7 @@
     const list = (sheets || []).filter(s => s && s.rows && s.rows.length);
     if (!list.length) throw new Error('Нет данных для XLSX');
     const imgs = (images || []).filter(im => im && im.data && String(im.data).indexOf('data:image/png') === 0);
-    const drawIdx = imgs.length ? list.findIndex(s => s.name === 'Графики') : -1;
+    const drawIdx = imgs.length ? list.findIndex(s => s.drawing || s.name === 'Графики') : -1;
     const names = [];
     list.forEach((s, i) => {
       let n = safeSheetName(s.name, i);
@@ -202,7 +207,7 @@
 
     const workbook = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
       `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
-      `<sheets>` + list.map((s, i) => `<sheet name="${esc(names[i])}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('') + `</sheets></workbook>`;
+      `<sheets>` + list.map((s, i) => `<sheet name="${esc(names[i])}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('') + `</sheets><calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>`;
 
     const wbRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
       `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +

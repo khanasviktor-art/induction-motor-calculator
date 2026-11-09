@@ -5,7 +5,7 @@
 Офлайн-калькулятор асинхронного двигателя: ток, мощность, момент, кабель, защита, ВТХ, графики характеристик и переходные процессы пуска. Один файл `index.html`, без сервера, CDN и интернета.
 
 [![CI](https://github.com/khanasviktor-art/induction-motor-calculator/actions/workflows/ci.yml/badge.svg)](https://github.com/khanasviktor-art/induction-motor-calculator/actions/workflows/ci.yml)
-**Версия 0.12.1** · MIT · [Открыть в браузере](https://khanasviktor-art.github.io/induction-motor-calculator/) · Windows-exe собирается отдельно · macOS DMG (Apple Silicon) — в [релизе](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.12.1)
+**Версия 0.13.0** · MIT · [Открыть в браузере](https://khanasviktor-art.github.io/induction-motor-calculator/) · Windows-exe собирается отдельно · macOS DMG (Apple Silicon) — в [релизе](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.13.0)
 
 ![Интерфейс](docs/screenshots/charts-default.png)
 
@@ -40,7 +40,7 @@
 
 **Экспорт и отчёт**
 - PDF/печать: выбранные графики (по умолчанию 5 характеристик + 4 переходных процесса + ВТХ), название объекта и логотип.
-- XLSX (7 листов, графики картинками), CSV.
+- XLSX: лист «Исходные данные», лист «Расчёт» с формулами P₁/I/M/ΔU, остальные таблицы и графики; CSV.
 - Проект в JSON, варианты для сравнения (до 4), ссылка на расчёт `?p=…`.
 
 **Интерфейс**
@@ -77,7 +77,7 @@ npm run desktop:dist     # собрать Windows portable exe
 npm run desktop:dist:mac # собрать macOS DMG (arm64)
 ```
 
-Windows-exe собирается на Windows (portable, ~71 МБ) и в git не хранится. macOS DMG для Apple Silicon — в [релизе v0.12.1](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.12.1). Intel Mac не поддерживается. Подробности — [desktop/README.md](desktop/README.md), [docs/WINDOWS.md](docs/WINDOWS.md).
+Windows-exe собирается на Windows (portable, ~71 МБ) и в git не хранится. macOS DMG для Apple Silicon — в [релизе v0.13.0](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.13.0). Intel Mac не поддерживается. Подробности — [desktop/README.md](desktop/README.md), [docs/WINDOWS.md](docs/WINDOWS.md).
 
 ## Язык
 

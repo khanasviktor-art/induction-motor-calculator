@@ -1182,7 +1182,7 @@ ${hasVtc ? `
 <figure><h3>${t('Время-токовая характеристика')}</h3><img src="${vtcImg}" alt=""></figure>
 </section>` : ''}
 ${noCharts ? `<p class="hint">${t('Графики не выбраны для экспорта.')}</p>` : ''}
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.12.1.<br>Для PDF без колонтитулов используйте настольную версию или отключите «Верхние и нижние колонтитулы» в диалоге печати.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.13.0.<br>Для PDF без колонтитулов используйте настольную версию или отключите «Верхние и нижние колонтитулы» в диалоге печати.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     /* настольная версия: отчёт сразу сохраняется в PDF через системный диалог */
@@ -2689,6 +2689,46 @@ ${noCharts ? `<p class="hint">${t('Графики не выбраны для э�
     const modeName = { catalog: 'каталог', power: 'по мощности', current: 'по току', torque: 'по моменту' }[m.mode] || m.mode;
     const t1name = { capacitor: 'конденсаторный', split: 'с расщеплённой фазой', psc: 'PSC' }[m.motor1phType] || '';
     const sheets = [];
+    /* формулы листа «Расчёт»: входы — на отдельном листе, значения кэшируются */
+    const inputSheetName = I18N.isEn() ? I18N.plain('Исходные данные') : 'Исходные данные';
+    const inRef = ref => `'${inputSheetName.replace(/'/g, "''")}'!${ref}`;
+    const fCell = (formula, value) => ({ f: formula, v: rnd(value, 6) });
+    const fP1 = m.p2 / (m.eff / 100);
+    const fS = fP1 / m.cos;
+    const fI = m.phases === 3 ? fP1 * 1000 / (Math.sqrt(3) * m.U * m.cos) : fP1 * 1000 / (m.U * m.cos);
+    const fM = 9550 * m.p2 / m.n;
+    const fSin = Math.sqrt(Math.max(0, 1 - m.cos * m.cos));
+    const fK = m.phases === 3 ? Math.sqrt(3) : 2;
+    const fDU = fK * fI * (lastRep.drop.R * m.cos + lastRep.drop.X * fSin);
+    const fDUP = fDU / m.U * 100;
+    const formulaRows = [
+      ['Величина', 'Формула', 'Значение', 'Ед.'],
+      ['P₁', `=${inRef('B2')}/(${inRef('B6')}/100)`, fCell(`${inRef('B2')}/(${inRef('B6')}/100)`, fP1), 'кВт'],
+      ['S', `=C2/${inRef('B5')}`, fCell(`C2/${inRef('B5')}`, fS), 'кВ·А'],
+      ['I', `=IF(${inRef('B3')}=1,C2*1000/(${inRef('B4')}*${inRef('B5')}),C2*1000/(SQRT(3)*${inRef('B4')}*${inRef('B5')}))`,
+        fCell(`IF(${inRef('B3')}=1,C2*1000/(${inRef('B4')}*${inRef('B5')}),C2*1000/(SQRT(3)*${inRef('B4')}*${inRef('B5')}))`, fI), 'А'],
+      ['M', `=9550*${inRef('B2')}/${inRef('B7')}`, fCell(`9550*${inRef('B2')}/${inRef('B7')}`, fM), 'Н·м'],
+      ['ΔU', `=IF(${inRef('B3')}=1,2,SQRT(3))*C4*(${inRef('B8')}*${inRef('B5')}+${inRef('B9')}*SQRT(1-${inRef('B5')}^2))`,
+        fCell(`IF(${inRef('B3')}=1,2,SQRT(3))*C4*(${inRef('B8')}*${inRef('B5')}+${inRef('B9')}*SQRT(1-${inRef('B5')}^2))`, fDU), 'В'],
+      ['ΔU, %', `=C6/${inRef('B4')}*100`, fCell(`C6/${inRef('B4')}*100`, fDUP), '%'],
+      ['', 'Формулы пересчитываются при изменении значений на листе «Исходные данные». ΔU — по номинальному току; R/X — для выбранного кабеля; кабель и автомат остаются значениями.', '', '']
+    ];
+    sheets.push({ name: 'Исходные данные', rows: [
+      ['Параметр', 'Значение', 'Ед.'],
+      ['Мощность P₂', rnd(m.p2, 3), 'кВт'],
+      ['Число фаз', m.phases, ''],
+      ['Напряжение', rnd(m.U, 0), 'В'],
+      ['cosφ', rnd(m.cos, 4), ''],
+      ['КПД', rnd(m.eff, 1), '%'],
+      ['Скорость n', rnd(m.n, 0), 'об/мин'],
+      ['R кабеля', rnd(lastRep.drop.R, 8), 'Ом'],
+      ['X кабеля', rnd(lastRep.drop.X, 8), 'Ом'],
+      ['Длина', c.length, 'м'],
+      ['Сечение', c.section, 'мм²'],
+      ['Способ пуска', t(methodLabel(state.startMethod)), ''],
+      ['Режим', modeName, '']
+    ]});
+    sheets.push({ name: 'Расчёт', rows: formulaRows });
     sheets.push({ name: 'Параметры', rows: [
       ['Параметр', 'Значение', 'Ед.'],
       ['Тип двигателя', m.catalog ? m.catalog.type : (m.phases === 1 ? tf('Однофазный ({t})', { t: t(t1name) }) : '—') + (m.phases === 1 && m.p2 > 7.5 ? t(' ' + t('— оценка >7,5 кВт')) : ''), ''],
@@ -2772,7 +2812,7 @@ ${noCharts ? `<p class="hint">${t('Графики не выбраны для э�
         { name: 'КПД и cosφ', data: charts.eff.toPNGData('#ffffff') },
         { name: 'Мощности', data: charts.power.toPNGData('#ffffff') }
       ];
-      sheets.push({ name: 'Графики', rows: [['График', 'Изображение'], ...chartImgs.map(x => [x.name, ''])] });
+      sheets.push({ name: 'Графики', drawing: true, rows: [['График', 'Изображение'], ...chartImgs.map(x => [x.name, ''])] });
     } catch (e) { chartImgs = []; }
     if (I18N.isEn()) {
       sheets.forEach(sh => {

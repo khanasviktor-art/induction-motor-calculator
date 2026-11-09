@@ -95,8 +95,8 @@ MC.xlsx    // build(sheets)
 ### `xlsx.js`
 
 - Минимальный ZIP (без сжатия) + OOXML.
-- `MC.xlsx.build([{name, rows}]) → Blob`.
-- Строки — `inlineStr`, числа — числа; заголовок — стиль 1.
+- `MC.xlsx.build([{name, rows, drawing?}], images) → Blob`.
+- Строки — `inlineStr`, числа — числа, формулы — `{f, v}` с кэшем; `calcPr fullCalcOnLoad`; заголовок — стиль 1.
 - Без внешних библиотек.
 
 ### `i18n.js` и `lang-en.js`
@@ -128,7 +128,7 @@ MC.xlsx    // build(sheets)
 - `init()` — старт (в т.ч. `I18N.init()` и `I18N.onChange(relang)`).
 - `relang()` — полная перерисовка после смены языка.
 - `syncLangUI()` — активная кнопка RU/EN и `html[lang]`.
-- `openReport`, `exportCsv`, `exportXlsx`.
+- `openReport`, `exportCsv`, `exportXlsx` (листы «Исходные данные» и «Расчёт» с формулами).
 - `saveProject/loadProject`, `rememberVariant`.
 - `TIPS`, `decorateTips`, `showTip`.
 - `TOUR_STEPS`, `tourStart` и т.д.
