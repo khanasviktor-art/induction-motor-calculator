@@ -8,6 +8,8 @@
 src/index.html   разметка (шаблон)
 src/style.css    оформление, темы, адаптив
 src/data.js      справочники: АИР, кабели, аппараты
+src/vtc.js       библиотека ВТХ и тепловые кривые
+src/thermal.js   чистая тепловая проверка пуска
 src/engine.js    расчётное ядро (без DOM)
 src/sim.js       переходные процессы
 src/charts.js    canvas-графики, зум, PNG (hLines/vLines, markerX/markerPoint)
@@ -30,7 +32,7 @@ OUT=dist/app.html npm run build
 
 1. Читает `src/index.html`.
 2. Заменяет `<link rel="stylesheet" href="style.css">` на `<style>…</style>`.
-3. Для каждого скрипта из списка (`data.js`, `engine.js`, `charts.js`, `sim.js`, `xlsx.js`, `app.js`) заменяет `<script src="…">` на inline `<script>…</script>`.
+3. Для каждого скрипта из списка (`data.js`, `vtc.js`, `thermal.js`, `engine.js`, `charts.js`, `sim.js`, `xlsx.js`, `app.js`) заменяет `<script src="…">` на inline `<script>…</script>`.
 4. Экранирует `</script>` внутри JS.
 5. Пишет `index.html` (или `OUT`).
 
@@ -48,6 +50,7 @@ MC_I18N    // t, tf, tHtml, nf, setLang, translateDom (из i18n.js)
 MC_EN      // словарь RU→EN (lang-en.js), загружается до i18n.js
 MC.data    // MOTOR_DB, кабели, аппараты
 MC.engine  // buildMotor, buildReport, …
+MC.thermal // start: пуск против тепловой зоны автомата
 MC.sim     // createState, advance, compare
 MC.Chart   // класс графика
 MC.xlsx    // build(sheets)
@@ -69,6 +72,12 @@ MC.xlsx    // build(sheets)
 - `selectCable`, `voltageDrop`, `selectBreaker`, `selectContactor`, `selectThermal`, `selectFuse`.
 - `scCheck`, `buildReport`.
 - `startingCurrent`, `nextUp/nextDown`.
+
+### `thermal.js`
+
+- `start({ breaker, seriesId, Istart, cmp, startsPerHour })` — чистая тепловая проверка пуска.
+- Возвращает `trip`, `ratio`, `level`, `duty`, `pending`, `incomplete`; без DOM, `state` и i18n.
+- `app.js` оставляет тонкую обёртку `thermalStart(rep)`.
 
 ### `sim.js`
 

@@ -814,34 +814,13 @@
   /* пуск против тепловой части ВТХ автомата: вердикт по времени, а не только
      по магнитной отсечке. Возвращает {level, trip, tStart, ratio, duty}. */
   function thermalStart(rep) {
-    const b = rep.breaker;
-    const s = MC.vtc.get(b.series || state.breakerSeries);
-    const curve = b.curve && s.curves.includes(b.curve) ? b.curve : s.curves[0];
-    const In = b.In;
-    const Istart = rep.iStart || rep.motor.ist;
-    const cmp = (compareData || []).find(x => x.method === state.startMethod);
-    const pending = !cmp;
-    const hasStart = !!(cmp && cmp.tStart != null);
-    const tStart = hasStart ? cmp.tStart : null;
-    /* Без времени пуска нельзя считать ни действующий ток, ни отношение
-       tср/tпуск: подставлять пик вместо Ieq нельзя — это даёт ложный вердикт. */
-    const Ieq = hasStart && cmp.ieq ? cmp.ieq : null;
-    const trip = Ieq != null ? MC.vtc.thermalTripTime(s, curve, In, Ieq) : null;
-    const ratio = (trip != null && tStart != null && tStart > 0) ? trip / tStart : null;
-    const level = ratio == null ? null : ratio <= 1 ? 'bad' : ratio <= 2 ? 'warn' : 'ok';
-    const stalled = !!(cmp && cmp.stalled && !hasStart);
-    const incomplete = !pending && !hasStart;
-    const duration = (cmp && cmp.duration) || 25;
-    /* повторные пуски: доля времени под пусковым током → эквивалентный ток */
-    const starts = +state.motorStartsPerHour || 0;
-    let duty = null;
-    if (hasStart && tStart > 0 && starts > 0 && Ieq != null) {
-      const share = Math.min(1, starts * tStart / 3600);
-      const IeqDuty = Ieq * Math.sqrt(share);
-      const tripEq = MC.vtc.thermalTripTime(s, curve, In, IeqDuty);
-      duty = { starts, share, Ieq: IeqDuty, tripEq, ok: tripEq == null || tripEq >= 3600 };
-    }
-    return { s, curve, In, Istart, Ieq, tStart, trip, ratio, level, duty, pending, hasStart, stalled, incomplete, duration };
+    return MC.thermal.start({
+      breaker: rep.breaker,
+      seriesId: rep.breaker.series || state.breakerSeries,
+      Istart: rep.iStart || rep.motor.ist,
+      cmp: (compareData || []).find(x => x.method === state.startMethod),
+      startsPerHour: +state.motorStartsPerHour || 0
+    });
   }
 
   function checksList(rep) {
@@ -1203,7 +1182,7 @@ ${hasVtc ? `
 <figure><h3>${t('Время-токовая характеристика')}</h3><img src="${vtcImg}" alt=""></figure>
 </section>` : ''}
 ${noCharts ? `<p class="hint">${t('Графики не выбраны для экспорта.')}</p>` : ''}
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.12.0.<br>Для PDF без колонтитулов используйте настольную версию или отключите «Верхние и нижние колонтитулы» в диалоге печати.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.12.1.<br>Для PDF без колонтитулов используйте настольную версию или отключите «Верхние и нижние колонтитулы» в диалоге печати.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     /* настольная версия: отчёт сразу сохраняется в PDF через системный диалог */

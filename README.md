@@ -5,7 +5,7 @@
 Офлайн-калькулятор асинхронного двигателя: ток, мощность, момент, кабель, защита, ВТХ, графики характеристик и переходные процессы пуска. Один файл `index.html`, без сервера, CDN и интернета.
 
 [![CI](https://github.com/khanasviktor-art/induction-motor-calculator/actions/workflows/ci.yml/badge.svg)](https://github.com/khanasviktor-art/induction-motor-calculator/actions/workflows/ci.yml)
-**Версия 0.12.0** · MIT · [Открыть в браузере](https://khanasviktor-art.github.io/induction-motor-calculator/) · Windows-exe собирается отдельно · macOS DMG (Apple Silicon) — в [релизе](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.12.0)
+**Версия 0.12.1** · MIT · [Открыть в браузере](https://khanasviktor-art.github.io/induction-motor-calculator/) · Windows-exe собирается отдельно · macOS DMG (Apple Silicon) — в [релизе](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.12.1)
 
 ![Интерфейс](docs/screenshots/charts-default.png)
 
@@ -77,7 +77,7 @@ npm run desktop:dist     # собрать Windows portable exe
 npm run desktop:dist:mac # собрать macOS DMG (arm64)
 ```
 
-Windows-exe собирается на Windows (portable, ~71 МБ) и в git не хранится. macOS DMG для Apple Silicon — в [релизе v0.12.0](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.12.0). Intel Mac не поддерживается. Подробности — [desktop/README.md](desktop/README.md), [docs/WINDOWS.md](docs/WINDOWS.md).
+Windows-exe собирается на Windows (portable, ~71 МБ) и в git не хранится. macOS DMG для Apple Silicon — в [релизе v0.12.1](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.12.1). Intel Mac не поддерживается. Подробности — [desktop/README.md](desktop/README.md), [docs/WINDOWS.md](docs/WINDOWS.md).
 
 ## Язык
 
@@ -116,7 +116,7 @@ npm test              # сборка + весь набор
 npm run test:deep     # только глубокий прогон (629 проверок)
 ```
 
-- Юнит-тесты ядра в Node + Playwright в реальном Chrome: 15 статических сценариев, 5 способов пуска, наложение, 1 фаза, тур, подсказки, темы, XLSX/CSV, проект, отчёт, зум, мобильный drawer.
+- Юнит-тесты ядра в Node (`tests/unit.mjs`, 44 проверки) + Playwright в реальном Chrome: 15 статических сценариев, 5 способов пуска, наложение, 1 фаза, тур, подсказки, темы, XLSX/CSV, проект, отчёт, зум, мобильный drawer.
 - `tests/deep.mjs` — 629 проверок: 58 комбинаций фаз × режимов × способов пуска × MCB/MCCB, физические инварианты, ВТХ и тепловая зона, экспорты, персистентность, границы и ошибки, интерфейс, производительность, эталоны чисел 15 состояний.
 - i18n: в EN-режиме не остаётся кириллицы (вкладки, подсказки, canvas, отчёт, XLSX), возврат на RU восстанавливает текст.
 - `tests/desktop.mjs` — 24 проверки собранного exe, включая реальные файлы CSV/XLSX/PNG/PDF.
