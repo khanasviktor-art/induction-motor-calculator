@@ -64,6 +64,27 @@
     ];
   }
 
+  /* Время срабатывания по тепловой части ВТХ при токе I (с).
+     Между опорными точками — прямая в лог-лог координатах: так же, как эта
+     кривая рисуется на графике, поэтому вердикт и картинка не расходятся.
+     null — при таком токе автомат не отключится по теплу (I ниже 1,13·In). */
+  function thermalTripTime(s, curve, In, I) {
+    const pts = thermalPoints(s, curve, In);
+    if (!(I > 0) || !isFinite(I)) return null;
+    if (I < pts[0][0]) return null;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const i0 = pts[i][0], t0 = pts[i][1], i1 = pts[i + 1][0], t1 = pts[i + 1][1];
+      if (I >= i0 && I <= i1) {
+        const d = Math.log10(i1) - Math.log10(i0);
+        if (!d) return t0;
+        const k = (Math.log10(I) - Math.log10(i0)) / d;
+        return Math.pow(10, Math.log10(t0) + k * (Math.log10(t1) - Math.log10(t0)));
+      }
+    }
+    /* выше верхней границы отсечки — срабатывание мгновенное */
+    return pts[pts.length - 1][1];
+  }
+
   function pickIn(s, I) {
     const vals = s.ratings;
     for (const v of vals) if (v >= I) return v;
@@ -78,5 +99,5 @@
     return { ok: ratio >= 1.25, ratio: ratio };
   }
 
-  MC.vtc = { SERIES, get, list, thermalPoints, pickIn, selectivity };
+  MC.vtc = { SERIES, get, list, thermalPoints, thermalTripTime, pickIn, selectivity };
 })(globalThis);

@@ -310,6 +310,71 @@ section('3. ВТХ и защита');
   check(icu.checks.breakerIcu === (icu.breaker.icu >= 40), 'проверка Icu соответствует числам',
     { icu: icu.breaker.icu, isc: 40, flag: icu.checks.breakerIcu });
   await setNum('isc', 6);
+
+  /* тепловая зона: пуск против ВТХ, а не только против отсечки */
+  const thOk = await page.evaluate(() => {
+    const t = window.__mcDebug.thermal;
+    const tag = document.querySelector('#tagVTC');
+    const foot = document.querySelector('#vtcFoot').textContent;
+    return {
+      hasThermal: /Тепловая зона при/.test(foot),
+      legend: foot,
+      tag: tag.textContent, cls: tag.className,
+      check: [...document.querySelectorAll('#checksBody .point-item')]
+        .map(e => e.textContent.replace(/\s+/g, ' ').trim())
+        .filter(x => /теплов/i.test(x))
+    };
+  });
+  check(thOk.hasThermal, 'ВТХ: в подписи есть тепловая зона, время и пуск', thOk.legend.slice(-90));
+  check(thOk.check.length >= 1, 'ВТХ: проверка тепловой зоны есть в «Проверке условий»', thOk.check);
+  check(/Вышестоящий/.test(thOk.legend) === false, 'ВТХ: нет легенды «Вышестоящий» при нуле', thOk.legend.slice(0, 80));
+
+  /* кэш сравнения обязан реагировать на J нагрузки */
+  const jBefore = await rep();
+  await setNum('jExtra', 2.8);
+  await page.waitForTimeout(1200);
+  const afterJ = await page.evaluate(() => {
+    const c = (window.__mcDebug.compare || []).find(x => x.method === window.__mcDebug.state.startMethod);
+    return {
+      tStart: c ? c.tStart : null, jExtra: window.__mcDebug.state.jExtra,
+      tag: document.querySelector('#tagVTC').textContent,
+      cls: document.querySelector('#tagVTC').className,
+      verdict: document.querySelector('#verdict').textContent,
+      warn: [...document.querySelectorAll('#panelWarn .warn-item')].map(e => e.textContent.replace(/\s+/g, ' ').trim()).filter(t => /теплов/i.test(t)),
+      check: [...document.querySelectorAll('#checksBody .point-item')].map(e => e.textContent.replace(/\s+/g, ' ').trim()).filter(t => /тепловой зоне/i.test(t))
+    };
+  });
+  check(afterJ.tStart != null && Math.abs(afterJ.tStart - (jBefore.compareT || 0)) > 0.2,
+    'J нагрузки меняет время разгона (кэш сравнения)', { tStart: afterJ.tStart });
+  check(afterJ.cls.indexOf('bad') >= 0, 'ВТХ: пуск вне тепловой зоны → красный бейдж', { tag: afterJ.tag, cls: afterJ.cls });
+  check(/есть замечания/.test(afterJ.verdict), 'вердикт учитывает тепловую зону', afterJ.verdict.slice(-40));
+  check(afterJ.warn.length >= 1, 'предупреждение о тепловой зоне выведено', afterJ.warn);
+  check(afterJ.check.length === 1 && /не выполняется/.test(afterJ.check[0]), 'проверка тепловой зоны помечена как невыполненная', afterJ.check);
+
+  /* повторные пуски: эквивалентный ток и тепловая память.
+     Поле лежит в свёрнутом блоке, поэтому ставим значение из скрипта. */
+  await page.evaluate(() => {
+    const el = document.querySelector('#motorStarts');
+    el.value = '30';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.waitForTimeout(1200);
+  const duty = await page.evaluate(() => ({
+    starts: window.__mcDebug.state.motorStartsPerHour,
+    checks: [...document.querySelectorAll('#checksBody .point-item')].map(e => e.textContent.replace(/\s+/g, ' ').trim()).filter(t => /пусках\/час/.test(t)),
+    warn: [...document.querySelectorAll('#panelWarn .warn-item')].map(e => e.textContent.replace(/\s+/g, ' ').trim()).filter(t => /пусков\/час/.test(t))
+  }));
+  check(duty.starts === 30, 'пуски в час применены', duty.starts);
+  check(duty.checks.length === 1, 'проверка теплового запаса при повторных пусках есть', duty.checks);
+  check(duty.warn.length === 1, 'пояснение по повторным пускам выведено', duty.warn);
+  await page.evaluate(() => {
+    const el = document.querySelector('#motorStarts');
+    el.value = '0';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await setNum('jExtra', 0.3);
+  await page.waitForTimeout(800);
+
   await page.click('.tab-btn[data-tab="calc"]');
   await page.waitForTimeout(300);
 }

@@ -7,7 +7,7 @@
 <title>Асинхронный двигатель — инженерный расчёт</title>
 <meta name="author" content="Виктор Ханас">
 <meta name="generator" content="DeepSeek">
-<meta name="version" content="0.9.0">
+<meta name="version" content="0.9.1">
 <meta name="description" content="Расчёт мощности, тока, момента, кабеля и защиты асинхронного двигателя. Графики характеристик и переходные процессы пуска.">
 <style>
 /* ============================================================
@@ -1592,7 +1592,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
         <button class="btn ghost" id="btnLoadProject">Открыть проект</button>
       </div>
       <div class="side-foot">
-        <span>v0.9.0</span>
+        <span>v0.9.1</span>
         <span>ПУЭ · IEC 60364</span>
       </div>
     </div>
@@ -1915,7 +1915,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
 <div class="tip-pop" id="tipPop" role="tooltip" aria-hidden="true"></div>
 
 <footer class="footer">
-  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.9.0</span>
+  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.9.1</span>
   <span class="footer-credit">Сделано с помощью <b>DeepSeek</b> · идея: <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></span>
   <span id="footerStamp"></span>
 </footer>
@@ -2192,6 +2192,27 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     ];
   }
 
+  /* Время срабатывания по тепловой части ВТХ при токе I (с).
+     Между опорными точками — прямая в лог-лог координатах: так же, как эта
+     кривая рисуется на графике, поэтому вердикт и картинка не расходятся.
+     null — при таком токе автомат не отключится по теплу (I ниже 1,13·In). */
+  function thermalTripTime(s, curve, In, I) {
+    const pts = thermalPoints(s, curve, In);
+    if (!(I > 0) || !isFinite(I)) return null;
+    if (I < pts[0][0]) return null;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const i0 = pts[i][0], t0 = pts[i][1], i1 = pts[i + 1][0], t1 = pts[i + 1][1];
+      if (I >= i0 && I <= i1) {
+        const d = Math.log10(i1) - Math.log10(i0);
+        if (!d) return t0;
+        const k = (Math.log10(I) - Math.log10(i0)) / d;
+        return Math.pow(10, Math.log10(t0) + k * (Math.log10(t1) - Math.log10(t0)));
+      }
+    }
+    /* выше верхней границы отсечки — срабатывание мгновенное */
+    return pts[pts.length - 1][1];
+  }
+
   function pickIn(s, I) {
     const vals = s.ratings;
     for (const v of vals) if (v >= I) return v;
@@ -2206,7 +2227,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     return { ok: ratio >= 1.25, ratio: ratio };
   }
 
-  MC.vtc = { SERIES, get, list, thermalPoints, pickIn, selectivity };
+  MC.vtc = { SERIES, get, list, thermalPoints, thermalTripTime, pickIn, selectivity };
 })(globalThis);
 
 </script>
@@ -4144,8 +4165,11 @@ Object.assign(window.MC_EN, {
   "· типовые данные": "· typical data",
   "· установившаяся": "· steady state",
   "«Графики» — характеристики, «Пуск» — переходные процессы, «Кабель и защита» — подробные таблицы, «Справочник» — формулы и база АИР.": "\"Charts\" — characteristics, \"Start\" — transients, \"Cable and protection\" — detailed tables, \"Reference\" — formulas and the AIR database.",
+  "{n} пусков/час: эквивалентный ток {ieq} А держится почти постоянно, автомат отключится по теплу за {t} с. Нужен аппарат с тепловой регулировкой или пауза между пусками.": "{n} starts/h: the equivalent current {ieq} A is nearly continuous, so the breaker trips on heat in {t} s. Use a device with a thermal adjustment or allow pauses between starts.",
+  "{n} пусков/час: эквивалентный ток {ieq} А ниже тепловой границы — тепловая память автомата не приведёт к отключению.": "{n} starts/h: the equivalent current {ieq} A is below the thermal boundary — the breaker's thermal memory will not trip it.",
   "{p} кВт · {n} об/мин · КПД {eff}% · cosφ {cos} · Iп/Iн {kst}{typ}": "{p} kW · {n} rpm · efficiency {eff}% · cosφ {cos} · Ist/Iₙ {kst}{typ}",
   "{s} · слежение": "{s} · follow",
+  "{tr} с / пуск {ts} с": "{tr} s / start {ts} s",
   "/ч": "/h",
   "% · 11,1 В": "% · 11.1 V",
   "% · 11,2 В": "% · 11.2 V",
@@ -4161,6 +4185,7 @@ Object.assign(window.MC_EN, {
   "✓ выполняется": "✓ passes",
   "✓ да": "✓ yes",
   "✓ проверки пройдены": "✓ checks passed",
+  "✕ есть замечания": "✕ issues found",
   "✗ нет": "✗ no",
   "0,45 с": "0.45 s",
   "0,51 с": "0.51 s",
@@ -4393,6 +4418,7 @@ Object.assign(window.MC_EN, {
   "Горячий пуск: обмотка уже нагрета после предыдущей работы. Время до предела температуры меньше, чем при холодном пуске.": "Hot start: the winding is already heated by previous operation. The time to the temperature limit is shorter than in a cold start.",
   "готово": "done",
   "Готово": "Done",
+  "граница": "edge",
   "График": "Chart",
   "Графики": "Charts",
   "Гц": "Hz",
@@ -4437,6 +4463,7 @@ Object.assign(window.MC_EN, {
   "Звезда → треугольник": "Star → delta",
   "Здесь задаются сеть, двигатель, нагрузка, кабель и защита. На телефоне панель открывается кнопкой «Параметры».": "Here the supply, motor, load, cable and protection are set. On a phone the panel opens with the \"Settings\" button.",
   "Значение": "Value",
+  "Зона отсечки {a}…{b} А.": "Trip band {a}…{b} A.",
   "Идейный вдохновитель — Виктор Ханас ·": "Idea and inspiration — Viktor Khanas ·",
   "Известен момент на валу и частота вращения": "Shaft torque and speed are known",
   "Известен ток и напряжение — мощность восстановится": "Current and voltage are known — power will be derived",
@@ -4453,6 +4480,7 @@ Object.assign(window.MC_EN, {
   "Кабелей в пучке": "Cables in bundle",
   "кабель": "cable",
   "Кабель": "Cable",
+  "Кабель {s} мм²": "Cable {s} mm²",
   "Кабель и защита": "Cable and protection",
   "Кабель и падение напряжения": "Cable and voltage drop",
   "Кабель может выбираться из нескольких параллельных линий: программа перебирает 1…4 кабеля, учитывает снижение допустимого тока при параллельной прокладке и проверяет падение напряжения в рабочем режиме и при пуске. Для MCCB доступна регулируемая уставка отсечки и проверка селективности с вышестоящим аппаратом.": "The cable can be selected from several parallel runs: the program tries 1…4 cables, applies the ampacity derating for parallel laying, and checks the voltage drop in normal operation and during starting. For MCCB an adjustable instantaneous trip setting and a selectivity check against the upstream device are available.",
@@ -4631,6 +4659,8 @@ Object.assign(window.MC_EN, {
   "Открыть проект": "Open project",
   "Отношение номиналов вышестоящего и нижестоящего аппаратов; для токовой селективности обычно ≥ 1,6.": "Ratio of the upstream and downstream device ratings; for current selectivity usually ≥ 1.6.",
   "Отсечка": "Instantaneous trip",
+  "Отсечка {a} А": "Trip {a} A",
+  "Отсечка {a}…{b} А": "Trip {a}…{b} A",
   "Отсечка {m} А может сработать при пуске: расчётный ток для способа «{meth}» — {i} А. ": "Instantaneous trip {m} A may operate on start: the design current for the “{meth}” method is {i} A. ",
   "Отсечка 120 А может сработать при пуске: расчётный ток для способа «Прямой пуск (DOL)» — 206 А. Выберите кривую D (10–20·Iн), софтстартер/ПЧ или аппарат с регулируемой отсечкой.": "The 120 A instantaneous trip may operate during starting: the calculated current for the \"Direct on-line (DOL)\" method is 206 A. Choose curve D (10–20·Iₙ), a soft starter/VFD or a device with an adjustable instantaneous trip.",
   "Отсечка 189 А может сработать при пуске: расчётный ток для способа «Прямой пуск (DOL)» — 237 А. Выберите кривую D (10–20·Iн), софтстартер/ПЧ или аппарат с регулируемой отсечкой.": "The 189 A instantaneous trip may operate during starting: the calculated current for the \"Direct on-line (DOL)\" method is 237 A. Choose curve D (10–20·Iₙ), a soft starter/VFD or a device with an adjustable instantaneous trip.",
@@ -4728,6 +4758,8 @@ Object.assign(window.MC_EN, {
   "Проверка I²t выполнена по условному времени отключения 0,01 с и коэффициенту k = 143 (XLPE, Cu). Для токоограничивающих автоматов фактическое I²t ниже расчётного.": "The I²t check is based on a conventional tripping time of 0.01 s and a coefficient k = 143 (XLPE, Cu). For current-limiting breakers the actual I²t is lower than the calculated value.",
   "Проверки": "Checks",
   "Проверки и предупреждения": "Checks and warnings",
+  "проверки пройдены": "checks passed",
+  "проверьте условия": "check the conditions",
   "Программа предназначена для инженерной оценки. Механическая характеристика строится по модели Клосса с поправкой на пусковой момент; ток ротора — по балансу мощности с учётом вытеснения тока. Тепловая модель упрощённая (однотельное приближение).": "The program is intended for engineering estimates. The speed-torque curve is built with the Kloss model, corrected for the starting torque; the rotor current follows from the power balance with allowance for current displacement. The thermal model is simplified (single-body approximation).",
   "Продолжить": "Resume",
   "Проект": "Project",
@@ -4743,7 +4775,15 @@ Object.assign(window.MC_EN, {
   "Пунктир —": "Dashed —",
   "Пуск": "Start",
   "пуск {i} А / {t} с": "start {i} A / {t} s",
+  "пуск {i} А / {t} с · автомат {tr} с": "start {i} A / {t} s · breaker {tr} s",
+  "Пуск в тепловой зоне автомата": "Start within the breaker thermal zone",
+  "пуск вне тепловой зоны": "start above the thermal zone",
+  "пуск на границе тепловой зоны": "start at the thermal zone edge",
+  "Пуск на границе тепловой зоны: автомат отключится за {tr} с, пуск — {ts} с (запас {k}×). При повторных пусках и нагретом автомате возможен расход.": "Start at the thermal zone edge: the breaker trips in {tr} s, the start takes {ts} s (margin {k}×). Repeated starts and a warm breaker may cause nuisance tripping.",
+  "Пуск не выходит за тепловую характеристику": "Start stays within the thermal curve",
+  "пуск не разгоняется": "start does not accelerate",
   "пуск проходит": "start passes",
+  "Пуск укладывается в тепловую зону: автомат отключится за {tr} с, пуск — {ts} с (запас {k}×).": "Start fits the thermal zone: the breaker trips in {tr} s, the start takes {ts} s (margin {k}×).",
   "Пусков в час": "Starts per hour",
   "Пусков в час — тепловой запас. 0 — не учитывать; для частых пусков укажите реальное число.": "Starts per hour — thermal margin. 0 means not taken into account; for frequent starts enter the actual number.",
   "Пусковая мощность Sп": "Starting power Sst",
@@ -4766,6 +4806,7 @@ Object.assign(window.MC_EN, {
   "Разгрузка на пуске: на сколько процентов снижается момент нагрузки, пока двигатель не достигнет скорости снятия. 0 — без разгрузки; для компрессора, дробилки, пресса 50…90 %.": "Starting unloading: by how many percent the load torque is reduced until the motor reaches the speed at which the unloading is removed. 0 — no unloading; for a compressor, crusher or press 50…90 %.",
   "Разделы": "Sections",
   "Разница P₁ − P₂ — потери в двигателе.": "The difference P₁ − P₂ is the motor losses.",
+  "расход": "will trip",
   "Расчёт": "Calculation",
   "расчёт · защита · кабель · переходные процессы": "calculation · protection · cable · transients",
   "Расчёт мощности, тока, момента, кабеля и защиты асинхронного двигателя. Графики характеристик и переходные процессы пуска.": "Calculation of power, current, torque, cable and protection for an induction motor. Performance charts and starting transients.",
@@ -4868,8 +4909,12 @@ Object.assign(window.MC_EN, {
   "Тёмная тема": "Dark theme",
   "Температура обмотки": "Winding temperature",
   "Температура среды для кабеля. Поправка выбирается по таблицам ПУЭ или IEC.": "Ambient temperature for the cable. The correction factor is taken from the PUE or IEC tables.",
+  "Тепловая зона": "Thermal zone",
+  "Тепловая зона автомата: при {i} А он отключится за {tr} с, а пуск длится {ts} с — сработает по теплу. Уменьшите пусковой ток (софтстартер, ПЧ, Y–Δ) или возьмите аппарат с регулируемой тепловой защитой.": "Breaker thermal zone: at {i} A it trips in {tr} s, while the start takes {ts} s — it will trip on heat. Reduce the starting current (soft starter, VFD, Y–Δ) or use a device with an adjustable thermal trip.",
+  "Тепловая зона при {i} А: {tr} с, пуск {ts} с.": "Thermal zone at {i} A: {tr} s, start {ts} s.",
   "Тепловая модель учитывает класс изоляции (B/F/H) и постоянную нагрева: оцениваются температура обмотки в рабочей точке и время до достижения предела при перегрузке.": "The thermal model takes the insulation class (B/F/H) and the thermal time constant into account: the winding temperature at the operating point and the time to reach the limit under overload are estimated.",
   "Тепловое реле": "Thermal overload relay",
+  "Тепловой запас при {n} пусках/час": "Thermal margin at {n} starts/h",
   "Тепловой режим": "Thermal mode",
   "Термическая стойкость": "Thermal withstand",
   "Тип": "Type",
@@ -4904,6 +4949,7 @@ Object.assign(window.MC_EN, {
   "УЗО (рекомендация)": "RCD (recommended)",
   "Уравнение движения": "Equation of motion",
   "Уставка {c}": "Setting {c}",
+  "уставка {s} А": "set {s} A",
   "уставка 29,4 А": "setting 29.4 A",
   "уставка 49,4 А": "setting 49.4 A",
   "Уставка отсечки MCCB": "MCCB instantaneous trip setting",
@@ -6204,20 +6250,51 @@ Object.assign(window.MC_EN, {
   }
 
   /* ---------- отчёт PDF ---------- */
+  /* пуск против тепловой части ВТХ автомата: вердикт по времени, а не только
+     по магнитной отсечке. Возвращает {level, trip, tStart, ratio, duty}. */
+  function thermalStart(rep) {
+    const b = rep.breaker;
+    const s = MC.vtc.get(b.series || state.breakerSeries);
+    const curve = b.curve && s.curves.includes(b.curve) ? b.curve : s.curves[0];
+    const In = b.In;
+    const Istart = rep.iStart || rep.motor.ist;
+    const cmp = (compareData || []).find(x => x.method === state.startMethod);
+    const tStart = cmp && cmp.tStart != null ? cmp.tStart : null;
+    const trip = MC.vtc.thermalTripTime(s, curve, In, Istart);
+    const ratio = (trip != null && tStart != null && tStart > 0) ? trip / tStart : null;
+    const level = ratio == null ? null : ratio <= 1 ? 'bad' : ratio <= 2 ? 'warn' : 'ok';
+    /* повторные пуски: доля времени под пусковым током → эквивалентный ток */
+    const starts = +state.motorStartsPerHour || 0;
+    let duty = null;
+    if (tStart != null && tStart > 0 && starts > 0) {
+      const share = Math.min(1, starts * tStart / 3600);
+      const Ieq = Istart * Math.sqrt(share);
+      const tripEq = MC.vtc.thermalTripTime(s, curve, In, Ieq);
+      duty = { starts, share, Ieq, tripEq, ok: tripEq == null || tripEq >= 3600 };
+    }
+    return { s, curve, In, Istart, tStart, trip, ratio, level, duty };
+  }
+
   function checksList(rep) {
-    return [
+    const th = thermalStart(rep);
+    const list = [
       ['Сечение по нагреву', rep.checks.cable],
       ['Падение напряжения ≤ ' + nf(state.dropLimit, 1) + ' %', rep.checks.drop],
       ['Просадка при пуске ≤ ' + nf(state.cable.startDropLimit, 0) + ' %', rep.checks.startDrop],
       ['Автомат ≥ рабочего тока', rep.checks.breakerCurrent],
       ['Автомат ≤ тока кабеля', rep.checks.breakerCable],
-      ['Отсечка выше Iп', rep.checks.breakerMag],
+      ['Отсечка выше Iп', rep.checks.breakerMag]
+    ];
+    if (th.level) list.push(['Пуск не выходит за тепловую характеристику', th.level !== 'bad']);
+    if (th.duty) list.push([tf('Тепловой запас при {n} пусках/час', { n: th.duty.starts }), th.duty.ok]);
+    list.push(
       ['Icu ≥ тока КЗ', rep.checks.breakerIcu],
       ['Селективность', rep.checks.breakerSel],
       ['Термическая стойкость', rep.checks.sc],
       ['Контактор AC-3', rep.checks.contactor],
       ['Устойчивость при нагрузке', !rep.op.stalled]
-    ];
+    );
+    return list;
   }
 
   function openReport() {
@@ -6334,7 +6411,7 @@ Object.assign(window.MC_EN, {
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.9.0.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.9.1.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     /* настольная версия: отчёт сразу сохраняется в PDF через системный диалог */
@@ -6406,8 +6483,8 @@ Object.assign(window.MC_EN, {
   function renderVerdict(rep) {
     const m = rep.motor, c = rep.cable, b = rep.breaker;
     const name = m.catalog ? m.catalog.type : 'Двигатель ' + nf(m.p2, 1) + ' кВт';
-    const bad = !rep.checks.cable || !rep.checks.breakerCable || rep.op.stalled || !rep.checks.startDrop;
-    const warn = !rep.checks.drop || !rep.checks.breakerMag;
+    const bad = !rep.checks.cable || !rep.checks.breakerCable || rep.op.stalled || !rep.checks.startDrop || thermalStart(rep).level === 'bad';
+    const warn = !rep.checks.drop || !rep.checks.breakerMag || thermalStart(rep).level === 'warn';
     const stateTxt = bad ? '<span class="bad">✕ есть замечания</span>' : warn ? '<span class="warn">! проверьте условия</span>' : '<span class="ok">✓ проверки пройдены</span>';
     $('#verdict').innerHTML = `
       <b>${name}</b><span class="sep"></span>
@@ -6532,8 +6609,22 @@ Object.assign(window.MC_EN, {
       mint: col('--mint') || '#3ddc97', red: col('--red') || '#ff6b6b', blue: col('--blue') || '#59a9ff',
       amber: col('--amber') || '#ffb454', violet: col('--violet') || '#a78bfa'
     };
-    const pad = { l: 54, r: 18, t: 22, b: 34 };
-    const xmin = 1, xmax = 100000, ymin = 0.01, ymax = 10000;
+    const b = rep.breaker, s = MC.vtc.get(b.series || state.breakerSeries), In = b.In;
+    const curve = b.curve && s.curves.includes(b.curve) ? b.curve : s.curves[0];
+    const mag = s.mag[curve] || [10, 10];
+    const Istart = rep.iStart || rep.motor.ist;
+    const cmp = (compareData || []).find(x => x.method === state.startMethod);
+    const tS = cmp && cmp.tStart != null ? cmp.tStart : null;
+    const trip = MC.vtc.thermalTripTime(s, curve, In, Istart);
+    const ratio = (trip != null && tS != null && tS > 0) ? trip / tS : null;
+    const level = ratio == null ? null : ratio <= 1 ? 'bad' : ratio <= 2 ? 'warn' : 'ok';
+    const up = +state.upstreamIn;
+    const pad = { l: 58, r: 18, t: 22, b: 34 };
+    const ymin = 0.01, ymax = 10000;
+    /* ось токов — по данным: от декады ниже ~Iн/4 до декады выше отсечки и пуска */
+    const xmin = Math.max(0.5, Math.pow(10, Math.floor(Math.log10(Math.max(In / 4, 1)))));
+    const topI = Math.max(mag[1] * In, Istart * 1.6, up * 1.2, In * 4);
+    const xmax = Math.pow(10, Math.min(5, Math.max(Math.ceil(Math.log10(xmin)) + 1, Math.ceil(Math.log10(topI)))));
     const X = I => pad.l + (Math.log10(Math.max(I, xmin)) - Math.log10(xmin)) / (Math.log10(xmax) - Math.log10(xmin)) * (W - pad.l - pad.r);
     const Y = tv => pad.t + (Math.log10(ymax) - Math.log10(Math.max(tv, ymin))) / (Math.log10(ymax) - Math.log10(ymin)) * (H - pad.t - pad.b);
     const line = (pts, color, width, dash) => {
@@ -6544,7 +6635,7 @@ Object.assign(window.MC_EN, {
     };
     // сетка и подписи
     g.font = '10px ui-monospace, monospace'; g.fillStyle = C.text; g.strokeStyle = C.line; g.lineWidth = 1;
-    for (const d of [1, 10, 100, 1000, 10000, 100000]) {
+    for (let d = xmin; d <= xmax + 1e-9; d *= 10) {
       const x = X(d); g.globalAlpha = .35; g.beginPath(); g.moveTo(x, pad.t); g.lineTo(x, H - pad.b); g.stroke(); g.globalAlpha = 1;
       g.textAlign = 'center'; g.fillText(d >= 1000 ? (d / 1000) + t('к') : d, x, H - 14);
     }
@@ -6553,9 +6644,7 @@ Object.assign(window.MC_EN, {
       g.textAlign = 'right'; g.fillText(tt >= 1000 ? (tt / 1000) + t('к') : tt, pad.l - 6, y + 3);
     }
     g.textAlign = 'left'; g.fillStyle = C.soft; g.fillText(t('I, А'), W - pad.r - 30, H - 2);
-    g.save(); g.translate(12, pad.t + 40); g.rotate(-Math.PI / 2); g.fillText(t('t, с'), 0, 0); g.restore();
-    const b = rep.breaker, s = MC.vtc.get(b.series || state.breakerSeries), In = b.In;
-    const curve = b.curve && s.curves.includes(b.curve) ? b.curve : s.curves[0];
+    g.fillText(t('t, с'), pad.l - 44, pad.t - 8);
     // тепловая зона выбранного автомата
     const pts = MC.vtc.thermalPoints(s, curve, In);
     line(pts, C.amber, 2.2);
@@ -6563,12 +6652,10 @@ Object.assign(window.MC_EN, {
     pts.forEach((p, i) => { const x = X(p[0]), y = Y(p[1]); if (i) g.lineTo(x, y); else g.moveTo(x, y); });
     g.lineTo(X(pts[pts.length - 1][0]), H - pad.b); g.lineTo(X(pts[0][0]), H - pad.b); g.closePath(); g.fill(); g.restore();
     // отсечка
-    const mag = s.mag[curve] || [10, 10];
     g.save(); g.strokeStyle = C.red; g.lineWidth = 1.4; g.setLineDash([4, 3]);
     [mag[0] * In, mag[1] * In].forEach(I => { g.beginPath(); g.moveTo(X(I), Y(0.02)); g.lineTo(X(I), Y(10000)); g.stroke(); });
     g.restore();
     // вышестоящий
-    const up = +state.upstreamIn;
     if (up > 0) {
       const upS = MC.vtc.get(state.breakerSeries);
       const upCurve = upS.curves.includes(state.curve) ? state.curve : upS.curves[0];
@@ -6579,15 +6666,25 @@ Object.assign(window.MC_EN, {
     const S = rep.cable.section;
     line([[1, k * k * S * S / 1], [100000, k * k * S * S / 100000]], C.blue, 1.4, [2, 4]);
     // пуск
-    const cmp = (compareData || []).find(x => x.method === state.startMethod);
-    const tS = cmp && cmp.tStart != null ? cmp.tStart : 0.6;
-    const Istart = rep.iStart || rep.motor.ist;
-    g.save(); g.fillStyle = C.mint; g.beginPath(); g.arc(X(Istart), Y(Math.max(tS, 0.02)), 4.5, 0, Math.PI * 2); g.fill();
-    g.font = '10px ui-monospace, monospace'; g.fillStyle = C.mint; g.textAlign = 'left';
-    g.fillText(tf('пуск {i} А / {t} с', { i: nf(Istart, 0), t: cmp && cmp.tStart != null ? nf(tS, 2) : '?' }), X(Istart) + 7, Y(Math.max(tS, 0.02)) - 5);
+    const dot = level === 'bad' ? C.red : level === 'warn' ? C.amber : C.mint;
+    const ty = Y(Math.max(tS || 0.6, 0.02));
+    g.save(); g.fillStyle = dot; g.beginPath(); g.arc(X(Istart), ty, 4.5, 0, Math.PI * 2); g.fill();
+    if (trip != null) { g.globalAlpha = .55; g.strokeStyle = dot; g.lineWidth = 1; g.setLineDash([2, 2]); g.beginPath(); g.moveTo(X(Istart), ty); g.lineTo(X(Istart), Y(Math.max(trip, 0.02))); g.stroke(); g.restore(); g.save(); }
+    g.font = '10px ui-monospace, monospace'; g.fillStyle = dot; g.textAlign = 'left';
+    const startTxt = trip != null
+      ? tf('пуск {i} А / {t} с · автомат {tr} с', { i: nf(Istart, 0), t: tS != null ? nf(tS, 2) : '?', tr: nf(Math.max(trip, 0.02), 2) })
+      : tf('пуск {i} А / {t} с', { i: nf(Istart, 0), t: tS != null ? nf(tS, 2) : '?' });
+    g.fillText(startTxt, X(Istart) + 7, ty - 5);
     g.restore();
-    // легенда
-    const leg = [[tf('Автомат {b} {s} {i} А', { b: s.brand, s: s.series, i: In }), C.amber], [t('Отсечка'), C.red], [t('Пуск'), C.mint], [t('Кабель'), C.blue], [t('Вышестоящий'), C.violet]];
+    // легенда — только те серии, которые действительно нарисованы
+    const sec = rep.cable.section;
+    const leg = [[tf('Автомат {b} {s} {i} А', { b: s.brand, s: s.series, i: In }), C.amber]];
+    leg.push([mag[0] !== mag[1]
+      ? tf('Отсечка {a}…{b} А', { a: nf(mag[0] * In, 0), b: nf(mag[1] * In, 0) })
+      : tf('Отсечка {a} А', { a: nf(mag[0] * In, 0) }), C.red]);
+    leg.push([t('Пуск'), dot]);
+    leg.push([tf('Кабель {s} мм²', { s: nf(sec, 1) }), C.blue]);
+    if (up > 0) leg.push([t('Вышестоящий'), C.violet]);
     g.font = '10px -apple-system, sans-serif'; let lx = pad.l + 8, ly = pad.t + 10;
     leg.forEach(([txt, color]) => {
       const tw = g.measureText(txt).width;
@@ -6596,14 +6693,24 @@ Object.assign(window.MC_EN, {
       lx += tw + 34;
     });
     const selBad = b.upstream && !b.okSel;
-    $('#tagVTC').textContent = !rep.checks.breakerMag ? t('отсечка на пуске') : selBad ? t('селективность недостаточна') : t('пуск проходит');
-    $('#tagVTC').className = 'panel-tag ' + (!rep.checks.breakerMag ? 'bad' : selBad ? 'warn' : 'ok');
+    const stalled = cmp && cmp.stalled && cmp.tStart == null;
+    let tagTxt, tagCls;
+    if (!rep.checks.breakerMag) { tagTxt = t('отсечка на пуске'); tagCls = 'bad'; }
+    else if (stalled) { tagTxt = t('пуск не разгоняется'); tagCls = 'bad'; }
+    else if (level === 'bad') { tagTxt = t('пуск вне тепловой зоны'); tagCls = 'bad'; }
+    else if (selBad) { tagTxt = t('селективность недостаточна'); tagCls = 'warn'; }
+    else if (level === 'warn') { tagTxt = t('пуск на границе тепловой зоны'); tagCls = 'warn'; }
+    else { tagTxt = t('пуск проходит'); tagCls = 'ok'; }
+    $('#tagVTC').textContent = tagTxt;
+    $('#tagVTC').className = 'panel-tag ' + tagCls;
     const selTxt = b.upstream ? ' ' + tf('Селективность {r}× {ok}.', { r: nf(b.selRatio, 1), ok: b.okSel ? t('обеспечена') : t('недостаточна') }) : '';
+    const bandTxt = mag[0] !== mag[1] ? ' ' + tf('Зона отсечки {a}…{b} А.', { a: nf(mag[0] * In, 0), b: nf(mag[1] * In, 0) }) : '';
+    const thermTxt = (trip != null && tS != null) ? ' ' + tf('Тепловая зона при {i} А: {tr} с, пуск {ts} с.', { i: nf(Istart, 0), tr: nf(Math.max(trip, 0.02), 2), ts: nf(tS, 2) }) : '';
     $('#vtcFoot').textContent = tf('Серия {b} {s}, {i} А, {type}. Пик пуска {peak} А; отсечка {mag} А.{sel}', {
       b: s.brand, s: s.series, i: In,
       type: s.type === 'mccb' ? 'MCCB' : tf('кривая {c}', { c: curve }),
       peak: nf(Istart, 0), mag: nf(b.magTrip, 0), sel: selTxt
-    });
+    }) + bandTxt + thermTxt;
     fillChartTable('dataVTC', [t('I, А'), t('I/Iн'), t('t, с')], pts.map(p => [nf(p[0], 0), nf(p[0] / In, 2), nf(p[1], 3)]));
     if (I18N.isEn()) I18N.translateDom(document.body);
   }
@@ -6727,6 +6834,31 @@ Object.assign(window.MC_EN, {
 
     if (ch.breakerMag) add('ok', `Отсечка автомата (${nf(rep.breaker.magTrip, 0)} А) выше расчётного пускового тока ${nf(rep.iStart, 0)} А для способа «${methodLabel(state.startMethod)}» — ложных срабатываний не будет.`);
     else add('bad', tf('Отсечка {m} А может сработать при пуске: расчётный ток для способа «{meth}» — {i} А. ', { m: nf(rep.breaker.magTrip, 0), meth: t(methodLabel(state.startMethod)), i: nf(rep.iStart, 0) }) + t(state.curve === 'D' ? 'Даже кривая D не покрывает этот ток — увеличьте номинал или примените MCCB с регулируемой отсечкой.' : 'Выберите кривую D (10–20·Iн), софтстартер/ПЧ или аппарат с регулируемой отсечкой.'));
+
+    /* тепловая часть ВТХ: пуск может уложиться в отсечку, но не в тепловую зону */
+    const th = thermalStart(rep);
+    if (th.level === 'bad') {
+      add('bad', tf('Тепловая зона автомата: при {i} А он отключится за {tr} с, а пуск длится {ts} с — сработает по теплу. Уменьшите пусковой ток (софтстартер, ПЧ, Y–Δ) или возьмите аппарат с регулируемой тепловой защитой.', {
+        i: nf(th.Istart, 0), tr: nf(Math.max(th.trip, 0.02), 2), ts: nf(th.tStart, 2)
+      }));
+    } else if (th.level === 'warn') {
+      add('warn', tf('Пуск на границе тепловой зоны: автомат отключится за {tr} с, пуск — {ts} с (запас {k}×). При повторных пусках и нагретом автомате возможен расход.', {
+        tr: nf(Math.max(th.trip, 0.02), 2), ts: nf(th.tStart, 2), k: nf(th.ratio, 2)
+      }));
+    } else if (th.level === 'ok') {
+      add('ok', tf('Пуск укладывается в тепловую зону: автомат отключится за {tr} с, пуск — {ts} с (запас {k}×).', {
+        tr: nf(Math.max(th.trip, 0.02), 2), ts: nf(th.tStart, 2), k: nf(th.ratio, 2)
+      }));
+    }
+    if (th.duty && !th.duty.ok) {
+      add('warn', tf('{n} пусков/час: эквивалентный ток {ieq} А держится почти постоянно, автомат отключится по теплу за {t} с. Нужен аппарат с тепловой регулировкой или пауза между пусками.', {
+        n: th.duty.starts, ieq: nf(th.duty.Ieq, 1), t: nf(th.duty.tripEq, 0)
+      }));
+    } else if (th.duty && th.duty.ok) {
+      add('ok', tf('{n} пусков/час: эквивалентный ток {ieq} А ниже тепловой границы — тепловая память автомата не приведёт к отключению.', {
+        n: th.duty.starts, ieq: nf(th.duty.Ieq, 1)
+      }));
+    }
 
     if (rep.breaker.upstream) {
       if (rep.breaker.okSel) add('ok', `Селективность с вышестоящим аппаратом ${nf(rep.breaker.upstream, 0)} А обеспечена (отношение ${nf(rep.breaker.selRatio, 1)} ≥ 1,6).`);
@@ -6866,12 +6998,14 @@ Object.assign(window.MC_EN, {
     $('#cableTag2').className = 'panel-tag ' + (cableOk ? 'ok' : 'bad');
 
     const b = rep.breaker, r = rep.relay;
+    const th = thermalStart(rep);
     $('#protectTable').innerHTML = `<table>
       <thead><tr><th>Аппарат</th><th>Параметр</th><th>Проверка</th></tr></thead>
       <tbody>
         <tr><td>Автомат</td><td class="num">${nu(b.In, 0, 'А')}, ${b.type === 'mccb' ? 'MCCB ' + b.mag + '×' + t('Iн') : tf('кривая {c}', { c: b.curve })}</td><td>${rep.checks.breakerCurrent && rep.checks.breakerCable ? '<span class="badge ok">ок</span>' : '<span class="badge bad">нет</span>'}</td></tr>
         <tr><td>Селективность</td><td class="num">${b.upstream ? nf(b.upstream, 0) + ' / ' + nf(b.In, 0) + ' А' : 'не задана'}</td><td>${rep.checks.breakerSel ? '<span class="badge ok">ок</span>' : '<span class="badge warn">проверить</span>'}</td></tr>
         <tr><td>Отсечка</td><td class="num">${nf(b.magTrip, 0)} А</td><td>${rep.checks.breakerMag ? '<span class="badge ok">ок</span>' : '<span class="badge bad">ложный пуск</span>'}</td></tr>
+        <tr><td>Тепловая зона</td><td class="num">${th.trip != null ? tf('{tr} с / пуск {ts} с', { tr: nf(Math.max(th.trip, 0.02), 2), ts: th.tStart != null ? nf(th.tStart, 2) : '?' }) : '—'}</td><td>${th.level === 'bad' ? '<span class="badge bad">расход</span>' : th.level === 'warn' ? '<span class="badge warn">граница</span>' : th.level === 'ok' ? '<span class="badge ok">ок</span>' : '—'}</td></tr>
         <tr><td>Icu</td><td class="num">${nf(b.icu, 0)} кА</td><td>${rep.checks.breakerIcu ? '<span class="badge ok">ок</span>' : '<span class="badge bad">мало</span>'}</td></tr>
         <tr><td>Тепловое реле</td><td class="num">${nf(r.lo, r.lo % 1 ? 1 : 0)}…${nf(r.hi, r.hi % 1 ? 1 : 0)} А</td><td><span class="badge ok">уставка ${nf(r.set, 1)} А</span></td></tr>
         <tr><td>Контактор</td><td class="num">${nf(rep.contactor.i, 0)} А / ${nf(rep.contactor.kw, 1)} кВт</td><td>${rep.checks.contactor ? '<span class="badge ok">ок</span>' : '<span class="badge bad">мало</span>'}</td></tr>
@@ -6885,13 +7019,17 @@ Object.assign(window.MC_EN, {
       ['Просадка при пуске ≤ ' + nf(state.cable.startDropLimit, 0) + ' %', rep.checks.startDrop],
       ['Автомат ≥ рабочего тока', rep.checks.breakerCurrent],
       ['Автомат ≤ тока кабеля', rep.checks.breakerCable],
-      ['Отсечка выше Iп (с учётом пуска)', rep.checks.breakerMag],
+      ['Отсечка выше Iп (с учётом пуска)', rep.checks.breakerMag]
+    ];
+    if (th.level) chk.push(['Пуск в тепловой зоне автомата', th.level !== 'bad']);
+    if (th.duty) chk.push([tf('Тепловой запас при {n} пусках/час', { n: th.duty.starts }), th.duty.ok]);
+    chk.push(
       ['Icu ≥ тока КЗ', rep.checks.breakerIcu],
       ['Селективность', rep.checks.breakerSel],
       ['Термическая стойкость', rep.checks.sc],
       ['Контактор AC-3', rep.checks.contactor],
       ['Устойчивость при нагрузке', !rep.op.stalled]
-    ];
+    );
     $('#checksBody').innerHTML = `<div class="point-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
       ${chk.map(x => `<div class="point-item ${x[1] ? 'accent' : 'bad'}"><div class="pl">${x[0]}</div><div class="pv" style="font-size:12px">${x[1] ? '✓ выполняется' : '× не выполняется'}</div></div>`).join('')}
     </div>`;
@@ -6914,6 +7052,7 @@ Object.assign(window.MC_EN, {
       m.U.toFixed(1), m.phases, m.conn, (m.connFactor || 1).toFixed(3), m.sn.toFixed(5), m.f,
       state.startMethod, state.loadType, state.loadPct, state.loadUnload, state.loadRelease,
       JSON.stringify(state.loadCurve), state.sim.tSwitch, state.sim.tRamp, state.sim.uStart, state.sim.iLimit,
+      +state.jExtra || 0,
       rep.cable.section, rep.cable.parallel, rep.cable.length
     ].join('|');
   }
@@ -6939,6 +7078,13 @@ Object.assign(window.MC_EN, {
         compareData = S.compare(lastRep.motor, Object.assign(simCfg(), { cable: lastRep.cable }));
         lastCompareKey = key;
         renderCompare();
+        /* вердикт по тепловой зоне зависит от длительности пуска — пересчитать */
+        renderVerdict(lastRep);
+        renderWarnings(lastRep);
+        if (document.querySelector('[data-panel="cable"]').classList.contains('active')) {
+          drawVTC(lastRep);
+          renderCableTab(lastRep);
+        }
         if (document.querySelector('[data-panel="calc"]').classList.contains('active') || document.querySelector('[data-panel="start"]').classList.contains('active')) renderStartPanel(lastRep);
       } catch (e) { console.error(e); }
     }, 120);
