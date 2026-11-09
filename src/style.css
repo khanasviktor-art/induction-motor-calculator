@@ -302,6 +302,13 @@ html[data-theme="light"] .tip-pop { box-shadow: 0 14px 36px rgba(15, 25, 40, .18
 .theme-switch button { display: grid; place-items: center; height: 26px; padding: 0; color: var(--muted); }
 .theme-switch button.active { color: var(--mint); }
 .theme-switch svg { display: block; }
+.lang-switch { width: 74px; grid-auto-columns: 1fr; }
+.lang-switch button {
+  height: 26px; padding: 0;
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em;
+  color: var(--muted);
+}
+.lang-switch button.active { color: var(--mint); }
 .drawer-head, .drawer-foot { display: none !important; }
 .drawer-backdrop { display: none; }
 
@@ -1031,6 +1038,7 @@ sub { font-size: 0.72em; }
   .brand-mark { width: 34px; height: 34px; }
   .topbar-actions { gap: 6px; margin-left: auto; }
   .theme-switch { width: 96px; }
+  .lang-switch { width: 66px; }
   .workspace { display: block; height: auto; overflow: visible; }
   .loadbar {
     position: sticky; top: 0; z-index: 30;

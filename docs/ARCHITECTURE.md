@@ -12,6 +12,8 @@ src/engine.js    расчётное ядро (без DOM)
 src/sim.js       переходные процессы
 src/charts.js    canvas-графики, зум, PNG
 src/xlsx.js      минимальный XLSX-писатель
+src/i18n.js      переключение RU/EN: t/tf/tHtml, nf, translateDom
+src/lang-en.js   словарь RU→EN (собирается из src/lang-en/*.js)
 src/app.js       состояние, интерфейс, отчёт, проекты
 build.mjs        инлайнит всё в index.html
 index.html       СОБРАННЫЙ файл — не редактировать вручную
@@ -42,6 +44,8 @@ OUT=dist/app.html npm run build
 
 ```js
 window.MC = {}
+MC_I18N    // t, tf, tHtml, nf, setLang, translateDom (из i18n.js)
+MC_EN      // словарь RU→EN (lang-en.js), загружается до i18n.js
 MC.data    // MOTOR_DB, кабели, аппараты
 MC.engine  // buildMotor, buildReport, …
 MC.sim     // createState, advance, compare
@@ -86,6 +90,24 @@ MC.xlsx    // build(sheets)
 - Строки — `inlineStr`, числа — числа; заголовок — стиль 1.
 - Без внешних библиотек.
 
+### `i18n.js` и `lang-en.js`
+
+- Ключ словаря — **русская строка** ровно в том виде, как она стоит в `src/`.
+  `t(s)` возвращает исходную строку в RU и перевод в EN, поэтому русский режим
+  не меняет ни одного символа.
+- `tf(s, vars)` — шаблон с `{подстановками}` (порядок слов в переводе свободный).
+- `tHtml(html)` — перевод разметки: текстовые узлы и `title/placeholder/aria-label`.
+- `translateDom(node)` — односторонний перевод готового поддерева; применяется в
+  конце рендера (динамическая разметка собирается строками и переводится после
+  вставки), а также к окну отчёта.
+- `nf(v, d)` — числа в локали языка: `1 469,2` (ru) / `1,469.2` (en).
+- Статическая разметка обходится один раз в `init()`: исходные строки
+  запоминаются, чтобы при возврате на RU восстановить их без перезагрузки.
+- Текст на canvas переводится до рисования — подписи осей и легенды берутся из
+  `CHART_LABELS` / `CHART_ARIA` в `app.js` и пересобираются в `applyChartLabels()`.
+- Словарь собирается из кусков `src/lang-en/*.js`:
+  `node tools/i18n-assemble.cjs` (проверяет синтаксис и конфликты ключей).
+
 ### `app.js`
 
 - `state` — всё состояние UI.
@@ -94,7 +116,9 @@ MC.xlsx    // build(sheets)
 - `render(rep)` — панели, KPI, графики, проверки.
 - `renderCharts`, `drawSimCharts`.
 - `bind()` — события.
-- `init()` — старт.
+- `init()` — старт (в т.ч. `I18N.init()` и `I18N.onChange(relang)`).
+- `relang()` — полная перерисовка после смены языка.
+- `syncLangUI()` — активная кнопка RU/EN и `html[lang]`.
 - `openReport`, `exportCsv`, `exportXlsx`.
 - `saveProject/loadProject`, `rememberVariant`.
 - `TIPS`, `decorateTips`, `showTip`.

@@ -5,6 +5,8 @@
   'use strict';
   const D = root.MC.data;
   const V = root.MC.vtc;
+  /* тексты заметок переводятся на этапе расчёта (i18n грузится после engine.js) */
+  const T = s => (root.MC_I18N ? root.MC_I18N.t(s) : s);
   const SQRT3 = Math.sqrt(3);
   const PI2 = 2 * Math.PI;
   const TEMP_CLASS = {
@@ -158,7 +160,7 @@
       n = c.n * f / 50;
       kst = c.kst; mst = c.mst; mmax = c.mmax;
       jm = D.estimateJ(p2, c.poles);
-      note = 'Паспортные данные: ' + c.type;
+      note = T('Паспортные данные: ') + T(c.type);
     } else if (cfg.mode === 'current') {
       const I = +cfg.current;
       let p = clamp(phases === 3 ? SQRT3 * U * I * 0.82 / 1000 : U * I * 0.82 / 1000, 0.05, 500);
@@ -182,7 +184,7 @@
       const snT = (ns - typ.n) / ns;
       n = cfg.slipAuto === false ? ns * (1 - (+cfg.slip) / 100) : ns * (1 - clamp(snT, 0.004, 0.2));
       jm = D.estimateJ(p2, poles);
-      note = 'Мощность восстановлена по току; КПД и cosφ — типовые' + (cfg.effAuto || cfg.cosAuto ? '' : ' (заданы вручную)');
+      note = T('Мощность восстановлена по току; КПД и cosφ — типовые') + (cfg.effAuto || cfg.cosAuto ? '' : T(' (заданы вручную)'));
     } else if (cfg.mode === 'torque') {
       const M = +cfg.torque, nr = +cfg.speedRpm || ns;
       p2 = Math.max(M * nr / 9550, 0.001);
@@ -194,7 +196,7 @@
       mmax = cfg.mmaxAuto ? typ.mmax : +cfg.mmax;
       n = nr;
       jm = D.estimateJ(p2, poles);
-      note = 'Мощность определена по моменту и скорости';
+      note = T('Мощность определена по моменту и скорости');
     } else {
       p2 = Math.max(+cfg.p2, 0.01);
       const typ = typAt(p2);
@@ -206,7 +208,7 @@
       const snT = cfg.slipAuto === false ? (+cfg.slip) / 100 : clamp((ns - typ.n) / ns, 0.004, 0.2);
       n = ns * (1 - snT);
       jm = D.estimateJ(p2, poles);
-      note = 'Расчёт по мощности';
+      note = T('Расчёт по мощности');
     }
 
     if (!(p2 > 0)) throw new Error('Некорректная мощность');
@@ -239,7 +241,7 @@
       sm: sm, boost: boost, rr1: rr1,
       ist: kst * I, mstAbs: mst * mn, mmaxAbs: mmax * mn,
       pLoss: p1 - p2, pConst: (p1 - p2) * 0.52, pVar: (p1 - p2) * 0.48,
-      note: phases === 1 ? note + ' · однофазный, ' + ({ capacitor: 'конденсаторный', split: 'с расщеплённой фазой', psc: 'PSC' }[cfg.motor1phType] || 'конденсаторный') + ' (типовые данные)' : note,
+      note: phases === 1 ? note + T(' · однофазный, ') + T({ capacitor: 'конденсаторный', split: 'с расщеплённой фазой', psc: 'PSC' }[cfg.motor1phType] || 'конденсаторный') + T(' (типовые данные)') : note,
       catalog: cfg.catalog || null,
       tempLimit: cls.limit, riseRated: cls.rise,
       tempAmbient: +cfg.motorAmbient || 40,

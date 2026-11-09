@@ -170,7 +170,7 @@
         ctx.fillStyle = THEME.text;
         ctx.font = FONT_UI;
         ctx.textAlign = 'center';
-        ctx.fillText(o.emptyText, (x0 + x1) / 2, (y0 + y1) / 2);
+        ctx.fillText(root.MC_I18N ? root.MC_I18N.t(o.emptyText) : o.emptyText, (x0 + x1) / 2, (y0 + y1) / 2);
         return;
       }
 

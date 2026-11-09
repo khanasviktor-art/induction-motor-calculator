@@ -55,8 +55,13 @@ CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" npm t
 | `tests/charts-static.mjs` | 13 статических сценариев |
 | `tests/charts-transient.mjs` | 5 способов пуска, наложение, 1 фаза |
 | `tests/features.mjs` | XLSX, CSV, проект, отчёт, подсказки, зум/PNG, 1 фаза |
+| `tests/i18n.mjs` | RU/EN: в EN без кириллицы (вкладки, подсказки, canvas, отчёт, XLSX), выбор сохраняется, RU возвращается |
 
 Все тесты открывают `index.html?debug=1` и используют `window.__mcDebug`.
+
+`tests/i18n.mjs` дополнительно перехватывает в странице `fillText`/`strokeText`
+(текст, уходящий на canvas) и `MC.xlsx.build` (листы выгрузки) — иначе подписи
+графиков и ячейки Excel не проверить по DOM.
 
 ## 4. Статические сценарии
 

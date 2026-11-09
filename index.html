@@ -7,7 +7,7 @@
 <title>Асинхронный двигатель — инженерный расчёт</title>
 <meta name="author" content="Виктор Ханас">
 <meta name="generator" content="DeepSeek">
-<meta name="version" content="0.7.7">
+<meta name="version" content="0.8.0">
 <meta name="description" content="Расчёт мощности, тока, момента, кабеля и защиты асинхронного двигателя. Графики характеристик и переходные процессы пуска.">
 <style>
 /* ============================================================
@@ -314,6 +314,13 @@ html[data-theme="light"] .tip-pop { box-shadow: 0 14px 36px rgba(15, 25, 40, .18
 .theme-switch button { display: grid; place-items: center; height: 26px; padding: 0; color: var(--muted); }
 .theme-switch button.active { color: var(--mint); }
 .theme-switch svg { display: block; }
+.lang-switch { width: 74px; grid-auto-columns: 1fr; }
+.lang-switch button {
+  height: 26px; padding: 0;
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em;
+  color: var(--muted);
+}
+.lang-switch button.active { color: var(--mint); }
 .drawer-head, .drawer-foot { display: none !important; }
 .drawer-backdrop { display: none; }
 
@@ -1043,6 +1050,7 @@ sub { font-size: 0.72em; }
   .brand-mark { width: 34px; height: 34px; }
   .topbar-actions { gap: 6px; margin-left: auto; }
   .theme-switch { width: 96px; }
+  .lang-switch { width: 66px; }
   .workspace { display: block; height: auto; overflow: visible; }
   .loadbar {
     position: sticky; top: 0; z-index: 30;
@@ -1196,6 +1204,10 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     <button class="btn icon" id="btnTour" title="Обучение" aria-label="Пройти обучение">
       <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><circle cx="10" cy="10" r="7.4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7.9 7.7a2.2 2.2 0 1 1 3.3 1.9c-.7.4-1.2 1-1.2 1.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="14" r="0.9" fill="currentColor"/></svg>
     </button>
+    <div class="seg small lang-switch" id="segLang" role="group" aria-label="Язык / Language">
+      <button data-val="ru" class="active" title="Русский" aria-label="Русский язык">RU</button>
+      <button data-val="en" title="English" aria-label="English">EN</button>
+    </div>
     <div class="seg small theme-switch" id="segTheme" role="group" aria-label="Оформление">
       <button data-val="light" title="Светлая тема" aria-label="Светлая тема">
         <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><circle cx="10" cy="10" r="3.1" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 2.2v2M10 15.8v2M2.2 10h2M15.8 10h2M4.5 4.5l1.4 1.4M14.1 14.1l1.4 1.4M15.5 4.5l-1.4 1.4M5.9 14.1l-1.4 1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -1580,7 +1592,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
         <button class="btn ghost" id="btnLoadProject">Открыть проект</button>
       </div>
       <div class="side-foot">
-        <span>v0.7.7</span>
+        <span>v0.8.0</span>
         <span>ПУЭ · IEC 60364</span>
       </div>
     </div>
@@ -1903,7 +1915,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
 <div class="tip-pop" id="tipPop" role="tooltip" aria-hidden="true"></div>
 
 <footer class="footer">
-  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.7.7</span>
+  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.8.0</span>
   <span class="footer-credit">Сделано с помощью <b>DeepSeek</b> · идея: <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></span>
   <span id="footerStamp"></span>
 </footer>
@@ -2206,6 +2218,8 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
   'use strict';
   const D = root.MC.data;
   const V = root.MC.vtc;
+  /* тексты заметок переводятся на этапе расчёта (i18n грузится после engine.js) */
+  const T = s => (root.MC_I18N ? root.MC_I18N.t(s) : s);
   const SQRT3 = Math.sqrt(3);
   const PI2 = 2 * Math.PI;
   const TEMP_CLASS = {
@@ -2359,7 +2373,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       n = c.n * f / 50;
       kst = c.kst; mst = c.mst; mmax = c.mmax;
       jm = D.estimateJ(p2, c.poles);
-      note = 'Паспортные данные: ' + c.type;
+      note = T('Паспортные данные: ') + T(c.type);
     } else if (cfg.mode === 'current') {
       const I = +cfg.current;
       let p = clamp(phases === 3 ? SQRT3 * U * I * 0.82 / 1000 : U * I * 0.82 / 1000, 0.05, 500);
@@ -2383,7 +2397,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       const snT = (ns - typ.n) / ns;
       n = cfg.slipAuto === false ? ns * (1 - (+cfg.slip) / 100) : ns * (1 - clamp(snT, 0.004, 0.2));
       jm = D.estimateJ(p2, poles);
-      note = 'Мощность восстановлена по току; КПД и cosφ — типовые' + (cfg.effAuto || cfg.cosAuto ? '' : ' (заданы вручную)');
+      note = T('Мощность восстановлена по току; КПД и cosφ — типовые') + (cfg.effAuto || cfg.cosAuto ? '' : T(' (заданы вручную)'));
     } else if (cfg.mode === 'torque') {
       const M = +cfg.torque, nr = +cfg.speedRpm || ns;
       p2 = Math.max(M * nr / 9550, 0.001);
@@ -2395,7 +2409,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       mmax = cfg.mmaxAuto ? typ.mmax : +cfg.mmax;
       n = nr;
       jm = D.estimateJ(p2, poles);
-      note = 'Мощность определена по моменту и скорости';
+      note = T('Мощность определена по моменту и скорости');
     } else {
       p2 = Math.max(+cfg.p2, 0.01);
       const typ = typAt(p2);
@@ -2407,7 +2421,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       const snT = cfg.slipAuto === false ? (+cfg.slip) / 100 : clamp((ns - typ.n) / ns, 0.004, 0.2);
       n = ns * (1 - snT);
       jm = D.estimateJ(p2, poles);
-      note = 'Расчёт по мощности';
+      note = T('Расчёт по мощности');
     }
 
     if (!(p2 > 0)) throw new Error('Некорректная мощность');
@@ -2440,7 +2454,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       sm: sm, boost: boost, rr1: rr1,
       ist: kst * I, mstAbs: mst * mn, mmaxAbs: mmax * mn,
       pLoss: p1 - p2, pConst: (p1 - p2) * 0.52, pVar: (p1 - p2) * 0.48,
-      note: phases === 1 ? note + ' · однофазный, ' + ({ capacitor: 'конденсаторный', split: 'с расщеплённой фазой', psc: 'PSC' }[cfg.motor1phType] || 'конденсаторный') + ' (типовые данные)' : note,
+      note: phases === 1 ? note + T(' · однофазный, ') + T({ capacitor: 'конденсаторный', split: 'с расщеплённой фазой', psc: 'PSC' }[cfg.motor1phType] || 'конденсаторный') + T(' (типовые данные)') : note,
       catalog: cfg.catalog || null,
       tempLimit: cls.limit, riseRated: cls.rise,
       tempAmbient: +cfg.motorAmbient || 40,
@@ -3111,7 +3125,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
         ctx.fillStyle = THEME.text;
         ctx.font = FONT_UI;
         ctx.textAlign = 'center';
-        ctx.fillText(o.emptyText, (x0 + x1) / 2, (y0 + y1) / 2);
+        ctx.fillText(root.MC_I18N ? root.MC_I18N.t(o.emptyText) : o.emptyText, (x0 + x1) / 2, (y0 + y1) / 2);
         return;
       }
 
@@ -4089,6 +4103,1160 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
 </script>
 <script>
 /* ============================================================
+   Английский словарь (RU → EN). Ключ — русская строка ровно в том
+   виде, в каком она стоит в src/, значение — перевод.
+   Файл СОБИРАЕТСЯ из src/lang-en/*.js:
+     node tools/i18n-assemble.cjs
+   Правьте куски в src/lang-en/, а не этот файл.
+   ============================================================ */
+window.MC_EN = window.MC_EN || {};
+Object.assign(window.MC_EN, {
+  " · однофазный, ": " · single-phase, ",
+  " · оценка (типовые данные до 7,5 кВт)": " · estimate (typical data up to 7.5 kW)",
+  " · слежение": " · follow",
+  " ({k}×Iн)": " ({k}×Iₙ)",
+  " (заданы вручную)": " (set manually)",
+  " (типовые данные)": " (typical data)",
+  " / {v}×Iн": " / {v}×Iₙ",
+  "— 1 фаза": "— 1 phase",
+  "— 3 фазы": "— 3 phases",
+  "— момент, Н·м (P₂ в кВт)": "— torque, N·m (P₂ in kW)",
+  "— однофазная": "— single-phase",
+  "— однофазная сеть": "— single-phase supply",
+  "— оценка >7,5 кВт": "— estimate >7.5 kW",
+  "— потребляемая мощность": "— input power",
+  "— синхронная скорость, об/мин": "— synchronous speed, rpm",
+  "— скольжение": "— slip",
+  "— трёхфазная": "— three-phase",
+  "— трёхфазная сеть": "— three-phase supply",
+  "— частота в роторе": "— rotor frequency",
+  "! проверьте условия": "! check conditions",
+  ". Сравнение идёт при той же нагрузке и инерции.": ". The comparison uses the same load and inertia.",
+  "· идейный вдохновитель —": "· idea and inspiration —",
+  "· идея:": "· idea:",
+  "· предел 155 °C · предел не достигается. Класс 10 · пусков/час 0 · охлаждение 30 мин.": "· limit 155 °C · limit not reached. Class 10 · starts/h 0 · cooling 30 min.",
+  "· типовые данные": "· typical data",
+  "· установившаяся": "· steady state",
+  "«Графики» — характеристики, «Пуск» — переходные процессы, «Кабель и защита» — подробные таблицы, «Справочник» — формулы и база АИР.": "\"Charts\" — characteristics, \"Start\" — transients, \"Cable and protection\" — detailed tables, \"Reference\" — formulas and the AIR database.",
+  "{p} кВт · {n} об/мин · КПД {eff}% · cosφ {cos} · Iп/Iн {kst}{typ}": "{p} kW · {n} rpm · efficiency {eff}% · cosφ {cos} · Ist/Iₙ {kst}{typ}",
+  "{s} · слежение": "{s} · follow",
+  "/ч": "/h",
+  "% · 11,1 В": "% · 11.1 V",
+  "% · 11,2 В": "% · 11.2 V",
+  "% · 11,3 В": "% · 11.3 V",
+  "% · 12,0 В": "% · 12.0 V",
+  "% · 13,0 В": "% · 13.0 V",
+  "% · 6,1 В": "% · 6.1 V",
+  "°C": "°C",
+  "+ вариант": "+ variant",
+  "× не выполняется": "× fails",
+  "×Iн": "×Iₙ",
+  "<b>Ток</b> 30 А": "<b>Current</b> 30 A",
+  "✓ выполняется": "✓ passes",
+  "✓ да": "✓ yes",
+  "✓ проверки пройдены": "✓ checks passed",
+  "✗ нет": "✗ no",
+  "0,45 с": "0.45 s",
+  "0,51 с": "0.51 s",
+  "0,59 с": "0.59 s",
+  "0,62 с": "0.62 s",
+  "1 460 об/мин": "1,460 rpm",
+  "1 468 об/мин": "1,468 rpm",
+  "1 469 об/мин": "1,469 rpm",
+  "1 470 об/мин": "1,470 rpm",
+  "1 фаза": "1 phase",
+  "1 фаза, L/N": "1-phase, L/N",
+  "1,68 с": "1.68 s",
+  "10 × Iн": "10 × Iₙ",
+  "11,25 кВт": "11.25 kW",
+  "11,32 кВт": "11.32 kW",
+  "11,43 кВт": "11.43 kW",
+  "11,44 кВт": "11.44 kW",
+  "11,45 кВт": "11.45 kW",
+  "11,47 кВт": "11.47 kW",
+  "12 × Iн": "12 × Iₙ",
+  "120 А": "120 A",
+  "120 А (3×Iн)": "120 A (3×Iₙ)",
+  "15 кВт · 1460 об/мин · КПД 89% · cosφ 0.87 · Iп/Iн 7": "15 kW · 1460 rpm · efficiency 89% · cosφ 0.87 · Ist/Iₙ 7",
+  "15,00 кВт": "15.00 kW",
+  "16,0 мм²": "16.0 mm²",
+  "16,85 кВт": "16.85 kW",
+  "162,4 А": "162.4 A",
+  "189 А": "189 A",
+  "1P · MCB · кривая B": "1P · MCB · curve B",
+  "2 — 3000 об/мин": "2 — 3000 rpm",
+  "2 полюса (3000)": "2 poles (3000)",
+  "2,17 с": "2.17 s",
+  "206 А": "206 A",
+  "226 Н·м": "226 N·m",
+  "23,0…32,0 А": "23.0…32.0 A",
+  "23…32 А": "23…32 A",
+  "29,4 А": "29.4 A",
+  "2P · тип A": "2P · type A",
+  "3 фазы": "3 phases",
+  "3,29 с": "3.29 s",
+  "30 мА": "30 mA",
+  "32 А / 15": "32 A / 15",
+  "32 А / 15 кВт": "32 A / 15 kW",
+  "32 А / 15,0 кВт": "32 A / 15.0 kW",
+  "35,0 мм²": "35.0 mm²",
+  "35,0 мм² Cu": "35.0 mm² Cu",
+  "37…50 А": "37…50 A",
+  "4 — 1500 об/мин": "4 — 1500 rpm",
+  "4 полюса (1500)": "4 poles (1500)",
+  "40 А": "40 A",
+  "40 А · 3P · MCB B": "40 A · 3P · MCB B",
+  "40 А, кривая B": "40 A, curve B",
+  "40 А, кривая D": "40 A, curve D",
+  "400 А": "400 A",
+  "5 × Iн": "5 × Iₙ",
+  "5,68 с": "5.68 s",
+  "50 А / 22,0 кВт": "50 A / 22.0 kW",
+  "50 Гц": "50 Hz",
+  "500 м": "500 m",
+  "54 типоразмеров · * типовые": "54 frame sizes · * typical",
+  "6 — 1000 об/мин": "6 — 1000 rpm",
+  "6 × Iн": "6 × Iₙ",
+  "6 кА": "6 kA",
+  "6 полюсов (1000)": "6 poles (1000)",
+  "6,0 мм²": "6.0 mm²",
+  "60 Гц": "60 Hz",
+  "63 А": "63 A",
+  "63 А, кривая B": "63 A, curve B",
+  "70,0 мм²": "70.0 mm²",
+  "73,1 Н·м": "73.1 N·m",
+  "73,6 Н·м": "73.6 N·m",
+  "74,2 Н·м": "74.2 N·m",
+  "74,4 Н·м": "74.4 N·m",
+  "74,5 Н·м": "74.5 N·m",
+  "8 — 750 об/мин": "8 — 750 rpm",
+  "8 × Iн": "8 × Iₙ",
+  "8 полюсов (750)": "8 poles (750)",
+  "84 °C (F, предел 155 °C)": "84 °C (F, limit 155 °C)",
+  "98,1 Н·м": "98.1 N·m",
+  "А": "A",
+  "А  ({k}×Iн)": "A  ({k}×Iₙ)",
+  "А  (k = {k})": "A  (k = {k})",
+  "А · 15,0 кВт": "A · 15.0 kW",
+  "А · 1P (B)": "A · 1P (B)",
+  "А · уставка 29,4": "A · setting 29.4",
+  "А · уставка 49,4": "A · setting 49.4",
+  "А · AT": "A · AT",
+  "А · DOL": "A · DOL",
+  "А · Soft": "A · Soft",
+  "А · VFD": "A · VFD",
+  "А · Y→Δ": "A · Y→Δ",
+  "А ({k}×Iн)": "A ({k}×Iₙ)",
+  "А (10×Iн)": "A (10×Iₙ)",
+  "А (3×Iн)": "A (3×Iₙ)",
+  "А (4,8×Iн)": "A (4.8×Iₙ)",
+  "А (7,0×Iн)": "A (7.0×Iₙ)",
+  "А (B)": "A (B)",
+  "А (D)": "A (D)",
+  "А (k = 1,00)": "A (k = 1.00)",
+  "А (k = 1,12)": "A (k = 1.12)",
+  "А (k = 1,25)": "A (k = 1.25)",
+  "А (null)": "A (null)",
+  "А / 0,9×Iн": "A / 0.9×Iₙ",
+  "А / 2,4×Iн": "A / 2.4×Iₙ",
+  "А / 3,8×Iн": "A / 3.8×Iₙ",
+  "А / 4,2×Iн": "A / 4.2×Iₙ",
+  "А / 4,3×Iн": "A / 4.3×Iₙ",
+  "А / 6,1×Iн": "A / 6.1×Iₙ",
+  "А / 6,2×Iн": "A / 6.2×Iₙ",
+  "А / 6,6×Iн": "A / 6.6×Iₙ",
+  "А / 7,2×Iн": "A / 7.2×Iₙ",
+  "Авто": "Auto",
+  "автомат": "breaker",
+  "Автомат": "Breaker",
+  "Автомат {b} {s} {i} А": "Breaker {b} {s} {i} A",
+  "Автомат ≤ тока кабеля": "Breaker ≤ cable ampacity",
+  "Автомат ≥ рабочего тока": "Breaker ≥ operating current",
+  "Автомат 40 А защищает кабель (140,0 А) и пропускает рабочий ток.": "The 40 A breaker protects the cable (140.0 A) and passes the operating current.",
+  "Автомат 40 А защищает кабель (156,8 А) и пропускает рабочий ток.": "The 40 A breaker protects the cable (156.8 A) and passes the operating current.",
+  "Автомат 40 А защищает кабель (162,4 А) и пропускает рабочий ток.": "The 40 A breaker protects the cable (162.4 A) and passes the operating current.",
+  "Автомат 40 А защищает кабель (46,0 А) и пропускает рабочий ток.": "The 40 A breaker protects the cable (46.0 A) and passes the operating current.",
+  "Автомат 63 А защищает кабель (276,0 А) и пропускает рабочий ток.": "The 63 A breaker protects the cable (276.0 A) and passes the operating current.",
+  "Автоматический выключатель": "Circuit breaker",
+  "Автотрансформатор": "Autotransformer",
+  "АИР100L2": "AIR100L2",
+  "АИР100L4": "AIR100L4",
+  "АИР100L6": "AIR100L6",
+  "АИР100S2": "AIR100S2",
+  "АИР100S4": "AIR100S4",
+  "АИР112М2": "AIR112M2",
+  "АИР112М4": "AIR112M4",
+  "АИР112МА6": "AIR112MA6",
+  "АИР112МВ6": "AIR112MB6",
+  "АИР132М2": "AIR132M2",
+  "АИР132М6": "AIR132M6",
+  "АИР132S4": "AIR132S4",
+  "АИР132S6": "AIR132S6",
+  "АИР160М2": "AIR160M2",
+  "АИР160М4": "AIR160M4",
+  "АИР160М6": "AIR160M6",
+  "АИР160М8": "AIR160M8",
+  "АИР160S2": "AIR160S2",
+  "АИР160S4": "AIR160S4",
+  "АИР160S6": "AIR160S6",
+  "АИР160S8": "AIR160S8",
+  "АИР180М2": "AIR180M2",
+  "АИР180М4": "AIR180M4",
+  "АИР180М6": "AIR180M6",
+  "АИР180S4": "AIR180S4",
+  "АИР200М2": "AIR200M2",
+  "АИР200М4": "AIR200M4",
+  "АИР200М6": "AIR200M6",
+  "АИР225М4": "AIR225M4",
+  "АИР225М4 *": "AIR225M4 *",
+  "АИР250М4": "AIR250M4",
+  "АИР250М4 *": "AIR250M4 *",
+  "АИР250S4": "AIR250S4",
+  "АИР250S4 *": "AIR250S4 *",
+  "АИР280М4": "AIR280M4",
+  "АИР280М4 *": "AIR280M4 *",
+  "АИР280S4": "AIR280S4",
+  "АИР280S4 *": "AIR280S4 *",
+  "АИР315М4": "AIR315M4",
+  "АИР315М4 *": "AIR315M4 *",
+  "АИР315S4": "AIR315S4",
+  "АИР315S4 *": "AIR315S4 *",
+  "АИР355М4": "AIR355M4",
+  "АИР355М4 *": "AIR355M4 *",
+  "АИР355L4": "AIR355L4",
+  "АИР355L4 *": "AIR355L4 *",
+  "АИР355S4": "AIR355S4",
+  "АИР355S4 *": "AIR355S4 *",
+  "АИР56В4": "AIR56B4",
+  "АИР63А4": "AIR63A4",
+  "АИР63В2": "AIR63B2",
+  "АИР63В4": "AIR63B4",
+  "АИР71А4": "AIR71A4",
+  "АИР71В2": "AIR71B2",
+  "АИР71В4": "AIR71B4",
+  "АИР80А2": "AIR80A2",
+  "АИР80А4": "AIR80A4",
+  "АИР80А6": "AIR80A6",
+  "АИР80В2": "AIR80B2",
+  "АИР80В4": "AIR80B4",
+  "АИР80В6": "AIR80B6",
+  "АИР90L2": "AIR90L2",
+  "АИР90L4": "AIR90L4",
+  "АИР90L6": "AIR90L6",
+  "Алюминий": "Aluminium",
+  "Аппарат": "Device",
+  "Аппараты защиты": "Protection devices",
+  "Аппараты и уставки": "Devices and settings",
+  "асинхронный двигатель": "induction motor",
+  "Асинхронный двигатель": "Induction motor",
+  "Асинхронный двигатель — инженерный расчёт": "Induction motor — engineering calculation",
+  "Асинхронный двигатель — расчёт": "Induction motor — calculation",
+  "база": "base",
+  "База": "Base",
+  "База двигателей АИР": "AIR motor database",
+  "В": "V",
+  "В земле": "In ground",
+  "В лотке / пучке": "In tray / bundle",
+  "В трубе / стене": "In conduit / wall",
+  "вариант сохранён": "variant saved",
+  "Вентиляторный (T ∝ n²)": "Fan (T ∝ n²)",
+  "Виктор Ханас": "Viktor Khanas",
+  "Время переключения": "Changeover time",
+  "Время разгона": "Run-up time",
+  "Время разгона, с": "Run-up time, s",
+  "Время-токовая характеристика: автомат, пуск, кабель и вышестоящая защита": "Time-current characteristic: breaker, starting, cable and upstream protection",
+  "Время, за которое перегрев достигает 63 % установившегося значения.": "Time for the temperature rise to reach 63 % of its steady-state value.",
+  "Все": "All",
+  "все ок": "all OK",
+  "Вт": "W",
+  "Второй способ пуска для наложения на графики. Его кривые рисуются пунктиром; «нет» отключает сравнение.": "Second starting method to overlay on the charts. Its curves are drawn dashed; \"none\" disables the comparison.",
+  "ВТХ: защита и пуск": "Time-current curve: protection and starting",
+  "Выберите «Наложить способ», чтобы сравнить два пуска на графиках.": "Select 'Overlay method' to compare two starts on the charts.",
+  "Выберите способ пуска и нажмите «Пуск». Ниже — ток, момент, скорость и напряжение. В настройках можно наложить второй способ пунктиром.": "Choose a starting method and press \"Start\". Below are current, torque, speed and voltage. In the settings a second method can be overlaid as a dashed line.",
+  "Выбор сечения": "Cross-section selection",
+  "Выбор типоразмера из каталога АИР": "Frame size selection from the AIR catalogue",
+  "Выбрано 35,0 мм² (медь), PE 16,0 мм². Поправки: температура ×1,00, группировка ×1,00, способ ×1,00, изоляция ×1,12, параллельность ×1,00. Просадка при пуске 12,6 %.": "Selected 35.0 mm² (copper), PE 16.0 mm². Corrections: temperature ×1.00, grouping ×1.00, installation method ×1.00, insulation ×1.12, parallel runs ×1.00. Starting voltage dip 12.6 %.",
+  "Выбрано 6,0 мм² (медь), PE 6,0 мм². Поправки: температура ×1,00, группировка ×1,00, способ ×1,00, изоляция ×1,00, параллельность ×1,00. Просадка при пуске 5,3 %.": "Selected 6.0 mm² (copper), PE 6.0 mm². Corrections: temperature ×1.00, grouping ×1.00, installation method ×1.00, insulation ×1.00, parallel runs ×1.00. Starting voltage dip 5.3 %.",
+  "Выбрано 70,0 мм² (медь), PE 35,0 мм². Поправки: температура ×1,00, группировка ×1,00, способ ×1,00, изоляция ×1,12, параллельность ×1,00. Просадка при пуске 10,7 %.": "Selected 70.0 mm² (copper), PE 35.0 mm². Corrections: temperature ×1.00, grouping ×1.00, installation method ×1.00, insulation ×1.12, parallel runs ×1.00. Starting voltage dip 10.7 %.",
+  "выполняется": "passes",
+  "Вышестоящий": "Upstream",
+  "Вышестоящий, А": "Upstream, A",
+  "Горячий пуск": "Hot start",
+  "Горячий пуск: обмотка уже нагрета после предыдущей работы. Время до предела температуры меньше, чем при холодном пуске.": "Hot start: the winding is already heated by previous operation. The time to the temperature limit is shorter than in a cold start.",
+  "готово": "done",
+  "Готово": "Done",
+  "График": "Chart",
+  "Графики": "Charts",
+  "Гц": "Hz",
+  "Далее": "Next",
+  "Данные ВТХ": "Time-current data",
+  "Данные графика": "Chart data",
+  "Данные серии АИР до 37 кВт приведены по каталогу (380 В, 50 Гц); типоразмеры 45…315 кВт отмечены звёздочкой и являются типовыми справочными. Каталожные КПД и cosφ могут отличаться от фактических для конкретного изготовителя. Сечения и уставки следует проверять по проектной документации и действующим нормам.": "AIR series data up to 37 kW are taken from the catalogue (380 V, 50 Hz); frame sizes 45…315 kW are marked with an asterisk and are typical reference values. Catalogue efficiency and cosφ may differ from the actual values of a particular manufacturer. Cross-sections and settings should be verified against the design documentation and the applicable regulations.",
+  "дв": "motors",
+  "Двигайте ползунок — рабочая точка, ток, напряжение и графики пересчитываются сразу. 100 % — номинальный момент при номинальной скорости.": "Move the slider — the operating point, current, voltage and charts are recalculated at once. 100 % — rated torque at rated speed.",
+  "двигатель": "motor",
+  "Двигатель": "Motor",
+  "Двигатель 15,0 кВт": "15.0 kW motor",
+  "Двигатель 15,0 кВт · 380 В · 15.0 кВт · 09.11.2026, 10:46:04": "Motor 15.0 kW · 380 V · 15.0 kW · 09.11.2026, 10:46:04",
+  "Длина": "Length",
+  "Длина линии": "Line length",
+  "Длина линии от щита до двигателя. Влияет на падение напряжения, потери и просадку при пуске.": "Line length from the switchboard to the motor. Affects the voltage drop, the losses and the starting voltage dip.",
+  "Для однофазного двигателя напряжение 380 В необычно — обычно 220/230 В. Проверьте данные.": "For a single-phase motor 380 V is unusual — normally 220/230 V. Check the data.",
+  "Для однофазных: 2/4/6/8 полюсов; это скорость, а не число обмоток (главная + пусковая).": "For single-phase motors: 2/4/6/8 poles; this is the speed, not the number of windings (main + starting).",
+  "Для ответственных приводов (взрывоопасные зоны, пожарные системы, подъёмные механизмы) требуется индивидуальный расчёт и согласование с производителем оборудования.": "Critical drives (hazardous areas, fire systems, lifting equipment) require an individual calculation and coordination with the equipment manufacturer.",
+  "До предела по нагреву": "Time to heating limit",
+  "Дополнительные параметры": "Additional settings",
+  "Допустимая просадка напряжения на двигателе при пуске. Обычно 10…15 %; влияет на выбор сечения.": "Permissible voltage dip at the motor during starting. Usually 10…15 %; it affects the choice of cross-section.",
+  "Допустимое падение напряжения в рабочем режиме. Для двигателей обычно 5 %.": "Permissible voltage drop in normal operation. For motors it is usually 5 %.",
+  "Допустимый ток": "Ampacity",
+  "Допустимый ток кабеля": "Cable ampacity",
+  "Ед.": "Unit",
+  "Если включено, КПД, cosφ, скольжение и моменты берутся типовыми для заданной мощности. Снимите галочку, чтобы ввести паспортные значения.": "When enabled, efficiency, cosφ, slip and torques are taken as typical for the specified power. Clear the checkbox to enter the nameplate values.",
+  "Если способ не разгоняет: у софтстартера момент растёт примерно как (I/Iп)² — увеличьте ограничение тока; у Y–Δ момент в 3 раза ниже. Пик Y–Δ/AT — после переключения; в звезде/АТ ток ниже.": "If the method fails to run up: with a soft starter the torque rises roughly as (I/Ist)² — increase the current limit; with Y–Δ the torque is 3 times lower. The Y–Δ/autotransformer peak comes after changeover; in star/autotransformer mode the current is lower.",
+  "есть замечания": "issues found",
+  "завершено": "finished",
+  "Задайте разгрузку > 0, чтобы использовать это поле.": "Set load relief above 0 to use this field.",
+  "Закрыть": "Close",
+  "запас 69 °C": "margin 69 °C",
+  "запас 71 °C": "margin 71 °C",
+  "запас 72 °C": "margin 72 °C",
+  "запас 73 °C": "margin 73 °C",
+  "Защита": "Protection",
+  "Защита и кабель": "Protection and cable",
+  "Защита и пуск": "Protection and starting",
+  "Звезда — треугольник": "Star — delta",
+  "Звезда → треугольник": "Star → delta",
+  "Здесь задаются сеть, двигатель, нагрузка, кабель и защита. На телефоне панель открывается кнопкой «Параметры».": "Here the supply, motor, load, cable and protection are set. On a phone the panel opens with the \"Settings\" button.",
+  "Значение": "Value",
+  "Идейный вдохновитель — Виктор Ханас ·": "Idea and inspiration — Viktor Khanas ·",
+  "Известна мощность на валу и напряжение": "Shaft power and voltage are known",
+  "Изображение": "Image",
+  "Изоляция": "Insulation",
+  "Изоляция: ПВХ/резина (70 °C) или XLPE (90 °C). XLPE допускает больший ток и нагрев.": "Insulation: PVC/rubber (70 °C) or XLPE (90 °C). XLPE allows a higher current and a higher temperature.",
+  "Иконки «i» у полей и результатов открывают подсказки с формулами. Удачного расчёта!": "The 'i' icons next to the fields and results open tips with the formulas. Good luck with the calculation!",
+  "Инертность механизма, приведённая к валу. Влияет на время пуска. Ориентир: вентилятор 0,1…1 от J двигателя, конвейер 1…5, пресс 3…10.": "Inertia of the driven machine, referred to the shaft. Affects the starting time. Guide: fan 0.1…1 of the motor J, conveyor 1…5, press 3…10.",
+  "Инерция привода J∑": "Drive inertia JΣ",
+  "Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.7.7": "Induction motor engineering calculator · PUE / IEC 60364 · offline · v0.7.7",
+  "к": "k",
+  "кА": "kA",
+  "Кабелей в пучке": "Cables in bundle",
+  "кабель": "cable",
+  "Кабель": "Cable",
+  "Кабель и защита": "Cable and protection",
+  "Кабель и падение напряжения": "Cable and voltage drop",
+  "Кабель может выбираться из нескольких параллельных линий: программа перебирает 1…4 кабеля, учитывает снижение допустимого тока при параллельной прокладке и проверяет падение напряжения в рабочем режиме и при пуске. Для MCCB доступна регулируемая уставка отсечки и проверка селективности с вышестоящим аппаратом.": "The cable can be selected from several parallel runs: the program tries 1…4 cables, applies the ampacity derating for parallel laying, and checks the voltage drop in normal operation and during starting. For MCCB an adjustable instantaneous trip setting and a selectivity check against the upstream device are available.",
+  "Кабель термически стоек к I²t при КЗ (Smin ≈ 1,0 мм² ≤ 35,0 мм²).": "Cable is thermally stable to I²t at short circuit (Smin ≈ 1.0 mm² ≤ 35.0 mm²).",
+  "Кабель термически стоек к I²t при КЗ (Smin ≈ 1,0 мм² ≤ 70,0 мм²).": "Cable is thermally stable to I²t at short circuit (Smin ≈ 1.0 mm² ≤ 70.0 mm²).",
+  "Кабель термически стоек к I²t при КЗ (Smin ≈ 1,2 мм² ≤ 35,0 мм²).": "Cable is thermally stable to I²t at short circuit (Smin ≈ 1.2 mm² ≤ 35.0 mm²).",
+  "Кабель термически стоек к I²t при КЗ (Smin ≈ 1,2 мм² ≤ 6,0 мм²).": "Cable is thermally stable to I²t at short circuit (Smin ≈ 1.2 mm² ≤ 6.0 mm²).",
+  "Как в системе": "Match system",
+  "каталог": "catalogue",
+  "каталог АИР": "AIR catalogue",
+  "кВ·А": "kVA",
+  "квар": "kvar",
+  "кВт": "kW",
+  "кВт · 380 В · Iн": "kW · 380 V · Iₙ",
+  "кг·м²": "kg·m²",
+  "Класс изоляции": "Insulation class",
+  "Класс перегрузки": "Overload class",
+  "Класс перегрузки 10/20/30: допустимое время перегрузки. 20 — вдвое, 30 — втрое больше, чем 10.": "Overload class 10/20/30: the permissible overload time. 20 is twice and 30 three times longer than 10.",
+  "Ключевые параметры двигателя и итоговая строка: автомат, кабель, падение напряжения и статус проверок.": "Key motor parameters and the summary line: breaker, cable, voltage drop and the status of the checks.",
+  "км": "km",
+  "Кнопка «+ вариант» в строке итога сохраняет текущий расчёт для сравнения.": "The '+ variant' button in the result row saves the current calculation for comparison.",
+  "колесо — зум · перетаскивание — сдвиг · двойной клик — сброс": "wheel — zoom · drag — pan · double-click — reset",
+  "Колесо — масштаб, перетаскивание — сдвиг, двойной клик — сброс. У каждого графика есть сброс масштаба и экспорт PNG. CSV и XLSX — выгрузка данных.": "Wheel — zoom, drag — pan, double click — reset. Every chart has a zoom reset and PNG export. CSV and XLSX — data export.",
+  "конденсаторный": "capacitor-start",
+  "Конденсаторный (пуск / работа)": "Capacitor (start / run)",
+  "Контактор": "Contactor",
+  "Контактор 1P/2P": "Contactor 1P/2P",
+  "Контактор 32 А / 15,0 кВт подходит для категории AC-3.": "Contactor 32 A / 15.0 kW is suitable for AC-3 duty.",
+  "Контактор 50 А / 22,0 кВт подходит для категории AC-3.": "Contactor 50 A / 22.0 kW is suitable for AC-3 duty.",
+  "Контактор AC-3": "AC-3 contactor",
+  "Коэффициент мощности. Влияет на ток: I = P₁/(√3·U·cosφ) и на полную мощность S.": "Power factor. Affects the current: I = P₁/(√3·U·cosφ) and the apparent power S.",
+  "КПД": "Efficiency",
+  "КПД / cosφ": "Efficiency / cosφ",
+  "КПД = P₂/P₁. В типовом режиме подставляется по мощности; можно задать паспортное значение вручную.": "Efficiency = P₂/P₁. In the typical mode it is taken from the power; the nameplate value can be set manually.",
+  "КПД и коэффициент мощности": "Efficiency and power factor",
+  "КПД и коэффициент мощности от нагрузки": "Efficiency and power factor vs load",
+  "КПД и cosφ": "Efficiency and cosφ",
+  "КПД, %": "Efficiency, %",
+  "кривая {c}": "curve {c}",
+  "Кривая {c}": "Curve {c}",
+  "Кривая / уставка": "Curve / setting",
+  "Кривая автомата": "Breaker curve",
+  "Кривая автомата, точка пуска, кабель и вышестоящая защита. Источники — docs/VTC_SOURCES.md.": "Breaker curve, starting point, cable and upstream protection. Sources — docs/VTC_SOURCES.md.",
+  "Кривая B": "Curve B",
+  "Кривая C": "Curve C",
+  "Кривая D": "Curve D",
+  "Кривая K": "Curve K",
+  "Кривая M(n) — при U = 367 В (с учётом кабеля); Mmax в таблице — при номинальном напряжении.": "M(n) curve — at U = 367 V (cable taken into account); Mmax in the table — at rated voltage.",
+  "Кривая M(n) — при U = 368 В (с учётом кабеля); Mmax в таблице — при номинальном напряжении.": "M(n) curve — at U = 368 V (cable taken into account); Mmax in the table — at rated voltage.",
+  "Кривая M(n) — при U = 369 В (с учётом кабеля); Mmax в таблице — при номинальном напряжении.": "M(n) curve — at U = 369 V (cable taken into account); Mmax in the table — at rated voltage.",
+  "Кривая M(n) — при U = 374 В (с учётом кабеля); Mmax в таблице — при номинальном напряжении.": "M(n) curve — at U = 374 V (cable taken into account); Mmax in the table — at rated voltage.",
+  "Кривая M(n), %n:%M": "Curve M(n), %n:%M",
+  "Кривая MCB (B/C/D/K/Z) или уставка MCCB (TMD/TMA). Для 380/660 и пуска часто нужна D.": "MCB curve (B/C/D/K/Z) or MCCB setting (TMD/TMA). For 380/660 and starting, curve D is often needed.",
+  "Кривая MCB: B — 3…5·Iн, C — 5…10·Iн, D — 10…20·Iн. Для двигателей с прямым пуском обычно D.": "MCB curve: B — 3…5·Iₙ, C — 5…10·Iₙ, D — 10…20·Iₙ. For DOL-started motors, curve D is usual.",
+  "Кривая Z": "Curve Z",
+  "Кривые": "Curves",
+  "Критическое скольжение": "Critical slip",
+  "Линейное напряжение сети: для 3 фаз — между фазами (380/400 В), для 1 фазы — фазное (220/230 В). От напряжения зависят ток, момент и выбор аппаратов.": "Supply line voltage: for 3 phases — phase-to-phase (380/400 V), for 1 phase — phase voltage (220/230 V). The current, the torque and the choice of devices depend on the voltage.",
+  "Линейный (T ∝ n)": "Linear (T ∝ n)",
+  "Логотип для PDF": "Logo for PDF",
+  "Логотип для PDF: PNG, JPEG или SVG; приводится к 240 px.": "Logo for the PDF: PNG, JPEG or SVG; scaled to 240 px.",
+  "логотип загружен": "logo loaded",
+  "ложный пуск": "nuisance trip",
+  "м": "m",
+  "мА": "mA",
+  "Максимальный момент": "Maximum torque",
+  "мало": "low",
+  "Материал": "Material",
+  "Материал жил": "Core material",
+  "Материал жил: медь или алюминий. Алюминий имеет меньше допустимый ток и большее сопротивление.": "Core material: copper or aluminium. Aluminium has a lower ampacity and a higher resistance.",
+  "Медь": "Copper",
+  "Механическая характеристика": "Torque–speed characteristic",
+  "Механическая характеристика M(n)": "Torque–speed characteristic M(n)",
+  "Механическая характеристика: момент двигателя и момент нагрузки от скорости": "Mechanical characteristic: motor torque and load torque versus speed",
+  "мин": "min",
+  "мм": "mm",
+  "мм²": "mm²",
+  "мм²  {m}": "mm²  {m}",
+  "мм² Cu": "mm² Cu",
+  "мм² Cu · PE 16,0": "mm² Cu · PE 16.0",
+  "мм² Cu · PE 35,0": "mm² Cu · PE 35.0",
+  "мм² Cu · PE 6,0": "mm² Cu · PE 6.0",
+  "Моделирование пуска": "Start simulation",
+  "мОм": "mΩ",
+  "Момент": "Torque",
+  "Момент — скорость": "Torque — speed",
+  "Момент и скорость": "Torque and speed",
+  "Момент инерции J": "Moment of inertia J",
+  "Момент на валу": "Shaft torque",
+  "Момент нагрузки в % от Mн при номинальной скорости. Для вентиляторной нагрузки фактический момент зависит от n² — смотрите строку ниже.": "Load torque in % of Mₙ at rated speed. For a fan load the actual torque depends on n² — see the line below.",
+  "Момент нагрузки, процент от номинала": "Load torque, percent of rated",
+  "Момент при выбранном пуске": "Torque with the selected starting method",
+  "Момент Mн": "Torque Mₙ",
+  "Момент Mп": "Torque Mst",
+  "Момент Mmax": "Torque Mmax",
+  "Мощности": "Power",
+  "Мощность будет восстановлена по типовым КПД и cosφ": "Power will be restored from typical efficiency and cosφ",
+  "Мощность восстановлена по току; КПД и cosφ — типовые": "Power restored from current; efficiency and cosφ are typical",
+  "Мощность на валу P₂": "Shaft power P₂",
+  "Мощность определена по моменту и скорости": "Power derived from torque and speed",
+  "Мощность P₂": "Power P₂",
+  "Н·м": "N·m",
+  "Н·м ({k}×Mн)": "N·m ({k}×Mₙ)",
+  "Н·м (2,00×Mн)": "N·m (2.00×Mₙ)",
+  "Н·м (2,20×Mн)": "N·m (2.20×Mₙ)",
+  "Н·м (2,30×Mн)": "N·m (2.30×Mₙ)",
+  "нагрев обмотки": "winding heating",
+  "Нагруженных жил": "Loaded cores",
+  "Нагрузка": "Load",
+  "Нагрузка выше пускового момента в звезде (Mп/3): Y–Δ и автотрансформатор не разгонят. Нужен прямой пуск, софтстартер или ПЧ с проверкой момента.": "The load is above the star-connection starting torque (Mst/3): Y–Δ and autotransformer starting will not accelerate it. Use a DOL start, a soft starter or a VFD with a torque check.",
+  "Нагрузка на валу": "Shaft load",
+  "нагрузка по моменту:": "torque load:",
+  "нагрузка, %": "load, %",
+  "Нагрузка, %": "Load, %",
+  "Назад": "Back",
+  "Название объекта или проекта — попадёт в PDF-отчёт.": "Project or site name — appears in the PDF report.",
+  "Наложить способ": "Overlay method",
+  "Например, насосная станция №2": "For example, pumping station No. 2",
+  "Напряжение": "Voltage",
+  "Напряжение — на зажимах двигателя с учётом кабеля; ток — при этом напряжении, поэтому на 100 % он может быть на 1–2 % выше Iн.": "Voltage is at the motor terminals including the cable; current is at that voltage, so at 100 % it can be 1–2 % above Iₙ.",
+  "Напряжение и частота": "Voltage and frequency",
+  "Напряжение сети": "Supply voltage",
+  "Начальная": "Initial",
+  "Начальное U": "Initial U",
+  "Начальный нагрев": "Initial heating",
+  "Начальный нагрев в % от (предел − температура среды). 70 % — типичный горячий старт; 0 — холодный.": "Initial heating in % of (limit − ambient temperature). 70 % is a typical hot start; 0 is a cold start.",
+  "не выходит на скорость": "fails to reach speed",
+  "не достигается": "not reached",
+  "не задана": "not set",
+  "не удалось создать ссылку": "could not create the link",
+  "недостаточна": "insufficient",
+  "нет": "no",
+  "нет данных": "no data",
+  "Номинал автомата": "Breaker rating",
+  "Номинал вышестоящего автомата для проверки селективности. 0 — не задан.": "Rating of the upstream breaker for the selectivity check. 0 means not set.",
+  "Номинальный ток": "Rated current",
+  "Номинальный ток Iн": "Rated current Iₙ",
+  "норма": "normal",
+  "Норматив": "Code",
+  "Норматив таблиц кабелей и поправок: ПУЭ (Россия) или IEC 60364 (международный).": "Code for the cable and correction tables: PUE (Russia) or IEC 60364 (international).",
+  "О методике и ограничениях": "About the method and limitations",
+  "об/мин": "rpm",
+  "обеспечена": "ensured",
+  "обеспечивает суммарный ток 140,0 А ≥ 29,4 А с учётом поправок.": "provides a total ampacity of 140.0 A ≥ 29.4 A with the correction factors applied.",
+  "обеспечивает суммарный ток 156,8 А ≥ 29,4 А с учётом поправок.": "provides a total ampacity of 156.8 A ≥ 29.4 A with correction factors applied.",
+  "обеспечивает суммарный ток 162,4 А ≥ 29,4 А с учётом поправок.": "provides a total ampacity of 162.4 A ≥ 29.4 A with correction factors applied.",
+  "обеспечивает суммарный ток 276,0 А ≥ 49,4 А с учётом поправок.": "provides a total ampacity of 276.0 A ≥ 49.4 A with correction factors applied.",
+  "обеспечивает суммарный ток 46,0 А ≥ 29,4 А с учётом поправок.": "provides a total ampacity of 46.0 A ≥ 29.4 A with correction factors applied.",
+  "Обучение": "Guided tour",
+  "Объект / проект": "Site / project",
+  "Ограничение I": "Current limit",
+  "Однофазные двигатели считаются по тем же уравнениям момента и скорости, но ток определяется как I = P₁/(U·cosφ), кабель — двухжильный (2 нагруженные жилы), автомат — 1P. Типовые КПД, cosφ и пусковые токи зависят от типа: конденсаторный, с расщеплённой фазой или PSC — для них используются отдельные справочные кривые. Каталожная база АИР — трёхфазная. Подбор пускового/рабочего конденсатора программа не выполняет: его ёмкость и напряжение выбираются по паспорту двигателя.": "Single-phase motors are calculated with the same torque and speed equations, but the current is defined as I = P₁/(U·cosφ), the cable has two loaded cores, and the breaker is 1P. Typical efficiency, cosφ and starting currents depend on the type: capacitor-start, split-phase or PSC — separate reference curves are used for them. The AIR catalogue database is three-phase. The program does not select the starting/run capacitor: its capacitance and voltage are chosen from the motor nameplate.",
+  "Однофазные двигатели тоже имеют 2/4/6/8 полюсов; синхронная скорость n₁ = 120·f/p.": "Single-phase motors also have 2/4/6/8 poles; synchronous speed n₁ = 120·f/p.",
+  "Однофазный ({t})": "Single-phase ({t})",
+  "Однофазный двигатель": "Single-phase motor",
+  "Однофазный двигатель {p} кВт — редкий случай: типовые данные до 11 кВт ориентировочные, выше — оценка. Для такой мощности обычно применяют 3 фазы или специальный двигатель.": "A {p} kW single-phase motor is a rare case: typical data up to 11 kW are approximate, above that it is an estimate. For such power, three phases or a special motor are usually used.",
+  "Однофазный двигатель 15,0 кВт — редкий случай: типовые данные до 11 кВт ориентировочные, выше — оценка. Для такой мощности обычно применяют 3 фазы или специальный двигатель.": "A 15.0 kW single-phase motor is a rare case: typical data up to 11 kW are indicative, above that it is an estimate. For such power three phases or a special motor are normally used.",
+  "Однофазный режим: I = P₁/(U·cosφ), кабель 2-жильный (L + N), автомат 1P. Типовые данные — конденсаторный.": "Single-phase mode: I = P₁/(U·cosφ), 2-core cable (L + N), 1P breaker. Typical data — capacitor motor.",
+  "Однофазный: проверьте пусковой ток и сечение; при частых пусках — частотный привод.": "Single-phase: check the starting current and the cross-section; for frequent starts, use a VFD.",
+  "Однофазный: прямой пуск с пусковой обмоткой/конденсатором; для регулирования — частотный привод.": "Single-phase: direct start with a starting winding/capacitor; use a VFD for speed control.",
+  "Ожидаемый ток КЗ в точке подключения. Проверяются Icu автомата и термическая стойкость кабеля по I²t.": "Expected short-circuit current at the point of connection. The breaker Icu and the cable thermal withstand by I²t are checked.",
+  "ожидание": "idle",
+  "ок": "OK",
+  "Ом": "Ω",
+  "опрокидывание": "stall",
+  "Основные параметры": "Main parameters",
+  "Основные формулы": "Main formulas",
+  "Отключающая способность": "Breaking capacity",
+  "Отключающая способность 36 кА достаточна для тока КЗ 3,0 кА.": "Breaking capacity 36 kA is sufficient for a short-circuit current of 3.0 kA.",
+  "Отключающая способность 6 кА достаточна для тока КЗ 3,0 кА.": "Breaking capacity 6 kA is sufficient for a short-circuit current of 3.0 kA.",
+  "Отключающая способность 6 кА достаточна для тока КЗ 6,0 кА.": "Breaking capacity 6 kA is sufficient for a short-circuit current of 6.0 kA.",
+  "Открыто / по воздуху": "Open air",
+  "Открыть параметры": "Open settings",
+  "Открыть проект": "Open project",
+  "Отношение номиналов вышестоящего и нижестоящего аппаратов; для токовой селективности обычно ≥ 1,6.": "Ratio of the upstream and downstream device ratings; for current selectivity usually ≥ 1.6.",
+  "Отсечка": "Instantaneous trip",
+  "Отсечка 120 А может сработать при пуске: расчётный ток для способа «Прямой пуск (DOL)» — 206 А. Выберите кривую D (10–20·Iн), софтстартер/ПЧ или аппарат с регулируемой отсечкой.": "The 120 A instantaneous trip may operate during starting: the calculated current for the \"Direct on-line (DOL)\" method is 206 A. Choose curve D (10–20·Iₙ), a soft starter/VFD or a device with an adjustable instantaneous trip.",
+  "Отсечка 189 А может сработать при пуске: расчётный ток для способа «Прямой пуск (DOL)» — 237 А. Выберите кривую D (10–20·Iн), софтстартер/ПЧ или аппарат с регулируемой отсечкой.": "The 189 A instantaneous trip may operate during starting: the calculated current for the \"Direct on-line (DOL)\" method is 237 A. Choose curve D (10–20·Iₙ), a soft starter/VFD or a device with an adjustable instantaneous trip.",
+  "Отсечка автомата (400 А) выше расчётного пускового тока 206 А для способа «Прямой пуск (DOL)» — ложных срабатываний не будет.": "Breaker instantaneous trip (400 A) is above the design starting current of 206 A for the direct on-line (DOL) start — no nuisance tripping.",
+  "Отсечка автомата (400 А) выше расчётного пускового тока 34 А для способа «Частотный привод» — ложных срабатываний не будет.": "Breaker instantaneous trip (400 A) is above the design starting current of 34 A for the VFD method — no nuisance tripping.",
+  "Отсечка автомата (400 А) выше расчётного пускового тока 69 А для способа «Звезда → треугольник» — ложных срабатываний не будет.": "Breaker instantaneous trip (400 A) is above the design starting current of 69 A for the star–delta (Y–Δ) method — no nuisance tripping.",
+  "Отсечка автомата (400 А) выше расчётного пускового тока 87 А для способа «Автотрансформатор» — ложных срабатываний не будет.": "Breaker instantaneous trip (400 A) is above the design starting current of 87 A for the autotransformer method — no nuisance tripping.",
+  "Отсечка автомата (400 А) выше расчётного пускового тока 88 А для способа «Софтстартер» — ложных срабатываний не будет.": "Breaker instantaneous trip (400 A) is above the design starting current of 88 A for the soft starter method — no nuisance tripping.",
+  "Отсечка выше Iп": "Trip above Ist",
+  "Отсечка выше Iп (с учётом пуска)": "Instantaneous trip above Ist (allowing for starting)",
+  "отсечка на пуске": "trip on start",
+  "Отчёт — {name}": "Report — {name}",
+  "Оформление": "Appearance",
+  "Охлаждение": "Cooling",
+  "оценка": "estimate",
+  "Оценка": "Estimate",
+  "ошибка файла проекта": "project file error",
+  "ошибка: {m}": "error: {m}",
+  "Падение напряжения": "Voltage drop",
+  "Падение напряжения ≤ 5,0 %": "Voltage drop ≤ 5.0 %",
+  "Падение напряжения 1,61 % не превышает лимит 5,0 %.": "Voltage drop 1.61 % is within the 5.0 % limit.",
+  "Падение напряжения 2,93 % не превышает лимит 5,0 %.": "Voltage drop 2.93 % is within the 5.0 % limit.",
+  "Падение напряжения 2,94 % не превышает лимит 5,0 %.": "Voltage drop 2.94 % is within the 5.0 % limit.",
+  "Падение напряжения 2,98 % не превышает лимит 5,0 %.": "Voltage drop 2.98 % is within the 5.0 % limit.",
+  "Падение напряжения 3,16 % не превышает лимит 5,0 %.": "Voltage drop 3.16 % is within the 5.0 % limit.",
+  "Падение напряжения 3,42 % не превышает лимит 5,0 %.": "Voltage drop 3.42 % is within the 5.0 % limit.",
+  "Падение напряжения на двигателе в момент пуска. Пусковой момент пропорционален U².": "Voltage drop at the motor at the moment of starting. Starting torque is proportional to U².",
+  "Падение напряжения рассчитано для рабочего тока 23,0 А при cosφ = 0,87; активное сопротивление приведено к температуре жилы 70 °C.": "Voltage drop calculated for an operating current of 23.0 A at cosφ = 0.87; resistance referred to a core temperature of 70 °C.",
+  "Падение напряжения рассчитано для рабочего тока 23,3 А при cosφ = 0,87; активное сопротивление приведено к температуре жилы 90 °C.": "Voltage drop calculated for an operating current of 23.3 A at cosφ = 0.87; resistance referred to a core temperature of 90 °C.",
+  "Падение напряжения рассчитано для рабочего тока 40,0 А при cosφ = 0,92; активное сопротивление приведено к температуре жилы 90 °C.": "Voltage drop calculated for an operating current of 40.0 A at cosφ = 0.92; resistance referred to a core temperature of 90 °C.",
+  "Параллельных кабелей": "Parallel cables",
+  "Параметр": "Parameter",
+  "Параметры": "Settings",
+  "Параметры расчёта": "Calculation settings",
+  "Паспортные данные: ": "Nameplate data: ",
+  "Паспортные данные: АИР160S4": "Nameplate data: AIR160S4",
+  "пауза": "paused",
+  "Пауза": "Pause",
+  "ПВХ": "PVC",
+  "ПВХ / резина — 70 °C": "PVC / rubber — 70 °C",
+  "Перейти к моделированию пуска": "Open the start simulation",
+  "Переключение светлой и тёмной темы, повторный запуск обучения и кнопка «Печать / PDF» — отчёт с таблицами и графиками.": "Light/dark theme switch, restart of the guided tour and the \"Print / PDF\" button — a report with tables and charts.",
+  "Переходные процессы": "Transients",
+  "Печать / PDF": "Print / PDF",
+  "Печать или сохранение в PDF": "Print or save as PDF",
+  "Пик пуска {i} А": "Starting peak {i} A",
+  "Пиковый момент, Н·м": "Peak torque, N·m",
+  "Пиковый ток пуска (с линией)": "Starting peak current (line included)",
+  "Пиковый ток, А": "Peak current, A",
+  "Питание": "Supply",
+  "по мощности": "by power",
+  "Поделиться расчётом": "Share calculation",
+  "Подсказка": "Tip",
+  "Пока нет сохранённых вариантов. Нажмите «+ вариант» в строке итога.": "No saved variants yet. Press the '+ variant' button in the result row.",
+  "Показать графики": "Show charts",
+  "Показать результат": "Show result",
+  "Полезная мощность на валу P₂. Потребляемая мощность P₁ = P₂/η, ток — по P₁ и cosφ.": "Output power at the shaft P₂. Input power P₁ = P₂/η; the current follows from P₁ and cosφ.",
+  "Полная мощность S": "Apparent power S",
+  "Полная S": "Apparent S",
+  "Полюса": "Poles",
+  "Полюсов автомата": "Breaker poles",
+  "Постоянная мощность": "Constant power",
+  "Постоянная мощность: при нулевой скорости момент стремится к бесконечности. Прямой пуск, Y–Δ и автотрансформатор не подходят; нужна разгрузка/сцепление или ПЧ с разгрузкой и запасом по моменту.": "Constant power: at zero speed the torque tends to infinity. A DOL start, Y–Δ and an autotransformer are not suitable; unloading/decoupling, or a VFD with unloading and torque margin, is required.",
+  "Постоянная мощность: M = P/ω. При снижении скорости момент растёт к бесконечности; прямой пуск, Y–Δ и автотрансформатор без разгрузки/сцепления не разгонят. Для ПЧ тоже нужна разгрузка и запас по моменту.": "Constant power: M = P/ω. As the speed falls the torque rises towards infinity; a DOL start, Y–Δ and an autotransformer will not run it up without unloading or decoupling. A VFD also needs unloading and torque margin.",
+  "Постоянная нагрева τ": "Thermal time constant τ",
+  "Постоянная охлаждения двигателя, мин. Используется для оценки теплового режима между пусками.": "Motor cooling time constant, min. Used to estimate the thermal duty between starts.",
+  "Постоянный конденсатор (PSC)": "Permanent capacitor (PSC)",
+  "Постоянный момент": "Constant torque",
+  "потери 1 854 Вт": "losses 1,854 W",
+  "потери 2 442 Вт": "losses 2,442 W",
+  "Потери в линии": "Line losses",
+  "Потребляемая и полезная мощность": "Input and output power",
+  "Потребляемая мощность P₁": "Input power P₁",
+  "Потребляемая P₁": "Input power P₁",
+  "Потребляемая, полезная мощность и потери от нагрузки": "Input power, output power and losses vs load",
+  "Пояснения к расчёту": "Calculation notes",
+  "предел класса F: 155 °C": "class F limit: 155 °C",
+  "Предел температуры": "Temperature limit",
+  "Предел температуры обмотки: B — 130 °C, F — 155 °C, H — 180 °C.": "Winding temperature limit: B — 130 °C, F — 155 °C, H — 180 °C.",
+  "Предохранитель": "Fuse",
+  "Предохранитель aM": "Fuse aM",
+  "При снижении нагрузки КПД и cosφ падают.": "As the load falls, efficiency and cosφ fall.",
+  "при текущей нагрузке": "at current load",
+  "Причина: двигатель не выходит на рабочую скорость. Проверьте момент нагрузки, схему обмоток и способ пуска.": "Cause: the motor fails to reach operating speed. Check the load torque, the winding connection and the starting method.",
+  "Причина: нагрузка выше номинальной; двигатель не дотягивает до рабочей точки. Проверьте запас по моменту.": "Cause: the load is above rated and the motor cannot reach the operating point. Check the torque margin.",
+  "Причина: постоянная мощность — момент при нулевой скорости стремится к бесконечности. Нужна разгрузка/сцепление или ПЧ с разгрузкой.": "Cause: constant power — torque at zero speed tends to infinity. Unloading/clutch is needed, or a VFD with unloading.",
+  "Причина: пусковой момент меньше момента нагрузки уже на малой скорости. Уменьшите нагрузку, добавьте разгрузку или выберите другой способ пуска.": "Cause: the starting torque is already below the load torque at low speed. Reduce the load, add load relief or choose another starting method.",
+  "Причина: схема Y при 380 В для 380/660 снижает момент примерно в 3 раза. Переключите обмотки на Δ и повторите расчёт.": "Cause: the Y connection at 380 V on a 380/660 motor reduces torque about three times. Switch the windings to Δ and recalculate.",
+  "проверить": "check",
+  "Проверка": "Check",
+  "Проверка условий": "Condition checks",
+  "Проверка I²t выполнена по условному времени отключения 0,01 с и коэффициенту k = 115 (ПВХ, Cu). Для токоограничивающих автоматов фактическое I²t ниже расчётного.": "The I²t check is based on a conventional tripping time of 0.01 s and a coefficient k = 115 (PVC, Cu). For current-limiting breakers the actual I²t is lower than the calculated value.",
+  "Проверка I²t выполнена по условному времени отключения 0,01 с и коэффициенту k = 143 (XLPE, Cu). Для токоограничивающих автоматов фактическое I²t ниже расчётного.": "The I²t check is based on a conventional tripping time of 0.01 s and a coefficient k = 143 (XLPE, Cu). For current-limiting breakers the actual I²t is lower than the calculated value.",
+  "Проверки": "Checks",
+  "Проверки и предупреждения": "Checks and warnings",
+  "Программа предназначена для инженерной оценки. Механическая характеристика строится по модели Клосса с поправкой на пусковой момент; ток ротора — по балансу мощности с учётом вытеснения тока. Тепловая модель упрощённая (однотельное приближение).": "The program is intended for engineering estimates. The speed-torque curve is built with the Kloss model, corrected for the starting torque; the rotor current follows from the power balance with allowance for current displacement. The thermal model is simplified (single-body approximation).",
+  "Продолжить": "Resume",
+  "Проект": "Project",
+  "проект загружен": "project loaded",
+  "Пройти обучение": "Start guided tour",
+  "Пропустить": "Skip",
+  "Просадка напряжения при пуске 10,7 % — двигатель запустится, но момент снизится примерно на 20 %.": "Starting voltage dip 10.7 % — the motor will start, but the torque will drop by about 20 %.",
+  "Просадка напряжения при пуске 12,0 % — двигатель запустится, но момент снизится примерно на 23 %.": "Starting voltage dip 12.0 % — the motor will start, but torque drops by about 23 %.",
+  "Просадка напряжения при пуске 12,6 % — двигатель запустится, но момент снизится примерно на 24 %.": "Starting voltage dip 12.6 % — the motor will start, but the torque will drop by about 24 %.",
+  "Просадка при пуске": "Starting voltage dip",
+  "Просадка при пуске ≤ 15 %": "Starting voltage dip ≤ 15 %",
+  "Прямой пуск (DOL)": "Direct on-line (DOL)",
+  "Пунктир —": "Dashed —",
+  "Пуск": "Start",
+  "пуск {i} А / {t} с": "start {i} A / {t} s",
+  "пуск проходит": "start passes",
+  "Пусков в час": "Starts per hour",
+  "Пусков в час — тепловой запас. 0 — не учитывать; для частых пусков укажите реальное число.": "Starts per hour — thermal margin. 0 means not taken into account; for frequent starts enter the actual number.",
+  "Пусковая мощность Sп": "Starting power Sst",
+  "Пусковой момент Mп": "Starting torque Mst",
+  "Пусковой ток (DOL)": "Starting current (DOL)",
+  "Пусковой ток Iп": "Starting current Ist",
+  "Пусковой ток, который видит защита для выбранного способа пуска (DOL, Y–Δ, софтстартер, ПЧ, автотрансформатор).": "Starting current seen by the protection for the selected starting method (DOL, Y–Δ, soft starter, VFD, autotransformer).",
+  "Пусковые параметры": "Starting parameters",
+  "ПУЭ": "PUE",
+  "ПУЭ · IEC 60364": "PUE · IEC 60364",
+  "работа": "running",
+  "Рабочая точка при текущей нагрузке": "Operating point at the current load",
+  "Рабочая точка устойчива: запас по моменту 144 % от Mн.": "Operating point is stable: torque margin 144 % of Mₙ.",
+  "Рабочая точка устойчива: запас по моменту 154 % от Mн.": "Operating point is stable: torque margin 154 % of Mₙ.",
+  "Рабочая точка устойчива: запас по моменту 155 % от Mн.": "Operating point is stable: torque margin 155 % of Mₙ.",
+  "Рабочая точка устойчива: запас по моменту 156 % от Mн.": "Operating point is stable: torque margin 156 % of Mₙ.",
+  "разгон": "run-up",
+  "Разгон": "Run-up",
+  "Разгрузка на пуске": "Starting unloading",
+  "Разгрузка на пуске: на сколько процентов снижается момент нагрузки, пока двигатель не достигнет скорости снятия. 0 — без разгрузки; для компрессора, дробилки, пресса 50…90 %.": "Starting unloading: by how many percent the load torque is reduced until the motor reaches the speed at which the unloading is removed. 0 — no unloading; for a compressor, crusher or press 50…90 %.",
+  "Разделы": "Sections",
+  "Разница P₁ − P₂ — потери в двигателе.": "The difference P₁ − P₂ is the motor losses.",
+  "Расчёт": "Calculation",
+  "расчёт · защита · кабель · переходные процессы": "calculation · protection · cable · transients",
+  "Расчёт мощности, тока, момента, кабеля и защиты асинхронного двигателя. Графики характеристик и переходные процессы пуска.": "Calculation of power, current, torque, cable and protection for an induction motor. Performance charts and starting transients.",
+  "Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.7.": "The calculation is for reference only. Catalogue data are for the AIR series; for critical drives verify the parameters against the nameplates and the design documentation. Generated in \"Induction motor — engineering calculation\" · v0.7.7.",
+  "Расчёт по мощности": "Calculation by power",
+  "Расчёт по мощности · однофазный, конденсаторный (типовые данные)": "Calculation by power · single-phase, capacitor type (typical data)",
+  "Расчётные величины": "Calculated values",
+  "Расчётный ток пуска": "Design starting current",
+  "Реактивная мощность Q": "Reactive power Q",
+  "Результат": "Result",
+  "Результаты": "Results",
+  "рекоменд.": "rec.",
+  "Рекомендация: «звезда–треугольник», софтстартер или частотный привод — прямой пуск даёт большой бросок тока.": "Recommendation: star–delta, a soft starter or a VFD — a DOL start gives a large current surge.",
+  "Рекомендация: прямой пуск допустим — пусковой ток невелик, сеть обычно выдерживает.": "Recommendation: a DOL start is acceptable — the starting current is small and the supply usually handles it.",
+  "Рекомендация: прямой пуск или «звезда–треугольник»; при частых пусках — софтстартер.": "Recommendation: DOL start or star–delta; for frequent starts, a soft starter.",
+  "Рекомендация: частотный привод или софтстартер с ограничением тока; прямой пуск требует отдельной проверки сети.": "Recommendation: a VFD or a current-limited soft starter; a DOL start requires a separate supply check.",
+  "Русский": "Russian",
+  "Русский язык": "Russian",
+  "с": "s",
+  "с расщеплённой фазой": "split-phase",
+  "С расщеплённой фазой": "Split-phase",
+  "Сброс": "Reset",
+  "Сбросить все параметры": "Reset all settings",
+  "Сбросить масштаб": "Reset zoom",
+  "Светлая тема": "Light theme",
+  "Своя кривая M(n)": "Custom M(n) curve",
+  "Свыше 125 А автоматически применяется MCCB": "Above 125 A an MCCB is applied automatically",
+  "Сделано с помощью": "Made with",
+  "Сделано с помощью DeepSeek": "Made with DeepSeek",
+  "Селективность": "Selectivity",
+  "Селективность {r}× {ok}.": "Selectivity {r}× {ok}.",
+  "селективность недостаточна": "selectivity insufficient",
+  "Серия": "Series",
+  "Серия {b} {s}, {i} А, {type}. Пик пуска {peak} А; отсечка {mag} А.{sel}": "Series {b} {s}, {i} A, {type}. Starting peak {peak} A; instantaneous trip {mag} A.{sel}",
+  "Серия автомата: IEK, CHINT, ABB; MCB или MCCB. От неё зависят кривые и уставки.": "Breaker series: IEK, CHINT, ABB; MCB or MCCB. The curves and the settings depend on it.",
+  "Серия ABB S200, 40 А, кривая B. Пик пуска 206 А; отсечка 120 А.": "ABB S200 series, 40 A, curve B. Starting peak 206 A; instantaneous trip 120 A.",
+  "Серия ABB S200, 40 А, кривая D. Пик пуска 206 А; отсечка 400 А.": "ABB S200 series, 40 A, curve D. Starting peak 206 A; instantaneous trip 400 A.",
+  "Серия ABB S200, 63 А, кривая B. Пик пуска 237 А; отсечка 189 А.": "ABB S200 series, 63 A, curve B. Starting peak 237 A; instantaneous trip 189 A.",
+  "Сеть": "Supply",
+  "Сечение": "Cross-section",
+  "Сечение выбрано по длительно допустимому току с поправками на температуру среды, число кабелей в пучке, способ прокладки и тип изоляции. Для двигателя с прямым пуском номинал автомата принимается 1,25·Iн, чтобы исключить ложные срабатывания при пуске.": "The cross-section is selected by the continuous ampacity with corrections for ambient temperature, number of cables in a bunch, installation method and insulation type. For a motor with a DOL start the breaker rating is taken as 1.25·Iₙ, so that nuisance tripping during starting is excluded.",
+  "Сечение по нагреву": "Cross-section for heating",
+  "Сечение увеличено относительно минимального по нагреву — с учётом ΔU (2,93 % в работе, 12,0 % при пуске).": "Cross-section increased above the minimum for ampacity — accounting for ΔU (2.93 % running, 12.0 % at starting).",
+  "Сечение увеличено относительно минимального по нагреву — с учётом ΔU (2,94 % в работе, 12,0 % при пуске).": "Cross-section increased above the minimum for ampacity — accounting for ΔU (2.94 % running, 12.0 % at starting).",
+  "Сечение увеличено относительно минимального по нагреву — с учётом ΔU (2,98 % в работе, 12,0 % при пуске).": "Cross-section increased above the minimum for ampacity — accounting for ΔU (2.98 % running, 12.0 % at starting).",
+  "Сечение увеличено относительно минимального по нагреву — с учётом ΔU (2,98 % в работе, 2,0 % при пуске).": "Cross-section increased above the minimum for ampacity — accounting for ΔU (2.98 % running, 2.0 % at starting).",
+  "Сечение увеличено относительно минимального по нагреву — с учётом ΔU (2,98 % в работе, 4,0 % при пуске).": "Cross-section increased above the minimum for ampacity — accounting for ΔU (2.98 % running, 4.0 % at starting).",
+  "Сечение увеличено относительно минимального по нагреву — с учётом ΔU (2,98 % в работе, 5,0 % при пуске).": "Cross-section increased above the minimum for ampacity — accounting for ΔU (2.98 % running, 5.0 % at starting).",
+  "Сечение увеличено относительно минимального по нагреву — с учётом ΔU (2,98 % в работе, 5,1 % при пуске).": "Cross-section increased above the minimum for ampacity — accounting for ΔU (2.98 % running, 5.1 % at starting).",
+  "Сечение увеличено относительно минимального по нагреву — с учётом ΔU (3,16 % в работе, 12,6 % при пуске).": "Cross-section increased above the minimum for ampacity — accounting for ΔU (3.16 % running, 12.6 % at starting).",
+  "Сечение увеличено относительно минимального по нагреву — с учётом ΔU (3,42 % в работе, 10,7 % при пуске).": "Cross-section increased above the minimum for ampacity — accounting for ΔU (3.42 % running, 10.7 % at starting).",
+  "Сечение фазных жил": "Phase core cross-section",
+  "Сечение PE": "PE cross-section",
+  "Сечение, мм²": "Cross-section, mm²",
+  "Синхронная скорость": "Synchronous speed",
+  "Синхронная n₁": "Synchronous n₁",
+  "Скачать PNG": "Download PNG",
+  "Скольжение": "Slip",
+  "Скольжение sн": "Slip sₙ",
+  "Скольжение, при котором момент максимален: sкр = sн·(Mmax/Mн + √((Mmax/Mн)² − 1)).": "Slip at which the torque is maximum: scr = sₙ·(Mmax/Mₙ + √((Mmax/Mₙ)² − 1)).",
+  "Скорость": "Speed",
+  "Скорость воспроизведения моделирования: 0,25× — медленно и подробно, 2× — быстро.": "Simulation playback speed: 0.25× — slow and detailed, 2× — fast.",
+  "Скорость времени": "Simulation speed",
+  "Скорость и скольжение": "Speed and slip",
+  "Скорость и частота": "Speed and frequency",
+  "Скорость nн": "Speed nₙ",
+  "Скорость, при которой разгрузка снимается, % от номинальной. Обычно 20…40 %; после этого нагрузка восстанавливается.": "Speed at which the unloading is removed, % of rated. Usually 20…40 %; after that the load is restored.",
+  "Скорость, при которой снимается разгрузка, % от nн. Не проценты нагрузки.": "Speed at which the unloading is released, % of nₙ. Not a percentage of load.",
+  "Скорость, скольжение и частота ротора от нагрузки": "Speed, slip and rotor frequency vs load",
+  "Скорость, скольжение, частота ротора": "Speed, slip, rotor frequency",
+  "Скорость, скольжение, f₂": "Speed, slip, f₂",
+  "Снять разгрузку при": "Remove unloading at",
+  "согласовано": "coordinated",
+  "Софтстартер": "Soft starter",
+  "Сохранить вариант для сравнения": "Save variant for comparison",
+  "Сохранить проект": "Save project",
+  "Способ": "Method",
+  "Способ задания": "Input method",
+  "Способ задания: каталог АИР, мощность P₂, ток I или момент M. От него зависит, какие поля нужно заполнить.": "Input method: AIR catalogue, power P₂, current I or torque M. It determines which fields have to be filled in.",
+  "Способ прокладки": "Installation method",
+  "Способ прокладки: открыто, лоток, труба/стена, земля. Учитывается коэффициентом допустимого тока.": "Installation method: open air, tray, conduit/wall, ground. Taken into account by the ampacity correction factor.",
+  "Способ пуска": "Starting method",
+  "Способ пуска для моделирования. Синхронизирован с основным способом пуска в параметрах.": "Starting method for the simulation. Synchronised with the main starting method in the settings.",
+  "Способ пуска. Определяет расчётный пусковой ток для защиты, просадку напряжения и моделирование переходного процесса.": "Starting method. Determines the design starting current for protection, the starting voltage dip and the transient simulation.",
+  "Справочник": "Reference",
+  "Сравнение вариантов": "Variant comparison",
+  "Сравнение пусков": "Starting comparison",
+  "Сравнение способов пуска": "Comparison of starting methods",
+  "Среда": "Ambient",
+  "Среда двигателя": "Motor ambient",
+  "ссылка на расчёт скопирована": "calculation link copied",
+  "Стандарт": "Standard",
+  "Суммарный допустимый": "Total ampacity",
+  "Схема": "Connection",
+  "Схема обмоток": "Winding connection",
+  "Схема обмоток. В звезде фазное напряжение в √3 раз меньше линейного, в треугольнике равно линейному. Для 380/660 при 380 В — треугольник.": "Winding connection. In star the phase voltage is √3 times lower than the line voltage, in delta it equals the line voltage. For 380/660 at 380 V — delta.",
+  "Схема Y при 380 В для двигателя 380/660 снижает момент примерно в 3 раза. Переключите на Δ; после этого проверьте пуск.": "The Y connection at 380 V on a 380/660 motor reduces torque about three times. Switch to Δ, then check the start.",
+  "Тема и отчёт": "Theme and report",
+  "Тёмная тема": "Dark theme",
+  "Температура обмотки": "Winding temperature",
+  "Температура среды для кабеля. Поправка выбирается по таблицам ПУЭ или IEC.": "Ambient temperature for the cable. The correction factor is taken from the PUE or IEC tables.",
+  "Тепловая модель учитывает класс изоляции (B/F/H) и постоянную нагрева: оцениваются температура обмотки в рабочей точке и время до достижения предела при перегрузке.": "The thermal model takes the insulation class (B/F/H) and the thermal time constant into account: the winding temperature at the operating point and the time to reach the limit under overload are estimated.",
+  "Тепловое реле": "Thermal overload relay",
+  "Тепловой режим": "Thermal mode",
+  "Термическая стойкость": "Thermal withstand",
+  "Тип": "Type",
+  "Тип автомата": "Breaker type",
+  "Тип аппарата": "Device type",
+  "Тип аппарата: модульный MCB (обычно до 125 А) или MCCB с регулируемой отсечкой. Свыше 125 А автоматически применяется MCCB.": "Device type: modular MCB (usually up to 125 A) or MCCB with an adjustable instantaneous trip. Above 125 A an MCCB is applied automatically.",
+  "Тип двигателя": "Motor type",
+  "Тип механизма": "Mechanism type",
+  "Тип однофазного": "Single-phase type",
+  "Тип пусковой/рабочей обмотки, а не количество обмоток. У однофазного есть главная и пусковая (вспомогательная) обмотка; конденсаторный — высокий cosφ и умеренный пусковой ток, с расщеплённой фазой — большой пусковой ток и низкий cosφ, PSC — постоянный конденсатор.": "The type of starting/run winding, not the number of windings. A single-phase motor has a main and a starting (auxiliary) winding; capacitor-start gives a high cosφ and a moderate starting current, split-phase gives a high starting current and a low cosφ, PSC uses a permanent capacitor.",
+  "Тип пусковой/рабочей обмотки; типовые КПД, cosφ, пусковой ток и моменты": "Type of starting/run winding; typical efficiency, cosφ, starting current and torques",
+  "тип A": "type A",
+  "тип B": "type B",
+  "типовые данные ограничены 7,5 кВт": "typical data limited to 7.5 kW",
+  "Типовые КПД, cosφ, моменты": "Typical efficiency, cosφ, torques",
+  "Типоразмер АИР": "AIR frame size",
+  "Типоразмер АИР. Данные до 37 кВт — по каталогу; крупные 45…315 кВт отмечены * как типовые справочные.": "AIR frame size. Data up to 37 kW come from the catalogue; the large 45…315 kW sizes are marked * as typical reference data.",
+  "Ток": "Current",
+  "Ток (линейный)": "Current (line)",
+  "Ток и мощность": "Current and power",
+  "Ток и напряжение": "Current and voltage",
+  "Ток и напряжение от нагрузки": "Current and voltage vs load",
+  "Ток КЗ в точке подключения": "Short-circuit current at the connection point",
+  "Ток на один кабель": "Current per cable",
+  "Ток отсечки": "Instantaneous trip current",
+  "Ток отсечки (мин.)": "Instantaneous trip (min)",
+  "Ток статора": "Stator current",
+  "Точки в % от nн и Mн через «;». Например: 0:0; 50:50; 100:100. Масштаб задаёт ползунок нагрузки.": "Points in % of nₙ and Mₙ, separated by a semicolon. For example: 0:0; 50:50; 100:100. The load slider sets the scale.",
+  "Трёхжильный кабель, 3 нагруженные жилы, воздух, 25 °C (ПУЭ) / 30 °C (IEC). Для однофазной нагрузки — 2 жилы (поправка 1,12).": "Three-core cable, 3 loaded cores, air, 25 °C (PUE) / 30 °C (IEC). For a single-phase load — 2 cores (correction factor 1.12).",
+  "Трёхфазный или однофазный двигатель. Для однофазного ток считается по I = P₁/(U·cosφ), без √3.": "Three-phase or single-phase motor. For a single-phase motor the current is calculated as I = P₁/(U·cosφ), without √3.",
+  "УЗО (рекомендация)": "RCD (recommended)",
+  "Уравнение движения": "Equation of motion",
+  "Уставка {c}": "Setting {c}",
+  "уставка 29,4 А": "setting 29.4 A",
+  "уставка 49,4 А": "setting 49.4 A",
+  "Уставка отсечки MCCB": "MCCB instantaneous trip setting",
+  "Уставка TMA": "TMA setting",
+  "Уставка TMD": "TMD setting",
+  "Устойчивость при нагрузке": "Stability under load",
+  "Фазное напряжение {u} В": "Phase voltage {u} V",
+  "Фазное напряжение {u} В (равно линейному)": "Phase voltage {u} V (equal to line voltage)",
+  "Фазное напряжение 380 В (равно линейному)": "Phase voltage 380 V (equal to line voltage)",
+  "Фазное напряжение Uф": "Phase voltage Uph",
+  "Фазность": "Phases",
+  "Фильтр каталога по числу полюсов. 2 полюса ≈ 3000 об/мин, 4 ≈ 1500, 6 ≈ 1000, 8 ≈ 750 при 50 Гц.": "Catalogue filter by number of poles. 2 poles ≈ 3000 rpm, 4 ≈ 1500, 6 ≈ 1000, 8 ≈ 750 at 50 Hz.",
+  "Характер момента сопротивления: постоянный, вентиляторный (∝ n²), линейный (∝ n) или постоянная мощность. Постоянная мощность: M = P/ω, при нулевой скорости момент стремится к бесконечности; пуск без разгрузки/сцепления или ПЧ с разгрузкой невозможен.": "Nature of the load torque: constant, fan-type (∝ n²), linear (∝ n) or constant power. Constant power: M = P/ω, at zero speed the torque tends to infinity; starting without unloading or decoupling the load is impossible, and a VFD also needs unloading.",
+  "Характеристики": "Characteristics",
+  "холодный": "cold",
+  "ч": "h",
+  "Частота": "Frequency",
+  "Частота в роторе f₂": "Rotor frequency f₂",
+  "Частота вращения": "Rotational speed",
+  "Частота ротора f₂": "Rotor frequency f₂",
+  "Частота сети. Синхронная скорость n₁ = 120·f/p. При 60 Гц каталожные данные пересчитываются приближённо.": "Supply frequency. Synchronous speed n₁ = 120·f/p. At 60 Hz catalogue data are recalculated approximately.",
+  "Частотный привод": "VFD",
+  "Численное решение уравнения движения J·dω/dt = M": "Numerical solution of the equation of motion J·dω/dt = M",
+  "Число кабелей в пучке/лотке. Совместный нагрев снижает допустимый ток каждого.": "Number of cables in a bunch/tray. Mutual heating reduces the ampacity of each.",
+  "Число нагруженных жил: 3 — обычный трёхфазный кабель, 2 — при неполной загрузке (поправка +12 %).": "Number of loaded cores: 3 for a normal three-phase cable, 2 for partial loading (correction +12 %).",
+  "Число параллельных кабелей. «Авто» подбирает минимальное 1…4 с учётом токовой нагрузки и просадки при пуске.": "Number of parallel cables. \"Auto\" selects the minimum 1…4 taking the current loading and the starting voltage dip into account.",
+  "Число полюсов": "Number of poles",
+  "Число полюсов, а не количество обмоток. n₁ = 120·f/p: больше полюсов — ниже скорость и выше момент. У однофазных тоже 2/4/6/8 полюсов.": "Number of poles, not the number of windings. n₁ = 120·f/p: more poles mean lower speed and higher torque. Single-phase motors also have 2/4/6/8 poles.",
+  "шт": "pcs",
+  "Эквивалентное R": "Equivalent R",
+  "Эквивалентное X": "Equivalent X",
+  "Экспорт кривых в CSV": "Export curves to CSV",
+  "Экспорт таблиц в Excel": "Export tables to Excel",
+  "Электромагнитный момент": "Electromagnetic torque",
+  "Язык / Language": "Language",
+  "Al, А": "Al, A",
+  "aM 40 А": "aM 40 A",
+  "aM 63 А": "aM 63 A",
+  "cosφ × 100": "cosφ × 100",
+  "Cu, А": "Cu, A",
+  "F · предел 155": "F · limit 155",
+  "f, Гц": "f, Hz",
+  "f₁, Гц": "f₁, Hz",
+  "f₂ = s·f₁ — частота ЭДС в роторе.": "f₂ = s·f₁ — rotor EMF frequency.",
+  "f₂, Гц": "f₂, Hz",
+  "I / Iн": "I / Iₙ",
+  "I доп. суммарно": "Iadm total",
+  "I на кабель": "I per cable",
+  "I суммарно": "I total",
+  "I, А": "I, A",
+  "I/Iн": "I/Iₙ",
+  "I²t кабеля": "Cable I²t",
+  "Iдоп = Iтабл · kтемп · kгруп · kспособ · kизол · kпарал": "Iadm = Itable · ktemp · kgroup · kmethod · kins · kpar",
+  "Iдоп = Iтабл · kтемп · kгруп · kспособ · kизол · kпарал ΔU = √3 · I · (R·cosφ + X·sinφ)": "Iadm = Itable · ktemp · kgroup · kmethod · kinsul · kpar ΔU = √3 · I · (R·cosφ + X·sinφ)",
+  "Iн": "Iₙ",
+  "Iн {i} А": "Iₙ {i} A",
+  "Iн = P₁/(√3·U·cosφ) — линейный ток статора при номинальной нагрузке.": "Iₙ = P₁/(√3·U·cosφ) — line current of the stator at rated load.",
+  "Iн.авт ≥ 1,25·Iн;   Iотс > 1,1·Iп": "Iₙ.brk ≥ 1.25·Iₙ;   Itrip > 1.1·Ist",
+  "Iп / Iн": "Ist / Iₙ",
+  "Iп 206 А": "Ist 206 A",
+  "Iп 237 А": "Ist 237 A",
+  "Iп/Iн": "Ist/Iₙ",
+  "Icu ≥ тока КЗ": "Icu ≥ short-circuit current",
+  "IEK ВА47-100 · MCCB": "IEK BA47-100 · MCCB",
+  "IEK ВА47-29 · MCB": "IEK BA47-29 · MCB",
+  "J · dω/dt = Mдв(s) − Mс(n)": "J · dω/dt = Mmot(s) − Mload(n)",
+  "J · dω/dt = Mдв(s) − Mс(n) ω = 2π·n/60, s = (n₁ − n)/n₁": "J · dω/dt = Mmotor(s) − Mload(n), ω = 2π·n/60, s = (n₁ − n)/n₁",
+  "J = 0 — автооценка по мощности. Моменты можно взять из паспорта.": "J = 0 — auto-estimate from the power rating. Torques can be taken from the datasheet.",
+  "J нагрузки — приведённый к валу момент инерции механизма, кг·м². Это «инертность» нагрузки: чем больше J, тем медленнее разгон и больше нагрев при пуске. Ориентир: вентилятор 0,1…1 от J двигателя, конвейер 1…5, пресс 3…10. Если неизвестно — начните с 0,3…1.": "Load J is the moment of inertia of the driven machine referred to the shaft, kg·m². It is the \"inertia\" of the load: the larger J, the slower the run-up and the greater the heating during starting. Rule of thumb: fan 0.1…1 of the motor J, conveyor 1…5, press 3…10. If unknown, start with 0.3…1.",
+  "J нагрузки (приведённый)": "Load inertia J (referred to the shaft)",
+  "J ротора": "Rotor J",
+  "M двигателя": "Motor torque",
+  "M двигателя, Н·м": "Motor torque, N·m",
+  "M нагрузки": "Load torque",
+  "M нагрузки, Н·м": "Load torque, N·m",
+  "M, Н·м": "M, N·m",
+  "M(s) = 2·Mmax / (s/sкр + sкр/s) + ΔM·s³": "M(s) = 2·Mmax / (s/scr + scr/s) + ΔM·s³",
+  "M(s) = 2·Mmax / (s/sкр + sкр/s) + ΔM·s³ sкр = sн · (Mmax/Mн + √((Mmax/Mн)² − 1)) ΔM = Mп − M(s=1)": "M(s) = 2·Mmax / (s/scr + scr/s) + ΔM·s³ scr = sₙ · (Mmax/Mₙ + √((Mmax/Mₙ)² − 1)) ΔM = Mst − M(s=1)",
+  "Mн": "Mₙ",
+  "Mн = 9550·P₂/n — момент на валу при номинальной нагрузке.": "Mₙ = 9550·P₂/n — shaft torque at rated load.",
+  "Mп / Mн": "Mst / Mₙ",
+  "Mп/Mн": "Mst/Mₙ",
+  "MCB · кривая B": "MCB · curve B",
+  "MCB · кривая D": "MCB · curve D",
+  "Mmax / Mн": "Mmax / Mₙ",
+  "Mmax 215 Н·м": "Mmax 215 N·m",
+  "Mmax 226 Н·м": "Mmax 226 N·m",
+  "Mmax/Mн": "Mmax/Mₙ",
+  "n, об/мин": "n, rpm",
+  "P, кВт": "P, kW",
+  "P₁ 16,85 кВт": "P₁ 16.85 kW",
+  "P₁, кВт": "P₁, kW",
+  "P₂, кВт": "P₂, kW",
+  "PNG/JPEG/SVG, приводится к 240 px": "PNG/JPEG/SVG, scaled to 240 px",
+  "R = ρ·L/S,   X ≈ 0,08 Ом/км": "R = ρ·L/S,   X ≈ 0.08 Ω/km",
+  "R = ρ·L/S, X ≈ 0,08 Ом/км Iн.авт ≥ 1,25·Iн; Iотс > 1,1·Iп S ≥ Iкз·√t / k": "R = ρ·L/S, X ≈ 0.08 Ω/km Iₙ.brk ≥ 1.25·Iₙ; Itrip > 1.1·Ist S ≥ Isc·√t / k",
+  "S ≥ Iкз·√t / k": "S ≥ Isc·√t / k",
+  "S 18,8 кВ·А": "S 18.8 kVA",
+  "S 19,4 кВ·А": "S 19.4 kVA",
+  "s, %": "s, %",
+  "s, % / f₂, Гц": "s, % / f₂, Hz",
+  "S, мм²": "S, mm²",
+  "sкр = sн · (Mmax/Mн + √((Mmax/Mн)² − 1))": "scr = sₙ · (Mmax/Mₙ + √((Mmax/Mₙ)² − 1))",
+  "Smin 1,0 мм²": "Smin 1.0 mm²",
+  "Smin 1,2 мм²": "Smin 1.2 mm²",
+  "t разгона, с": "Run-up time, s",
+  "t, с": "t, s",
+  "U двигателя": "Motor voltage",
+  "U, %": "U, %",
+  "U, В": "U, V",
+  "Y / звезда": "Y / star",
+  "Δ / треугольник": "Δ / delta",
+  "Δ треугольник": "Δ delta",
+  "ΔM = Mп − M(s=1)": "ΔM = Mst − M(s=1)",
+  "ΔP, кВт": "ΔP, kW",
+  "ΔU доп.": "ΔU adm.",
+  "ΔU при пуске": "Starting ΔU",
+  "ΔU пуск": "ΔU start",
+  "ΔU раб.": "ΔU run.",
+  "ΔU рабочее": "ΔU running",
+  "η, %": "η, %",
+  "τ нагрева": "Heating τ",
+});
+
+</script>
+<script>
+/* ============================================================
+   i18n: русский (по умолчанию) и английский
+   ------------------------------------------------------------
+   Ключ словаря — русская строка ровно в том виде, в каком она
+   стоит в разметке или в коде. Поэтому русский режим ничего не
+   переводит (t() возвращает исходную строку), а английский берёт
+   перевод из window.MC_EN (src/lang-en.js).
+
+     t('Параметры')                     точное совпадение
+     tf('Пик пуска {i} А', {i: 206})    шаблон с подстановками
+     tHtml('<b>Ток</b> 30 А')           перевод текста внутри HTML
+     nf(1460, 0)                        число в locale языка
+     u('кВт')                           единица измерения
+
+   Динамическую разметку приложение собирает строками, поэтому её
+   нужно переводить в момент вставки: tHtml / t / tf. Статическая
+   разметка обходится один раз при старте (init) и хранит исходные
+   строки, чтобы вернуться к русскому.
+   ============================================================ */
+(function () {
+  'use strict';
+
+  const LS_KEY = 'motor-calc-lang';
+  const LOCALES = { ru: 'ru-RU', en: 'en-US' };
+  const ATTRS = ['title', 'placeholder', 'aria-label', 'alt'];
+  const dict = (typeof window !== 'undefined' && window.MC_EN) || {};
+  const CYR = /[\u0400-\u04FF]/;
+
+  let lang = 'ru';
+  try {
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved === 'en' || saved === 'ru') lang = saved;
+  } catch (e) { }
+
+  const originals = new Map();   // узел -> исходная строка; узел -> { 'a:title': … }
+  const listeners = [];
+
+  function isEn() { return lang === 'en'; }
+
+  /* --- строки ------------------------------------------------ */
+
+  /* Числа в ключах записаны в русской локали, а на экране в EN-режиме они уже
+     отформатированы nf() по-английски («29,4» → «29.4», «1 460» → «1,460»).
+     Поэтому кроме точного совпадения ищем ключ, у которого все числа заменены
+     на «#», и подставляем в перевод числа из исходной строки. */
+  const NUM_RE = /\d+(?:[ \u00A0]\d{3})*(?:[.,]\d+)?/g;
+  const NUM_TEST = /\d/;
+  let digitIndex = null;
+
+  function normDigits(s) { return s.replace(NUM_RE, '#'); }
+
+  function buildDigitIndex() {
+    digitIndex = new Map();
+    Object.keys(dict).forEach(k => {
+      if (!NUM_TEST.test(k)) return;
+      const nk = normDigits(k);
+      if (nk.indexOf('#') === -1) return;
+      if (!digitIndex.has(nk)) digitIndex.set(nk, dict[k]);
+    });
+  }
+
+  function translateByDigits(key) {
+    if (!NUM_TEST.test(key)) return null;
+    if (!digitIndex) buildDigitIndex();
+    const tr = digitIndex.get(normDigits(key));
+    if (tr === undefined) return null;
+    const srcNums = key.match(NUM_RE) || [];
+    const dstNums = tr.match(NUM_RE) || [];
+    if (srcNums.length !== dstNums.length) return null;
+    let i = 0;
+    return tr.replace(NUM_RE, () => srcNums[i++]);
+  }
+
+  /* строка целиком: точное совпадение, числа по шаблону, «число + единица» */
+  function translatePlain(text) {
+    if (!isEn() || !text) return text;
+    if (dict[text] !== undefined) return dict[text];
+    const key = text.trim();
+    if (!key) return text;
+    if (dict[key] !== undefined) return text.replace(key, dict[key]);
+    const byDigits = translateByDigits(key);
+    if (byDigits !== null) return text.replace(key, byDigits);
+    /* «400 А», «18.5 кВт» — число уже отформатировано nf(), переводим единицу */
+    const m = /^(.*?[\d.,])\s([^\s]+)$/.exec(key);
+    if (m) {
+      let tail = m[2], punct = '';
+      const pm = /^(.*?)([.,;:)]+)$/.exec(tail);
+      if (pm && dict[pm[1]] !== undefined) { tail = pm[1]; punct = pm[2]; }
+      if (dict[tail] !== undefined) return text.replace(key, m[1] + ' ' + dict[tail] + punct);
+    }
+    /* короткий токен с разделителем: «кВт ·», «А », «мм²,» */
+    const tk = /^([^\s]{1,10})([\s·:;,/]*)$/.exec(key);
+    if (tk && dict[tk[1]] !== undefined) return text.replace(tk[1], dict[tk[1]]);
+    return text;
+  }
+
+  function t(s) {
+    if (!isEn() || s == null) return s;
+    const v = dict[s];
+    return v === undefined ? s : v;
+  }
+
+  function tf(s, vars) {
+    const src = t(s);
+    if (!vars || typeof src !== 'string') return src;
+    return src.replace(/\{(\w+)\}/g, (m, k) => (vars[k] === undefined ? m : String(vars[k])));
+  }
+
+  const u = t;
+
+  /* --- статическая разметка ---------------------------------- */
+  function storeAttr(el, name) {
+    let map = originals.get(el);
+    if (!map || !(map instanceof Object) || Array.isArray(map)) { map = {}; originals.set(el, map); }
+    if (map['a:' + name] === undefined) map['a:' + name] = el.getAttribute(name);
+  }
+
+  function walkStatic(first) {
+    const root = document.body;
+    if (!root) return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, null);
+    let node = walker.currentNode;
+    while (node) {
+      if (node.nodeType === 3) {
+        const raw = node.nodeValue;
+        if (first) {
+          if (raw && CYR.test(raw) && translatePlain(raw.trim()) !== raw.trim()) originals.set(node, raw);
+        } else if (originals.has(node)) {
+          const src = originals.get(node);
+          const key = src.trim();
+          node.nodeValue = isEn() ? src.replace(key, translatePlain(key)) : src;
+        }
+      } else if (node.nodeType === 1) {
+        for (const a of ATTRS) {
+          if (!node.hasAttribute(a)) continue;
+          if (first) {
+            const v = node.getAttribute(a);
+            if (CYR.test(v) && translatePlain(v) !== v) storeAttr(node, a);
+          } else {
+            const map = originals.get(node);
+            if (!map || map['a:' + a] === undefined) continue;
+            const src = map['a:' + a];
+            node.setAttribute(a, isEn() ? translatePlain(src) : src);
+          }
+        }
+      }
+      node = walker.nextNode();
+    }
+  }
+
+  function applyStatic() {
+    walkStatic(false);
+    document.title = t('Асинхронный двигатель — инженерный расчёт');
+    const meta = document.querySelector('meta[name="description"]');
+    if (meta) meta.setAttribute('content', t('Расчёт мощности, тока, момента, кабеля и защиты асинхронного двигателя. Графики характеристик и переходные процессы пуска.'));
+  }
+
+  /* --- HTML-строки ------------------------------------------- */
+  const holder = document.createElement('template');
+
+  function translateNode(node) {
+    if (node.nodeType === 3) {
+      const raw = node.nodeValue;
+      if (!raw || !CYR.test(raw)) return;
+      /* многострочные блоки (формулы) переводим построчно */
+      if (raw.indexOf('\n') !== -1) {
+        let changed = false;
+        const out = raw.split('\n').map(part => {
+          const k = part.trim();
+          if (!k) return part;
+          const tr = translatePlain(k);
+          if (tr === k) return part;
+          changed = true;
+          return part.replace(k, tr);
+        });
+        if (changed) node.nodeValue = out.join('\n');
+        return;
+      }
+      const key = raw.trim();
+      if (!key) return;
+      const tr = translatePlain(key);
+      if (tr !== key) node.nodeValue = raw.replace(key, tr);
+      return;
+    }
+    if (node.nodeType !== 1) return;
+    for (const a of ATTRS) {
+      if (!node.hasAttribute(a)) continue;
+      const v = node.getAttribute(a);
+      const tr = translatePlain(v);
+      if (tr !== v) node.setAttribute(a, tr);
+    }
+    for (let c = node.firstChild; c; c = c.nextSibling) translateNode(c);
+  }
+
+  function tHtml(html) {
+    if (!isEn() || typeof html !== 'string' || !html) return html;
+    if (html.indexOf('<') === -1) return translatePlain(html);
+    holder.innerHTML = html;
+    translateNode(holder.content);
+    return holder.innerHTML;
+  }
+
+  /* --- язык -------------------------------------------------- */
+  function setLang(next, opts) {
+    const v = next === 'en' ? 'en' : 'ru';
+    const force = !!(opts && opts.force);
+    if (v === lang && !force) { applyStatic(); return lang; }
+    lang = v;
+    try { localStorage.setItem(LS_KEY, lang); } catch (e) { }
+    document.documentElement.setAttribute('lang', lang);
+    document.documentElement.setAttribute('data-lang', lang);
+    applyStatic();
+    listeners.forEach(fn => { try { fn(lang); } catch (e) { console.error(e); } });
+    return lang;
+  }
+
+  function onChange(fn) { listeners.push(fn); }
+
+  /* --- числа и даты ------------------------------------------ */
+  function locale() { return LOCALES[lang] || LOCALES.ru; }
+
+  function nf(v, d) {
+    if (!isFinite(v)) return '—';
+    if (d !== undefined && Math.abs(v) < Math.pow(10, -(d + 2))) v = 0;
+    const opts = d === undefined ? {} : { minimumFractionDigits: d, maximumFractionDigits: d };
+    return Number(v).toLocaleString(locale(), opts);
+  }
+
+  document.documentElement.setAttribute('lang', lang);
+  document.documentElement.setAttribute('data-lang', lang);
+
+  window.MC_I18N = {
+    get lang() { return lang; },
+    isEn, t, tf, tHtml, u, locale, nf, setLang, onChange,
+    /* перевод произвольной строки: точное совпадение + правила чисел/единиц */
+    plain: translatePlain,
+    /* односторонний перевод готового поддерева (динамика после рендера) */
+    translateDom: function (node) { if (isEn() && node) translateNode(node); },
+    init: function () { walkStatic(true); applyStatic(); }
+  };
+})();
+
+</script>
+<script>
+/* ============================================================
    Интерфейс и связывание расчёта с графиками
    ============================================================ */
 (function () {
@@ -4100,11 +5268,15 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
   const C = MC.CHART_COLORS;
   const $ = s => document.querySelector(s);
   const $$ = s => Array.from(document.querySelectorAll(s));
-  const nf = (v, d) => {
-    if (!isFinite(v)) return '—';
-    if (Math.abs(v) < Math.pow(10, -(d + 2))) v = 0;
-    return Number(v).toLocaleString('ru-RU', { minimumFractionDigits: d, maximumFractionDigits: d });
-  };
+  /* i18n: t — точная строка, tf — шаблон с {подстановками}, tHtml — разметка */
+  const I18N = window.MC_I18N;
+  const t = s => I18N.t(s);
+  const tf = (s, v) => I18N.tf(s, v);
+  const tHtml = s => I18N.tHtml(s);
+  /* nf учитывает язык: 1 469,23 (ru) / 1,469.23 (en) */
+  const nf = (v, d) => I18N.nf(v, d);
+  /* число + единица: nu(11.47, 2, 'кВт') → «11,47 кВт» / «11.47 kW» */
+  const nu = (v, d, unit) => nf(v, d) + (unit ? ' ' + t(unit) : '');
 
   /* ---------- состояние ---------- */
   const DEFAULTS = {
@@ -4166,50 +5338,82 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
 
   /* ---------- графики ---------- */
   const charts = {};
-  function initCharts() {
-    const aria = (id, label) => { const el = document.getElementById(id); if (el) { el.setAttribute('role', 'img'); el.setAttribute('aria-label', label); } };
-    aria('chartTorque', 'Механическая характеристика: момент двигателя и момент нагрузки от скорости');
-    charts.torque = new MC.Chart($('#chartTorque'), {
-      xLabel: 'n, об/мин', yLabel: 'M, Н·м', xFmt: v => nf(v, 0), yFmt: v => nf(v, 0),
-      pad: { l: 58, r: 22, t: 34, b: 40 }
+  /* подписи осей и aria — по ключам, чтобы пересобрать при смене языка */
+  const CHART_LABELS = {
+    torque: { x: 'n, об/мин', y: 'M, Н·м' },
+    iu: { x: 'нагрузка, %', y: 'I, А', y2: 'U, В' },
+    speed: { x: 'нагрузка, %', y: 'n, об/мин', y2: 's, % / f₂, Гц' },
+    eff: { x: 'нагрузка, %', y: 'η, %' },
+    power: { x: 'нагрузка, %', y: 'P, кВт' },
+    simN: { x: 't, с', y: 'n, об/мин', y2: 's, %' },
+    simI: { x: 't, с', y: 'I, А', y2: 'I / Iн' },
+    simT: { x: 't, с', y: 'M, Н·м' },
+    simU: { x: 't, с', y: 'U, %', y2: 'f, Гц' }
+  };
+  const CHART_ARIA = {
+    chartTorque: 'Механическая характеристика: момент двигателя и момент нагрузки от скорости',
+    chartIU: 'Ток и напряжение от нагрузки',
+    chartSpeed: 'Скорость, скольжение и частота ротора от нагрузки',
+    chartEff: 'КПД и коэффициент мощности от нагрузки',
+    chartPower: 'Потребляемая, полезная мощность и потери от нагрузки'
+  };
+  function applyChartLabels() {
+    Object.keys(CHART_LABELS).forEach(k => {
+      const c = charts[k];
+      if (!c) return;
+      const L = CHART_LABELS[k];
+      const o = { xLabel: t(L.x), yLabel: t(L.y) };
+      if (L.y2) o.y2Label = t(L.y2);
+      c.setOptions(o);
     });
-    aria('chartIU', 'Ток и напряжение от нагрузки');
-    charts.iu = new MC.Chart($('#chartIU'), {
-      xLabel: 'нагрузка, %', yLabel: 'I, А', y2Label: 'U, В', xFmt: v => nf(v, 0),
-      pad: { l: 56, r: 58, t: 34, b: 40 }
+    Object.keys(CHART_ARIA).forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.setAttribute('role', 'img');
+      el.setAttribute('aria-label', t(CHART_ARIA[id]));
     });
-    aria('chartSpeed', 'Скорость, скольжение и частота ротора от нагрузки');
-    charts.speed = new MC.Chart($('#chartSpeed'), {
-      xLabel: 'нагрузка, %', yLabel: 'n, об/мин', y2Label: 's, % / f₂, Гц', xFmt: v => nf(v, 0),
-      pad: { l: 58, r: 62, t: 34, b: 40 }
-    });
-    aria('chartEff', 'КПД и коэффициент мощности от нагрузки');
-    charts.eff = new MC.Chart($('#chartEff'), {
-      xLabel: 'нагрузка, %', yLabel: 'η, %', xFmt: v => nf(v, 0), yFmt: v => nf(v, 0),
-      pad: { l: 56, r: 22, t: 34, b: 40 }
-    });
-    aria('chartPower', 'Потребляемая, полезная мощность и потери от нагрузки');
-    charts.power = new MC.Chart($('#chartPower'), {
-      xLabel: 'нагрузка, %', yLabel: 'P, кВт', xFmt: v => nf(v, 0), yFmt: v => nf(v, 1),
-      pad: { l: 56, r: 22, t: 34, b: 40 }
-    });
+  }
 
-    charts.simN = new MC.Chart($('#chartSimN'), {
-      xLabel: 't, с', yLabel: 'n, об/мин', y2Label: 's, %', xFmt: v => nf(v, 1),
+  function initCharts() {
+    const L = k => ({ xLabel: t(CHART_LABELS[k].x), yLabel: t(CHART_LABELS[k].y), y2Label: CHART_LABELS[k].y2 ? t(CHART_LABELS[k].y2) : undefined });
+    charts.torque = new MC.Chart($('#chartTorque'), Object.assign(L('torque'), {
+      xFmt: v => nf(v, 0), yFmt: v => nf(v, 0),
+      pad: { l: 58, r: 22, t: 34, b: 40 }
+    }));
+    charts.iu = new MC.Chart($('#chartIU'), Object.assign(L('iu'), {
+      xFmt: v => nf(v, 0),
+      pad: { l: 56, r: 58, t: 34, b: 40 }
+    }));
+    charts.speed = new MC.Chart($('#chartSpeed'), Object.assign(L('speed'), {
+      xFmt: v => nf(v, 0),
+      pad: { l: 58, r: 62, t: 34, b: 40 }
+    }));
+    charts.eff = new MC.Chart($('#chartEff'), Object.assign(L('eff'), {
+      xFmt: v => nf(v, 0), yFmt: v => nf(v, 0),
+      pad: { l: 56, r: 22, t: 34, b: 40 }
+    }));
+    charts.power = new MC.Chart($('#chartPower'), Object.assign(L('power'), {
+      xFmt: v => nf(v, 0), yFmt: v => nf(v, 1),
+      pad: { l: 56, r: 22, t: 34, b: 40 }
+    }));
+
+    charts.simN = new MC.Chart($('#chartSimN'), Object.assign(L('simN'), {
+      xFmt: v => nf(v, 1),
       pad: { l: 58, r: 54, t: 34, b: 38 }
-    });
-    charts.simI = new MC.Chart($('#chartSimI'), {
-      xLabel: 't, с', yLabel: 'I, А', y2Label: 'I / Iн', xFmt: v => nf(v, 1),
+    }));
+    charts.simI = new MC.Chart($('#chartSimI'), Object.assign(L('simI'), {
+      xFmt: v => nf(v, 1),
       pad: { l: 58, r: 54, t: 34, b: 38 }
-    });
-    charts.simT = new MC.Chart($('#chartSimT'), {
-      xLabel: 't, с', yLabel: 'M, Н·м', xFmt: v => nf(v, 1), yFmt: v => nf(v, 0),
+    }));
+    charts.simT = new MC.Chart($('#chartSimT'), Object.assign(L('simT'), {
+      xFmt: v => nf(v, 1), yFmt: v => nf(v, 0),
       pad: { l: 58, r: 22, t: 34, b: 38 }
-    });
-    charts.simU = new MC.Chart($('#chartSimU'), {
-      xLabel: 't, с', yLabel: 'U, %', y2Label: 'f, Гц', xFmt: v => nf(v, 1),
+    }));
+    charts.simU = new MC.Chart($('#chartSimU'), Object.assign(L('simU'), {
+      xFmt: v => nf(v, 1),
       pad: { l: 58, r: 54, t: 34, b: 38 }
-    });
+    }));
+    applyChartLabels();
   }
 
   function addChartTools() {
@@ -4315,13 +5519,13 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
   };
 
   function tipButton(key) {
-    return `<button type="button" class="tip-btn" data-tip="${key}" aria-label="Подсказка">i</button>`;
+    return `<button type="button" class="tip-btn" data-tip="${key}" aria-label="${t('Подсказка')}">i</button>`;
   }
   let activeTip = null;
   function tipText(key) {
     if (!key) return '';
-    if (key.indexOf('res:') === 0) return RESULT_TIPS[key.slice(4)] || '';
-    return TIPS[key] || '';
+    if (key.indexOf('res:') === 0) return t(RESULT_TIPS[key.slice(4)] || '');
+    return t(TIPS[key] || '');
   }
   function showTip(btn) {
     const pop = document.getElementById('tipPop');
@@ -4366,7 +5570,8 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     document.querySelectorAll('.kv-label, .kpi-label').forEach(el => {
       if (el.querySelector('.tip-btn')) return;
       const text = el.textContent.trim();
-      if (RESULT_TIPS[text]) el.insertAdjacentHTML('beforeend', tipButton('res:' + text));
+      const key = el.dataset.tip || (RESULT_TIPS[text] ? 'res:' + text : '');
+      if (key) el.insertAdjacentHTML('beforeend', tipButton(key));
     });
   }
 
@@ -4473,7 +5678,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     const ft = $('#field1phType');
     if (ft) ft.classList.toggle('hidden', !one);
     const ph = $('#polesHint');
-    if (ph) ph.textContent = one ? 'Для однофазных: 2/4/6/8 полюсов; это скорость, а не число обмоток (главная + пусковая).' : '';
+    if (ph) ph.textContent = one ? t('Для однофазных: 2/4/6/8 полюсов; это скорость, а не число обмоток (главная + пусковая).') : '';
   }
 
   function syncSeg(sel, val) {
@@ -4490,9 +5695,9 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     r.style.setProperty('--fill', (state.loadPct / 150 * 100) + '%');
     if (lastRep) {
       const op = lastRep.op;
-      $('#loadTorque').textContent = nf(op.Tload, 1) + ' Н·м';
-      $('#loadPower').textContent = nf(op.p2, 2) + ' кВт';
-      $('#loadSpeed').textContent = nf(op.n, 0) + ' об/мин';
+      $('#loadTorque').textContent = nu(op.Tload, 1, 'Н·м');
+      $('#loadPower').textContent = nu(op.p2, 2, 'кВт');
+      $('#loadSpeed').textContent = nu(op.n, 0, 'об/мин');
     }
   }
 
@@ -4502,8 +5707,8 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     if (el) el.disabled = !on;
     const hint = $('#loadReleaseHint');
     if (hint) hint.textContent = on
-      ? 'Скорость, при которой снимается разгрузка, % от nн. Не проценты нагрузки.'
-      : 'Задайте разгрузку > 0, чтобы использовать это поле.';
+      ? t('Скорость, при которой снимается разгрузка, % от nн. Не проценты нагрузки.')
+      : t('Задайте разгрузку > 0, чтобы использовать это поле.');
   }
 
   function fillBreakerSeries() {
@@ -4521,7 +5726,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     const s = MC.vtc.get(state.breakerSeries);
     const el = $('#brkCurve');
     const cur = s.curves.includes(state.curve) ? state.curve : s.curves[0];
-    el.innerHTML = s.curves.map(c => `<option value="${c}">${s.type === 'mccb' ? 'Уставка ' + c : 'Кривая ' + c}</option>`).join('');
+    el.innerHTML = s.curves.map(c => `<option value="${c}">${s.type === 'mccb' ? tf('Уставка {c}', { c }) : tf('Кривая {c}', { c })}</option>`).join('');
     el.value = cur;
     state.curve = cur;
     state.breakerType = s.type;
@@ -4540,8 +5745,8 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     const flc = $('#fieldLoadCurve');
     if (flc) flc.classList.toggle('hidden', state.loadType !== 'custom');
     $('#connHint').textContent = state.conn === 'Y'
-      ? 'Фазное напряжение ' + nf(state.voltage / Math.sqrt(3), 0) + ' В'
-      : 'Фазное напряжение ' + nf(state.voltage, 0) + ' В (равно линейному)';
+      ? tf('Фазное напряжение {u} В', { u: nf(state.voltage / Math.sqrt(3), 0) })
+      : tf('Фазное напряжение {u} В (равно линейному)', { u: nf(state.voltage, 0) });
     const hints = {
       catalog: 'Выбор типоразмера из каталога АИР',
       power: 'Известна мощность на валу и напряжение',
@@ -4549,7 +5754,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       torque: 'Известен момент на валу и частота вращения'
     };
     const mh = $('#modeHint');
-    if (mh) mh.textContent = hints[state.mode] || '';
+    if (mh) mh.textContent = t(hints[state.mode] || '');
     const ro = state.autoTypical || state.mode === 'catalog';
     ['eff', 'cos', 'slip', 'kst', 'mst', 'mmax'].forEach(id => {
       const el = document.getElementById(id);
@@ -4573,7 +5778,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     const sel = $('#catMotor');
     const cur = preserve ? state.catType : sel.value;
     sel.innerHTML = list.map(m =>
-      `<option value="${m.type}">${m.type}${m.typical ? ' *' : ''} · ${nf(m.p2, m.p2 % 1 ? 2 : 0)} кВт · ${m.n} об/мин</option>`
+      `<option value="${m.type}">${t(m.type)}${m.typical ? ' *' : ''} · ${nf(m.p2, m.p2 % 1 ? 2 : 0)} ${t('кВт')} · ${nf(m.n, 0)} ${t('об/мин')}</option>`
     ).join('');
     if (list.some(m => m.type === cur)) state.catType = cur;
     else if (list.length) state.catType = list[0].type;
@@ -4592,11 +5797,14 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     state.p2 = m.p2;
     const rec = recommendConn(m, state.voltage);
     if (updateConn !== false && state.connAuto) state.conn = rec;
-    $('#catInfo').textContent = `${m.p2} кВт · ${m.n} об/мин · КПД ${m.eff}% · cosφ ${m.cos} · Iп/Iн ${m.kst}` + (m.typical ? ' · типовые данные' : '');
+    $('#catInfo').textContent = tf('{p} кВт · {n} об/мин · КПД {eff}% · cosφ {cos} · Iп/Iн {kst}{typ}', {
+      p: m.p2, n: m.n, eff: m.eff, cos: m.cos, kst: m.kst,
+      typ: m.typical ? t(' · типовые данные') : ''
+    });
     $('#poles').value = m.poles;
     $('#connHint').textContent = state.conn === 'Y'
-      ? 'Фазное напряжение ' + nf(state.voltage / Math.sqrt(3), 0) + ' В'
-      : 'Фазное напряжение ' + nf(state.voltage, 0) + ' В (равно линейному)';
+      ? tf('Фазное напряжение {u} В', { u: nf(state.voltage / Math.sqrt(3), 0) })
+      : tf('Фазное напряжение {u} В (равно линейному)', { u: nf(state.voltage, 0) });
   }
 
   function connFactorFor(cat, U, conn, phases) {
@@ -4687,7 +5895,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       rep = E.buildReport(buildCfg());
     } catch (err) {
       console.error(err);
-      setStatus('ошибка: ' + err.message, 'bad');
+      setStatus(tf('ошибка: {m}', { m: err.message }), 'bad');
       return;
     }
     lastRep = rep;
@@ -4723,7 +5931,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
         get compare() { return compareData; }
       };
     }
-    setStatus('готово', 'ok');
+    setStatus(t('готово'), 'ok');
 
     const key = motorKey(rep);
     if (key !== lastKey) {
@@ -4733,6 +5941,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       simState.cfg = simCfg();
     }
     updateCompare();
+    if (I18N.isEn()) I18N.translateDom(document.body);
   }
 
   function motorKey(rep) {
@@ -4776,7 +5985,8 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     arr.push(v);
     while (arr.length > 4) arr.shift();
     setVariants(arr);
-    setStatus('вариант сохранён', 'ok');
+    setStatus(t('вариант сохранён'), 'ok');
+    if (I18N.isEn()) I18N.translateDom(document.body);
   }
   function renderVariants() {
     const arr = getVariants();
@@ -4825,10 +6035,10 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
         lastKey = '';
         recalc();
         switchTab('calc');
-        setStatus('проект загружен', 'ok');
+        setStatus(t('проект загружен'), 'ok');
       } catch (e) {
         console.error(e);
-        setStatus('ошибка файла проекта', 'bad');
+        setStatus(t('ошибка файла проекта'), 'bad');
       }
     };
     reader.readAsText(file);
@@ -4905,7 +6115,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
 </style></head><body>
 <div class="noprint"><button onclick="window.print()">Печать / PDF</button><button onclick="window.close()">Закрыть</button></div>
 <div class="head"><div><h1>${state.projectName ? state.projectName : 'Асинхронный двигатель — расчёт'}</h1>
-<p class="sub">${state.projectName ? 'Асинхронный двигатель — расчёт · ' : ''}${m.catalog ? m.catalog.type : (m.phases === 1 ? 'Однофазный двигатель ' : 'Двигатель ') + nf(m.p2, 1) + ' кВт'}${m.phases === 1 && m.p2 > 7.5 ? ' · оценка (типовые данные до 7,5 кВт)' : ''} · ${nf(m.U, 0)} В · ${m.p2.toFixed(1)} кВт · ${new Date().toLocaleString('ru-RU')}</p></div>${state.projectLogo ? `<img class="logo" src="${state.projectLogo}" alt="">` : ''}</div>
+<p class="sub">${state.projectName ? t('Асинхронный двигатель — расчёт') + ' · ' : ''}${m.catalog ? t(m.catalog.type) : t(m.phases === 1 ? 'Однофазный двигатель' : 'Двигатель') + ' ' + nu(m.p2, 1, 'кВт')}${m.phases === 1 && m.p2 > 7.5 ? t(' · оценка (типовые данные до 7,5 кВт)') : ''} · ${nu(m.U, 0, 'В')} · ${nu(m.p2, 1, 'кВт')} · ${new Date().toLocaleString(I18N.locale())}</p></div>${state.projectLogo ? `<img class="logo" src="${state.projectLogo}" alt="">` : ''}</div>
 
 <div class="two">
 <div>
@@ -4933,8 +6143,8 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
 <div>
 <h2>Защита</h2>
 <table>${rows([
-  ['Автомат', nf(b.In, 0) + ' А · ' + (m.phases === 1 ? '1P · ' : '3P · ') + (b.type === 'mccb' ? 'MCCB' : 'MCB ' + b.curve)],
-  ['Отсечка', nf(b.magTrip, 0) + ' А (' + b.mag + '×Iн)'],
+  ['Автомат', nu(b.In, 0, 'А') + ' · ' + (m.phases === 1 ? '1P · ' : '3P · ') + (b.type === 'mccb' ? 'MCCB' : 'MCB ' + b.curve)],
+  ['Отсечка', nu(b.magTrip, 0, 'А') + tf(' ({k}×Iн)', { k: b.mag })],
   ['Icu', nf(b.icu, 0) + ' кА'],
   ['Тепловое реле', nf(lastRep.relay.lo, 1) + '…' + nf(lastRep.relay.hi, 1) + ' А'],
   ['Контактор', nf(lastRep.contactor.i, 0) + ' А / ' + nf(lastRep.contactor.kw, 0) + ' кВт'],
@@ -4965,7 +6175,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.7.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.8.0.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     const w = window.open('', '_blank');
@@ -4973,6 +6183,11 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     w.document.open();
     w.document.write(html);
     w.document.close();
+    if (I18N.isEn() && w.document.body) {
+      w.document.documentElement.setAttribute('lang', 'en');
+      w.document.title = tf('Отчёт — {name}', { name: m.catalog ? m.catalog.type : t('асинхронный двигатель') });
+      I18N.translateDom(w.document.body);
+    }
   }
 
   /* ---------- рендер ---------- */
@@ -4990,15 +6205,17 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     if (state.tab === 'cable') renderCableTab(rep);
     renderVariants();
     updateLoadbar();
-    $('#tagMode').textContent = ({ catalog: 'база', power: 'P₂', current: 'I', torque: 'M' })[rep.motor.mode] || '—';
+    $('#tagMode').textContent = t(({ catalog: 'база', power: 'P₂', current: 'I', torque: 'M' })[rep.motor.mode] || '—');
     $('#tagStart').textContent = methodShort(state.startMethod);
     decorateTips();
     if (state.tab === 'cable') drawVTC(rep);
+    if (I18N.isEn()) I18N.translateDom(document.body);
   }
 
   function kpi(label, value, unit, sub, color) {
+    const tip = RESULT_TIPS[label] ? ` data-tip="res:${label}"` : '';
     return `<div class="kpi" style="--kc:${color || 'var(--mint)'}">
-      <div class="kpi-label">${label}</div>
+      <div class="kpi-label"${tip}>${label}</div>
       <div class="kpi-value">${value}<span class="u">${unit || ''}</span></div>
       <div class="kpi-sub">${sub || ''}</div>
     </div>`;
@@ -5025,15 +6242,16 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     $('#verdict').innerHTML = `
       <b>${name}</b><span class="sep"></span>
       <span>P₂ <b>${nf(m.p2, 1)}</b> кВт · ${nf(m.U, 0)} В · Iн <b>${nf(m.i, 1)}</b> А</span><span class="sep"></span>
-      <span>автомат <b>${nf(b.In, 0)}</b> А${m.phases === 1 ? ' · 1P' : ''} (${b.curve})</span><span class="sep"></span>
-      <span>кабель <b>${c.parallel > 1 ? c.parallel + ' × ' : ''}${nf(c.section, 1)}</b> мм² ${c.material === 'al' ? 'Al' : 'Cu'} · PE ${c.parallel > 1 ? c.parallel + ' × ' : ''}${nf(c.pe, 1)}</span><span class="sep"></span>
+      <span>${t('автомат')} <b>${nf(b.In, 0)}</b> ${t('А')}${m.phases === 1 ? ' · 1P' : ''} (${b.curve})</span><span class="sep"></span>
+      <span>${t('кабель')} <b>${c.parallel > 1 ? c.parallel + ' × ' : ''}${nf(c.section, 1)}</b> ${t('мм²')} ${c.material === 'al' ? 'Al' : 'Cu'} · PE ${c.parallel > 1 ? c.parallel + ' × ' : ''}${nf(c.pe, 1)}</span><span class="sep"></span>
       <span>ΔU <b>${nf(rep.drop.pct, 2)}</b> %</span>
       <span style="margin-left:auto">${stateTxt}</span>
       <button class="mini" data-act="remember" title="Сохранить вариант для сравнения">+ вариант</button>`;
   }
 
   function kv(label, value, unit, cls) {
-    return `<div class="kv-row"><span class="kv-label">${label}</span><span class="kv-value ${cls || ''}">${value}${unit ? `<span class="u">${unit}</span>` : ''}</span></div>`;
+    const tip = RESULT_TIPS[label] ? ` data-tip="res:${label}"` : '';
+    return `<div class="kv-row"><span class="kv-label"${tip}>${label}</span><span class="kv-value ${cls || ''}">${value}${unit ? `<span class="u">${unit}</span>` : ''}</span></div>`;
   }
 
   function renderMotorPanel(rep) {
@@ -5054,7 +6272,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       ${kv('Класс изоляции', m.motorClass + ' · предел ' + m.tempLimit, '°C')}
       ${kv('Постоянная нагрева τ', nf(m.tauMin, 0), 'мин')}
     </div>`;
-    $('#motorNote').textContent = m.note;
+    $('#motorNote').textContent = t(m.note || '');
   }
 
   function methodShort(v) {
@@ -5068,21 +6286,22 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     const m = rep.motor;
     const cmp = (compareData || []).find(x => x.method === state.startMethod);
     const tStart = cmp && cmp.tStart != null ? nf(cmp.tStart, 2) + ' с' : (cmp ? 'не выходит на скорость' : '—');
-    const ratio = cmp ? ' / ' + nf(cmp.peakI / m.i, 1) + '×Iн' : '';
+    const ratio = cmp ? tf(' / {v}×Iн', { v: nf(cmp.peakI / m.i, 1) }) : '';
     $('#panelStart').innerHTML = `<div class="kv">
-      ${kv('Пусковой ток Iп', nf(m.ist, 1), 'А (' + nf(m.kst, 1) + '×Iн)')}
-      ${kv('Пусковой момент Mп', nf(m.mstAbs, 1), 'Н·м (' + nf(m.mst, 2) + '×Mн)')}
-      ${kv('Максимальный момент', nf(m.mmaxReal.t, 1), 'Н·м (' + nf(m.mmaxReal.t / m.mn, 2) + '×Mн)')}
+      ${kv('Пусковой ток Iп', nf(m.ist, 1), tf('А ({k}×Iн)', { k: nf(m.kst, 1) }))}
+      ${kv('Пусковой момент Mп', nf(m.mstAbs, 1), tf('Н·м ({k}×Mн)', { k: nf(m.mst, 2) }))}
+      ${kv('Максимальный момент', nf(m.mmaxReal.t, 1), tf('Н·м ({k}×Mн)', { k: nf(m.mmaxReal.t / m.mn, 2) }))}
       ${kv('Момент при выбранном пуске', cmp ? nf(cmp.peakT, 0) : '—', cmp ? 'Н·м' : '')}
-      ${kv('Пиковый ток пуска (с линией)', cmp ? nf(cmp.peakI, 0) : '—', cmp ? 'А' + ratio : '')}
+      ${kv('Пиковый ток пуска (с линией)', cmp ? nf(cmp.peakI, 0) : '—', cmp ? t('А') + ratio : '')}
       ${kv('Разгон', tStart, '')}
       ${kv('Пусковая мощность Sп', nf((m.phases === 3 ? Math.sqrt(3) : 1) * m.U * m.ist / 1000, 1), 'кВ·А')}
       ${kv('Инерция привода J∑', nf(m.j + (+state.jExtra || 0), 4), 'кг·м²')}
       ${kv('Способ пуска', methodLabel(state.startMethod), '')}
-      ${kv('Способ задания', m.mode === 'catalog' ? 'каталог АИР' : m.mode === 'current' ? 'по току' : m.mode === 'torque' ? 'по моменту' : 'по мощности', '')}
+      ${kv('Способ задания', t(m.mode === 'catalog' ? 'каталог АИР' : m.mode === 'current' ? 'по току' : m.mode === 'torque' ? 'по моменту' : 'по мощности'), '')}
     </div>
-    <div class="note-line">${startAdvice(m)}</div>
-    ${cmp && cmp.tStart == null ? `<div class="note-line bad" style="color:var(--pink)">${startDiagnosis(rep, cmp)}</div>` : ''}`;
+    <div class="note-line">${t(startAdvice(m))}</div>
+    ${cmp && cmp.tStart == null ? `<div class="note-line bad" style="color:var(--pink)">${t(startDiagnosis(rep, cmp))}</div>` : ''}`;
+    if (I18N.isEn()) I18N.translateDom(document.body);
   }
 
   function startDiagnosis(rep, cmp) {
@@ -5146,7 +6365,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     const pad = { l: 54, r: 18, t: 22, b: 34 };
     const xmin = 1, xmax = 100000, ymin = 0.01, ymax = 10000;
     const X = I => pad.l + (Math.log10(Math.max(I, xmin)) - Math.log10(xmin)) / (Math.log10(xmax) - Math.log10(xmin)) * (W - pad.l - pad.r);
-    const Y = t => pad.t + (Math.log10(ymax) - Math.log10(Math.max(t, ymin))) / (Math.log10(ymax) - Math.log10(ymin)) * (H - pad.t - pad.b);
+    const Y = tv => pad.t + (Math.log10(ymax) - Math.log10(Math.max(tv, ymin))) / (Math.log10(ymax) - Math.log10(ymin)) * (H - pad.t - pad.b);
     const line = (pts, color, width, dash) => {
       if (!pts.length) return;
       g.save(); g.strokeStyle = color; g.lineWidth = width || 1.6; g.setLineDash(dash || []); g.beginPath();
@@ -5157,14 +6376,14 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     g.font = '10px ui-monospace, monospace'; g.fillStyle = C.text; g.strokeStyle = C.line; g.lineWidth = 1;
     for (const d of [1, 10, 100, 1000, 10000, 100000]) {
       const x = X(d); g.globalAlpha = .35; g.beginPath(); g.moveTo(x, pad.t); g.lineTo(x, H - pad.b); g.stroke(); g.globalAlpha = 1;
-      g.textAlign = 'center'; g.fillText(d >= 1000 ? (d / 1000) + 'к' : d, x, H - 14);
+      g.textAlign = 'center'; g.fillText(d >= 1000 ? (d / 1000) + t('к') : d, x, H - 14);
     }
-    for (const t of [0.01, 0.1, 1, 10, 100, 1000, 10000]) {
-      const y = Y(t); g.globalAlpha = .35; g.beginPath(); g.moveTo(pad.l, y); g.lineTo(W - pad.r, y); g.stroke(); g.globalAlpha = 1;
-      g.textAlign = 'right'; g.fillText(t >= 1000 ? (t / 1000) + 'к' : t, pad.l - 6, y + 3);
+    for (const tt of [0.01, 0.1, 1, 10, 100, 1000, 10000]) {
+      const y = Y(tt); g.globalAlpha = .35; g.beginPath(); g.moveTo(pad.l, y); g.lineTo(W - pad.r, y); g.stroke(); g.globalAlpha = 1;
+      g.textAlign = 'right'; g.fillText(tt >= 1000 ? (tt / 1000) + t('к') : tt, pad.l - 6, y + 3);
     }
-    g.textAlign = 'left'; g.fillStyle = C.soft; g.fillText('I, А', W - pad.r - 30, H - 2);
-    g.save(); g.translate(12, pad.t + 40); g.rotate(-Math.PI / 2); g.fillText('t, с', 0, 0); g.restore();
+    g.textAlign = 'left'; g.fillStyle = C.soft; g.fillText(t('I, А'), W - pad.r - 30, H - 2);
+    g.save(); g.translate(12, pad.t + 40); g.rotate(-Math.PI / 2); g.fillText(t('t, с'), 0, 0); g.restore();
     const b = rep.breaker, s = MC.vtc.get(b.series || state.breakerSeries), In = b.In;
     const curve = b.curve && s.curves.includes(b.curve) ? b.curve : s.curves[0];
     // тепловая зона выбранного автомата
@@ -5195,10 +6414,10 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     const Istart = rep.iStart || rep.motor.ist;
     g.save(); g.fillStyle = C.mint; g.beginPath(); g.arc(X(Istart), Y(Math.max(tS, 0.02)), 4.5, 0, Math.PI * 2); g.fill();
     g.font = '10px ui-monospace, monospace'; g.fillStyle = C.mint; g.textAlign = 'left';
-    g.fillText('пуск ' + nf(Istart, 0) + ' А / ' + (cmp && cmp.tStart != null ? nf(tS, 2) + ' с' : '?'), X(Istart) + 7, Y(Math.max(tS, 0.02)) - 5);
+    g.fillText(tf('пуск {i} А / {t} с', { i: nf(Istart, 0), t: cmp && cmp.tStart != null ? nf(tS, 2) : '?' }), X(Istart) + 7, Y(Math.max(tS, 0.02)) - 5);
     g.restore();
     // легенда
-    const leg = [['Автомат ' + s.brand + ' ' + s.series + ' ' + In + ' А', C.amber], ['Отсечка', C.red], ['Пуск', C.mint], ['Кабель', C.blue], ['Вышестоящий', C.violet]];
+    const leg = [[tf('Автомат {b} {s} {i} А', { b: s.brand, s: s.series, i: In }), C.amber], [t('Отсечка'), C.red], [t('Пуск'), C.mint], [t('Кабель'), C.blue], [t('Вышестоящий'), C.violet]];
     g.font = '10px -apple-system, sans-serif'; let lx = pad.l + 8, ly = pad.t + 10;
     leg.forEach(([txt, color]) => {
       const tw = g.measureText(txt).width;
@@ -5207,11 +6426,16 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       lx += tw + 34;
     });
     const selBad = b.upstream && !b.okSel;
-    $('#tagVTC').textContent = !rep.checks.breakerMag ? 'отсечка на пуске' : selBad ? 'селективность недостаточна' : 'пуск проходит';
+    $('#tagVTC').textContent = !rep.checks.breakerMag ? t('отсечка на пуске') : selBad ? t('селективность недостаточна') : t('пуск проходит');
     $('#tagVTC').className = 'panel-tag ' + (!rep.checks.breakerMag ? 'bad' : selBad ? 'warn' : 'ok');
-    const selTxt = b.upstream ? ' Селективность ' + nf(b.selRatio, 1) + '× ' + (b.okSel ? 'обеспечена' : 'недостаточна') + '.' : '';
-    $('#vtcFoot').textContent = 'Серия ' + s.brand + ' ' + s.series + ', ' + In + ' А, ' + (s.type === 'mccb' ? 'MCCB' : 'кривая ' + curve) + '. Пик пуска ' + nf(Istart, 0) + ' А; отсечка ' + nf(b.magTrip, 0) + ' А.' + selTxt;
-    fillChartTable('dataVTC', ['I, А', 'I/Iн', 't, с'], pts.map(p => [nf(p[0], 0), nf(p[0] / In, 2), nf(p[1], 3)]));
+    const selTxt = b.upstream ? tf(' Селективность {r}× {ok}.', { r: nf(b.selRatio, 1), ok: b.okSel ? t('обеспечена') : t('недостаточна') }) : '';
+    $('#vtcFoot').textContent = tf('Серия {b} {s}, {i} А, {type}. Пик пуска {peak} А; отсечка {mag} А.{sel}', {
+      b: s.brand, s: s.series, i: In,
+      type: s.type === 'mccb' ? 'MCCB' : tf('кривая {c}', { c: curve }),
+      peak: nf(Istart, 0), mag: nf(b.magTrip, 0), sel: selTxt
+    });
+    fillChartTable('dataVTC', [t('I, А'), t('I/Iн'), t('t, с')], pts.map(p => [nf(p[0], 0), nf(p[0] / In, 2), nf(p[1], 3)]));
+    if (I18N.isEn()) I18N.translateDom(document.body);
   }
 
   function renderProtectPanel(rep) {
@@ -5221,8 +6445,8 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     $('#tagProtect').textContent = ok ? 'согласовано' : 'проверить';
     $('#tagProtect').className = 'panel-tag ' + (ok ? 'ok' : 'bad');
     $('#panelProtect').innerHTML = `<div class="kv">
-      ${kv('Автоматический выключатель', nf(b.In, 0) + ' А', (m.phases === 1 ? '1P · ' : '') + (b.type === 'mccb' ? 'MCCB' : 'MCB · кривая ' + b.curve))}
-      ${kv('Ток отсечки (мин.)', nf(b.magTrip, 0), 'А  (' + b.mag + '×Iн)')}
+      ${kv('Автоматический выключатель', nf(b.In, 0), t('А') + ' · ' + (m.phases === 1 ? '1P · ' : '') + (b.type === 'mccb' ? 'MCCB' : 'MCB · ' + tf('кривая {c}', { c: b.curve })))}
+      ${kv('Ток отсечки (мин.)', nf(b.magTrip, 0), tf('А  ({k}×Iн)', { k: b.mag }))}
       ${kv('Расчётный ток пуска', nf(rep.iStart, 0), 'А · ' + methodShort(state.startMethod), !rep.checks.breakerMag ? 'bad' : '')}
       ${kv('Отключающая способность', nf(b.icu, 0), 'кА')}
       ${kv('Селективность', b.upstream ? nf(b.selRatio, 1) + '×' : 'не задана', b.upstream ? (b.okSel ? 'обеспечена' : 'недостаточна') : '', b.upstream && !b.okSel ? 'bad' : '')}
@@ -5243,10 +6467,10 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     $('#tagCable').textContent = ok ? 'норма' : 'проверить';
     $('#tagCable').className = 'panel-tag ' + (ok ? 'ok' : 'bad');
     $('#panelCable').innerHTML = `<div class="kv">
-      ${kv('Сечение фазных жил', (multi ? c.parallel + ' × ' : '') + nf(c.section, 1), 'мм²  ' + (c.material === 'al' ? 'Al' : 'Cu'))}
+      ${kv('Сечение фазных жил', (multi ? c.parallel + ' × ' : '') + nf(c.section, 1), tf('мм²  {m}', { m: c.material === 'al' ? 'Al' : 'Cu' }))}
       ${kv('Сечение PE', (multi ? c.parallel + ' × ' : '') + nf(c.pe, 1), 'мм²')}
       ${kv('Ток на один кабель', nf(c.allowPer, 1), 'А')}
-      ${kv('Суммарный допустимый', nf(c.allow, 1), 'А  (k = ' + nf(c.k, 2) + ')')}
+      ${kv('Суммарный допустимый', nf(c.allow, 1), tf('А  (k = {k})', { k: nf(c.k, 2) }))}
       ${kv('Нагруженных жил', c.loaded, c.loaded === 2 ? 'L + N' : '3 фазы')}
       ${kv('Падение напряжения', nf(d.pct, 2), '% · ' + nf(d.dU, 1) + ' В', d.pct > +state.dropLimit ? 'bad' : 'accent')}
       ${kv('Просадка при пуске', nf(rep.dropStart.pct, 1), '%', !rep.checks.startDrop ? 'bad' : rep.dropStart.pct > 10 ? 'warn' : '')}
@@ -5304,7 +6528,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     if (m.phases === 1) {
       const tn = { capacitor: 'конденсаторный', split: 'с расщеплённой фазой', psc: 'PSC' }[m.motor1phType] || 'конденсаторный';
       add('ok', `Однофазный режим: I = P₁/(U·cosφ), кабель 2-жильный (L + N), автомат 1P. Типовые данные — ${tn}.`);
-      if (m.p2 > 7.5) add('warn', `Однофазный двигатель ${nf(m.p2, 1)} кВт — редкий случай: типовые данные до 11 кВт ориентировочные, выше — оценка. Для такой мощности обычно применяют 3 фазы или специальный двигатель.`);
+      if (m.p2 > 7.5) add('warn', tf('Однофазный двигатель {p} кВт — редкий случай: типовые данные до 11 кВт ориентировочные, выше — оценка. Для такой мощности обычно применяют 3 фазы или специальный двигатель.', { p: nf(m.p2, 1) }));
       if (state.voltage > 260) add('warn', `Для однофазного двигателя напряжение ${nf(state.voltage, 0)} В необычно — обычно 220/230 В. Проверьте данные.`);
     }
     const cat = state.mode === 'catalog' ? D.MOTOR_DB.find(x => x.type === state.catType) : null;
@@ -5332,7 +6556,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     if (!ch.breakerCurrent) add('bad', `Номинал автомата ${nf(rep.breaker.In, 0)} А ниже рабочего тока ${nf(m.i, 1)} А.`);
 
     if (ch.breakerMag) add('ok', `Отсечка автомата (${nf(rep.breaker.magTrip, 0)} А) выше расчётного пускового тока ${nf(rep.iStart, 0)} А для способа «${methodLabel(state.startMethod)}» — ложных срабатываний не будет.`);
-    else add('bad', `Отсечка ${nf(rep.breaker.magTrip, 0)} А может сработать при пуске: расчётный ток для способа «${methodLabel(state.startMethod)}» — ${nf(rep.iStart, 0)} А. ` + (state.curve === 'D' ? 'Даже кривая D не покрывает этот ток — увеличьте номинал или примените MCCB с регулируемой отсечкой.' : 'Выберите кривую D (10–20·Iн), софтстартер/ПЧ или аппарат с регулируемой отсечкой.'));
+    else add('bad', tf('Отсечка {m} А может сработать при пуске: расчётный ток для способа «{meth}» — {i} А. ', { m: nf(rep.breaker.magTrip, 0), meth: methodLabel(state.startMethod), i: nf(rep.iStart, 0) }) + t(state.curve === 'D' ? 'Даже кривая D не покрывает этот ток — увеличьте номинал или примените MCCB с регулируемой отсечкой.' : 'Выберите кривую D (10–20·Iн), софтстартер/ПЧ или аппарат с регулируемой отсечкой.'));
 
     if (rep.breaker.upstream) {
       if (rep.breaker.okSel) add('ok', `Селективность с вышестоящим аппаратом ${nf(rep.breaker.upstream, 0)} А обеспечена (отношение ${nf(rep.breaker.selRatio, 1)} ≥ 1,6).`);
@@ -5396,12 +6620,12 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       tLoad.push([n, E.loadTorque(m, n, loadCfg())]);
     }
     charts.torque.setData([
-      { name: 'M двигателя', color: C.mint, data: tEm, width: 2.2 },
-      { name: 'M нагрузки', color: C.amber, data: tLoad, width: 1.8, dash: [5, 4] }
+      { name: t('M двигателя'), color: C.mint, data: tEm, width: 2.2 },
+      { name: t('M нагрузки'), color: C.amber, data: tLoad, width: 1.8, dash: [5, 4] }
     ]);
     charts.torque.setOptions({
       markerX: rep.op.n, xRange: [0, m.ns],
-      hLines: [{ y: m.mn, color: 'rgba(255,255,255,0.22)', label: 'Mн' }]
+      hLines: [{ y: m.mn, color: 'rgba(255,255,255,0.22)', label: t('Mн') }]
     });
     const tfoot = document.querySelector('[data-chart-panel="torque"] .panel-foot');
     if (tfoot) tfoot.textContent = `Кривая M(n) — при U = ${nf(rep.op.U, 0)} В (с учётом кабеля); Mmax в таблице — при номинальном напряжении.`;
@@ -5412,19 +6636,19 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     ]);
     charts.iu.setOptions({
       markerX: state.loadPct, xRange: [0, 150], yZero2: false,
-      hLines: [{ y: m.i, color: 'rgba(90,169,255,0.35)', label: 'Iн ' + nf(m.i, 1) + ' А' }]
+      hLines: [{ y: m.i, color: 'rgba(90,169,255,0.35)', label: tf('Iн {i} А', { i: nf(m.i, 1) }) }]
     });
 
     charts.speed.setData([
       { name: 'n', color: C.cyan, data: sw.load.map((x, i) => [x, sw.n[i]]), width: 2.1 },
-      { name: 's, %', color: C.pink, data: sw.load.map((x, i) => [x, sw.s[i]]), axis: 1, width: 1.6 },
-      { name: 'f₂, Гц', color: C.violet, data: sw.load.map((x, i) => [x, sw.f2[i]]), axis: 1, width: 1.6, dash: [4, 3] }
+      { name: t('s, %'), color: C.pink, data: sw.load.map((x, i) => [x, sw.s[i]]), axis: 1, width: 1.6 },
+      { name: t('f₂, Гц'), color: C.violet, data: sw.load.map((x, i) => [x, sw.f2[i]]), axis: 1, width: 1.6, dash: [4, 3] }
     ]);
     charts.speed.setOptions({ markerX: state.loadPct, xRange: [0, 150], yZero: false, yZero2: true });
 
     charts.eff.setData([
-      { name: 'η, %', color: C.mint, data: sw.load.map((x, i) => [x, sw.eta[i]]), width: 2.1 },
-      { name: 'cosφ × 100', color: C.amber, data: sw.load.map((x, i) => [x, sw.cos[i] * 100]), width: 1.8 }
+      { name: t('η, %'), color: C.mint, data: sw.load.map((x, i) => [x, sw.eta[i]]), width: 2.1 },
+      { name: t('cosφ × 100'), color: C.amber, data: sw.load.map((x, i) => [x, sw.cos[i] * 100]), width: 1.8 }
     ]);
     charts.eff.setOptions({ markerX: state.loadPct, xRange: [0, 150], minY: 0, maxY: 100 });
 
@@ -5475,7 +6699,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     $('#protectTable').innerHTML = `<table>
       <thead><tr><th>Аппарат</th><th>Параметр</th><th>Проверка</th></tr></thead>
       <tbody>
-        <tr><td>Автомат</td><td class="num">${nf(b.In, 0)} А, ${b.type === 'mccb' ? 'MCCB ' + b.mag + '×Iн' : 'кривая ' + b.curve}</td><td>${rep.checks.breakerCurrent && rep.checks.breakerCable ? '<span class="badge ok">ок</span>' : '<span class="badge bad">нет</span>'}</td></tr>
+        <tr><td>Автомат</td><td class="num">${nu(b.In, 0, 'А')}, ${b.type === 'mccb' ? 'MCCB ' + b.mag + '×' + t('Iн') : tf('кривая {c}', { c: b.curve })}</td><td>${rep.checks.breakerCurrent && rep.checks.breakerCable ? '<span class="badge ok">ок</span>' : '<span class="badge bad">нет</span>'}</td></tr>
         <tr><td>Селективность</td><td class="num">${b.upstream ? nf(b.upstream, 0) + ' / ' + nf(b.In, 0) + ' А' : 'не задана'}</td><td>${rep.checks.breakerSel ? '<span class="badge ok">ок</span>' : '<span class="badge warn">проверить</span>'}</td></tr>
         <tr><td>Отсечка</td><td class="num">${nf(b.magTrip, 0)} А</td><td>${rep.checks.breakerMag ? '<span class="badge ok">ок</span>' : '<span class="badge bad">ложный пуск</span>'}</td></tr>
         <tr><td>Icu</td><td class="num">${nf(b.icu, 0)} кА</td><td>${rep.checks.breakerIcu ? '<span class="badge ok">ок</span>' : '<span class="badge bad">мало</span>'}</td></tr>
@@ -5504,10 +6728,11 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     $('#checksTag').textContent = chk.every(x => x[1]) ? 'все ок' : 'есть замечания';
     $('#checksTag').className = 'panel-tag ' + (chk.every(x => x[1]) ? 'ok' : 'warn');
 
-    $('#cableNotes').innerHTML = `
+    $('#cableNotes').innerHTML = tHtml(`
       <p>Сечение выбрано по длительно допустимому току с поправками на температуру среды, число кабелей в пучке, способ прокладки и тип изоляции. Для двигателя с прямым пуском номинал автомата принимается ${nf(rep.breaker.rise, 2)}·Iн, чтобы исключить ложные срабатывания при пуске.</p>
       <p>Падение напряжения рассчитано для рабочего тока ${nf(rep.op.I, 1)} А при cosφ = ${nf(rep.op.cos, 2)}; активное сопротивление приведено к температуре жилы ${c.insulation === 'xlpe' ? '90' : '70'} °C.</p>
-      <p>Проверка I²t выполнена по условному времени отключения ${nf(rep.sc.t, 2)} с и коэффициенту k = ${rep.sc.k} (${c.insulation === 'xlpe' ? 'XLPE' : 'ПВХ'}, ${c.material === 'al' ? 'Al' : 'Cu'}). Для токоограничивающих автоматов фактическое I²t ниже расчётного.</p>`;
+      <p>Проверка I²t выполнена по условному времени отключения ${nf(rep.sc.t, 2)} с и коэффициенту k = ${rep.sc.k} (${c.insulation === 'xlpe' ? 'XLPE' : 'ПВХ'}, ${c.material === 'al' ? 'Al' : 'Cu'}). Для токоограничивающих автоматов фактическое I²t ниже расчётного.</p>`);
+    if (I18N.isEn()) I18N.translateDom(document.body);
   }
 
   /* ---------- сравнение способов пуска ---------- */
@@ -5566,6 +6791,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     $('#compareTable').innerHTML = `<table>
       <thead><tr><th>Способ</th><th class="num">t разгона, с</th><th class="num">Пиковый ток, А</th><th class="num">Пиковый момент, Н·м</th><th>Результат</th></tr></thead>
       <tbody>${rows}</tbody></table>`;
+    if (I18N.isEn()) I18N.translateDom(document.body);
   }
 
   /* ---------- справочные таблицы ---------- */
@@ -5608,6 +6834,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     });
     $('#motorTable').innerHTML = `<table><thead><tr><th>Тип</th><th class="num">P₂, кВт</th><th class="num">n, об/мин</th><th class="num">I, А</th><th class="num">КПД, %</th><th class="num">cosφ</th><th class="num">Iп/Iн</th><th class="num">Mп/Mн</th><th class="num">Mmax/Mн</th></tr></thead><tbody>${mt}</tbody></table>`;
     $('#dbCount').textContent = D.MOTOR_DB.length + ' типоразмеров · * типовые';
+    if (I18N.isEn()) I18N.translateDom(document.body);
   }
 
   /* ---------- симуляция ---------- */
@@ -5624,7 +6851,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       charts.simU.setOptions({ xRange: [0, 12] });
     }
     updateSimUI();
-    if (keepRunning) setSimStage('ожидание');
+    if (keepRunning) setSimStage(t('ожидание'));
   }
 
   function startSim() {
@@ -5647,16 +6874,16 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     simMotorKey = motorKey(lastRep);
     updateSimUI();
     drawSimCharts(true);
-    setSimStage('разгон');
+    setSimStage(t('разгон'));
   }
 
   function pauseSim() {
     simRunning = false;
     if (simState) simState.running = false;
     if (ghostState) ghostState.running = false;
-    setSimStage(simState && simState.done ? 'завершено' : 'пауза');
+    setSimStage(t(simState && simState.done ? 'завершено' : 'пауза'));
     const pl = $('#simPauseLabel');
-    if (pl) pl.textContent = 'Продолжить';
+    if (pl) pl.textContent = t('Продолжить');
   }
 
   function ensureSim() {
@@ -5683,6 +6910,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     note.innerHTML = state.sim.overlay !== 'none'
       ? 'Пунктир — <b>' + methodLabel(state.sim.overlay) + '</b>. Сравнение идёт при той же нагрузке и инерции.'
       : 'Выберите «Наложить способ», чтобы сравнить два пуска на графиках.';
+    if (I18N.isEn()) I18N.translateDom(document.body);
   }
 
   function updateSimUI() {
@@ -5690,7 +6918,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     if (!simState) {
       ['simT', 'simN', 'simI', 'simTq', 'simU'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = id === 'simT' ? '0.00' : '0'; });
       const f = $('#simF'); if (f) f.textContent = nf(state.freq, 1);
-      setSimStage('ожидание');
+      setSimStage(t('ожидание'));
       return;
     }
     const st = simState;
@@ -5710,10 +6938,11 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
         stage = st.t > lim && st.nNow < 0.9 * st.motor.n ? 'не выходит на скорость' : 'разгон';
       }
     }
-    if (simFollow && st.running) stage += ' · слежение';
-    setSimStage(stage);
+    if (simFollow && st.running) stage = tf('{s} · слежение', { s: t(stage) });
+    setSimStage(t(stage));
     const pl = $('#simPauseLabel');
-    if (pl) pl.textContent = st.running ? 'Пауза' : 'Продолжить';
+    if (pl) pl.textContent = st.running ? t('Пауза') : t('Продолжить');
+    if (I18N.isEn()) I18N.translateDom(document.body);
   }
 
   function drawSimCharts(force) {
@@ -5734,7 +6963,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     const m = st.motor;
     const nSeries = [
       { name: 'n', color: C.cyan, data: pts.map(p => [p.t, p.n]), width: 2 },
-      { name: 's, %', color: C.pink, data: pts.map(p => [p.t, p.s]), axis: 1, width: 1.5 }
+      { name: t('s, %'), color: C.pink, data: pts.map(p => [p.t, p.s]), axis: 1, width: 1.5 }
     ];
     if (gPts.length) nSeries.push({ name: gName + ': n', color: C.overlay, dash: [6, 4], width: 1.8, data: gPts.map(p => [p.t, p.n]) });
     charts.simN.setData(nSeries);
@@ -5742,26 +6971,26 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
 
     const iSeries = [
       { name: 'I', color: C.blue, data: pts.map(p => [p.t, p.I]), width: 2 },
-      { name: 'I / Iн', color: C.amber, data: pts.map(p => [p.t, p.I / m.i]), axis: 1, width: 1.5, dash: [4, 3] }
+      { name: t('I / Iн'), color: C.amber, data: pts.map(p => [p.t, p.I / m.i]), axis: 1, width: 1.5, dash: [4, 3] }
     ];
     if (gPts.length) iSeries.push({ name: gName + ': I', color: C.overlay, dash: [6, 4], width: 1.8, data: gPts.map(p => [p.t, p.I]) });
     charts.simI.setData(iSeries);
     charts.simI.setOptions({
       xRange: xr,
-      hLines: [{ y: m.i, color: 'rgba(90,169,255,0.35)', label: 'Iн' }]
+      hLines: [{ y: m.i, color: 'rgba(90,169,255,0.35)', label: t('Iн') }]
     });
 
     const tSeries = [
-      { name: 'M двигателя', color: C.mint, data: pts.map(p => [p.t, p.T]), width: 2 },
-      { name: 'M нагрузки', color: C.amber, data: pts.map(p => [p.t, E.loadTorque(m, p.n, st.cfg.load)]), width: 1.5, dash: [4, 3] }
+      { name: t('M двигателя'), color: C.mint, data: pts.map(p => [p.t, p.T]), width: 2 },
+      { name: t('M нагрузки'), color: C.amber, data: pts.map(p => [p.t, E.loadTorque(m, p.n, st.cfg.load)]), width: 1.5, dash: [4, 3] }
     ];
     if (gPts.length) tSeries.push({ name: gName + ': M', color: C.overlay, dash: [6, 4], width: 1.8, data: gPts.map(p => [p.t, p.T]) });
     charts.simT.setData(tSeries);
     charts.simT.setOptions({ xRange: xr });
 
     const uSeries = [
-      { name: 'U, %', color: C.violet, data: pts.map(p => [p.t, p.U]), width: 2 },
-      { name: 'f₁, Гц', color: C.lime || C.mint, data: pts.map(p => [p.t, p.f]), axis: 1, width: 1.5 }
+      { name: t('U, %'), color: C.violet, data: pts.map(p => [p.t, p.U]), width: 2 },
+      { name: t('f₁, Гц'), color: C.lime || C.mint, data: pts.map(p => [p.t, p.f]), axis: 1, width: 1.5 }
     ];
     if (gPts.length) uSeries.push({ name: gName + ': U', color: C.overlay, dash: [6, 4], width: 1.8, data: gPts.map(p => [p.t, p.U]) });
     charts.simU.setData(uSeries);
@@ -5973,7 +7202,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
           state.projectLogo = c.toDataURL('image/png');
           $('#logoHint').textContent = 'логотип загружен';
           saveState();
-          setStatus('логотип загружен', 'ok');
+          setStatus(t('логотип загружен'), 'ok');
         };
         img.src = reader.result;
       };
@@ -6025,6 +7254,14 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     document.addEventListener('keydown', e => { if (e.key === 'Escape') hideTip(); });
     document.addEventListener('scroll', () => { if (activeTip) hideTip(); }, true);
     window.addEventListener('resize', () => { if (activeTip) hideTip(); });
+
+    // язык
+    $('#segLang').addEventListener('click', e => {
+      const b = e.target.closest('button[data-val]');
+      if (!b) return;
+      I18N.setLang(b.dataset.val);
+      hideTip();
+    });
 
     // тема
     $('#segTheme').addEventListener('click', e => {
@@ -6203,7 +7440,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     const sheets = [];
     sheets.push({ name: 'Параметры', rows: [
       ['Параметр', 'Значение', 'Ед.'],
-      ['Тип двигателя', m.catalog ? m.catalog.type : (m.phases === 1 ? 'Однофазный (' + t1name + ')' : '—') + (m.phases === 1 && m.p2 > 7.5 ? ' — оценка >7,5 кВт' : ''), ''],
+      ['Тип двигателя', m.catalog ? m.catalog.type : (m.phases === 1 ? tf('Однофазный ({t})', { t: t(t1name) }) : '—') + (m.phases === 1 && m.p2 > 7.5 ? t(' — оценка >7,5 кВт') : ''), ''],
       ['Питание', m.phases === 1 ? '1 фаза' : '3 фазы', ''],
       ['Схема', m.phases === 1 ? '1 фаза, L/N' : (m.conn === 'D' ? 'Δ' : 'Y'), ''],
       ['Способ задания', modeName, ''],
@@ -6226,19 +7463,19 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       ['Класс изоляции', m.motorClass, ''],
       ['Температура обмотки', rnd(op.temp, 0), '°C'],
       ['Предел температуры', m.tempLimit, '°C'],
-      ['Способ пуска', methodLabel(state.startMethod), '']
+      ['Способ пуска', t(methodLabel(state.startMethod)), '']
     ]});
     sheets.push({ name: 'Защита и кабель', rows: [
       ['Параметр', 'Значение', 'Ед.'],
       ['Тип автомата', b.type === 'mccb' ? 'MCCB' : 'MCB', ''],
       ['Полюсов автомата', m.phases === 1 ? 1 : 3, ''],
       ['Номинал автомата', b.In, 'А'],
-      ['Кривая / уставка', b.type === 'mccb' ? b.mag + '×Iн' : b.curve, ''],
+      ['Кривая / уставка', b.type === 'mccb' ? b.mag + '×' + t('Iн') : b.curve, ''],
       ['Ток отсечки', b.magTrip, 'А'],
       ['Icu', b.icu, 'кА'],
       ['Селективность', b.upstream ? (b.okSel ? 'обеспечена' : 'не обеспечена') : 'не задана', ''],
       ['Тепловое реле', lastRep.relay.lo + '…' + lastRep.relay.hi, 'А'],
-      ['Контактор', lastRep.contactor.i + ' А / ' + lastRep.contactor.kw, 'кВт'],
+      ['Контактор', lastRep.contactor.i + ' ' + t('А') + ' / ' + lastRep.contactor.kw, 'кВт'],
       ['Предохранитель aM', lastRep.fuse, 'А'],
       ['Параллельных кабелей', c.parallel, ''],
       ['Нагруженных жил', c.loaded, ''],
@@ -6261,7 +7498,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     if (compareData) {
       sheets.push({ name: 'Сравнение пусков', rows: [
         ['Способ', 'Время разгона, с', 'Пиковый ток, А', 'Пиковый момент, Н·м', 'Результат'],
-        ...compareData.map(x => [methodLabel(x.method), x.tStart == null ? '—' : rnd(x.tStart, 2), rnd(x.peakI, 1), rnd(x.peakT, 1), x.stalled || x.tStart == null ? 'не выходит на скорость' : 'разгон'])
+        ...compareData.map(x => [t(methodLabel(x.method)), x.tStart == null ? '—' : rnd(x.tStart, 2), rnd(x.peakI, 1), rnd(x.peakT, 1), x.stalled || x.tStart == null ? t('не выходит на скорость') : t('разгон')])
       ]});
     }
     sheets.push({ name: 'Проверки', rows: [
@@ -6286,6 +7523,13 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       ];
       sheets.push({ name: 'Графики', rows: [['График', 'Изображение'], ...chartImgs.map(x => [x.name, ''])] });
     } catch (e) { chartImgs = []; }
+    if (I18N.isEn()) {
+      sheets.forEach(sh => {
+        sh.name = t(sh.name);
+        sh.rows = sh.rows.map(r => r.map(v => (typeof v === 'string' ? I18N.plain(v) : v)));
+      });
+      chartImgs.forEach(x => { x.name = I18N.plain(x.name); });
+    }
     const blob = MC.xlsx.build(sheets, chartImgs);
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -6302,7 +7546,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       rows.push([sw.load[i], sw.I[i], sw.U[i], sw.n[i], sw.s[i], sw.f2[i], sw.eta[i], sw.cos[i], sw.p1[i], sw.p2[i], sw.dU[i]]
         .map(v => Math.round(v * 1000) / 1000).join(';'));
     }
-    const head = ['# ' + (m.catalog ? m.catalog.type : 'двигатель'), 'P2=' + m.p2 + ' kW', 'U=' + m.U + ' V', 'I=' + m.i.toFixed(2) + ' A'].join(';');
+    const head = ['# ' + (m.catalog ? m.catalog.type : t('двигатель')), 'P2=' + m.p2 + ' kW', 'U=' + m.U + ' V', 'I=' + m.i.toFixed(2) + ' A'].join(';');
     const blob = new Blob(['\ufeff' + head + '\n' + rows.join('\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -6333,15 +7577,39 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     return state.theme === 'auto' ? (mqLight && mqLight.matches ? 'light' : 'dark') : state.theme;
   }
   function applyTheme(redraw) {
-    const t = effectiveTheme();
-    document.documentElement.setAttribute('data-theme', t);
-    if (MC.setChartTheme) MC.setChartTheme(t);
-    if (MC.PALETTES && MC.CHART_COLORS) Object.assign(MC.CHART_COLORS, MC.PALETTES[t]);
+    const th = effectiveTheme();
+    document.documentElement.setAttribute('data-theme', th);
+    if (MC.setChartTheme) MC.setChartTheme(th);
+    if (MC.PALETTES && MC.CHART_COLORS) Object.assign(MC.CHART_COLORS, MC.PALETTES[th]);
     syncSeg('#segTheme', state.theme);
     if (redraw !== false && lastRep) {
       render(lastRep);
       if (simState) drawSimCharts();
     }
+  }
+
+  /* ---------- язык ---------- */
+  function syncLangUI() {
+    syncSeg('#segLang', I18N.lang);
+    document.documentElement.setAttribute('lang', I18N.lang);
+  }
+  /* полная перерисовка после смены языка: статику переводит i18n, динамику — рендер */
+  function relang() {
+    syncLangUI();
+    applyChartLabels();
+    fillCatalog(true);
+    if (state.mode === 'catalog') applyCatalog(false);
+    fillBreakerSeries();
+    fillBreakerCurves();
+    syncInputs();
+    renderRef();
+    decorateTips();
+    updateVisibility();
+    updateSimVisibility();
+    if (lastRep) render(lastRep);
+    if (state.tab === 'start') { updateSimUI(); drawSimCharts(true); updateCompare(); }
+    $('#footerStamp').textContent = new Date().toLocaleDateString(I18N.locale());
+    moveUnderline();
   }
 
   /* ---------- мобильная панель ---------- */
@@ -6440,11 +7708,11 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       return;
     }
     const last = tour.i === TOUR_STEPS.length - 1;
-    tour.card.innerHTML = `<div class="tour-top"><span class="tour-step">${tour.i + 1} / ${TOUR_STEPS.length}</span><button class="tour-x" data-tour="skip" aria-label="Закрыть">×</button></div>
+    tour.card.innerHTML = tHtml(`<div class="tour-top"><span class="tour-step">${tour.i + 1} / ${TOUR_STEPS.length}</span><button class="tour-x" data-tour="skip" aria-label="Закрыть">×</button></div>
       <h4>${step.title}</h4><p>${step.text}</p>
       <div class="tour-dots">${TOUR_STEPS.map((_, k) => `<span class="tour-dot${k === tour.i ? ' on' : ''}"></span>`).join('')}</div>
       <div class="tour-actions"><button class="btn ghost" data-tour="skip">Пропустить</button>
-      <div class="tour-nav">${tour.i > 0 ? '<button class="btn" data-tour="prev">Назад</button>' : ''}<button class="btn primary" data-tour="next">${last ? 'Готово' : 'Далее'}</button></div></div>`;
+      <div class="tour-nav">${tour.i > 0 ? '<button class="btn" data-tour="prev">Назад</button>' : ''}<button class="btn primary" data-tour="next">${last ? 'Готово' : 'Далее'}</button></div></div>`);
     const isMobile = window.innerWidth <= 980;
     const sel = isMobile && step.mobile ? step.mobile : (step.desktop || step.sel);
     const el = sel ? document.querySelector(sel) : null;
@@ -6543,7 +7811,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
   }
 
   function copyText(text) {
-    const done = () => setStatus('ссылка на расчёт скопирована', 'ok');
+    const done = () => setStatus(t('ссылка на расчёт скопирована'), 'ok');
     const fallback = () => {
       const ta = document.createElement('textarea');
       ta.value = text;
@@ -6563,7 +7831,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       window.__lastShare = url;
       copyText(url);
     } catch (e) {
-      setStatus('не удалось создать ссылку', 'bad');
+      setStatus(t('не удалось создать ссылку'), 'bad');
     }
   }
 
@@ -6588,6 +7856,8 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
   }
 
   function init() {
+    I18N.init();
+    syncLangUI();
     initCharts();
     addChartTools();
     fillCatalog(true);
@@ -6597,7 +7867,8 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     decorateTips();
     renderRef();
     moveUnderline();
-    $('#footerStamp').textContent = new Date().toLocaleDateString('ru-RU');
+    $('#footerStamp').textContent = new Date().toLocaleDateString(I18N.locale());
+    I18N.onChange(relang);
     applyTheme(false);
     recalc();
     switchTab(state.tab || 'calc');

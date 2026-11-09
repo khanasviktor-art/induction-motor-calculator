@@ -10,11 +10,15 @@
   const C = MC.CHART_COLORS;
   const $ = s => document.querySelector(s);
   const $$ = s => Array.from(document.querySelectorAll(s));
-  const nf = (v, d) => {
-    if (!isFinite(v)) return '—';
-    if (Math.abs(v) < Math.pow(10, -(d + 2))) v = 0;
-    return Number(v).toLocaleString('ru-RU', { minimumFractionDigits: d, maximumFractionDigits: d });
-  };
+  /* i18n: t — точная строка, tf — шаблон с {подстановками}, tHtml — разметка */
+  const I18N = window.MC_I18N;
+  const t = s => I18N.t(s);
+  const tf = (s, v) => I18N.tf(s, v);
+  const tHtml = s => I18N.tHtml(s);
+  /* nf учитывает язык: 1 469,23 (ru) / 1,469.23 (en) */
+  const nf = (v, d) => I18N.nf(v, d);
+  /* число + единица: nu(11.47, 2, 'кВт') → «11,47 кВт» / «11.47 kW» */
+  const nu = (v, d, unit) => nf(v, d) + (unit ? ' ' + t(unit) : '');
 
   /* ---------- состояние ---------- */
   const DEFAULTS = {
@@ -76,50 +80,82 @@
 
   /* ---------- графики ---------- */
   const charts = {};
-  function initCharts() {
-    const aria = (id, label) => { const el = document.getElementById(id); if (el) { el.setAttribute('role', 'img'); el.setAttribute('aria-label', label); } };
-    aria('chartTorque', 'Механическая характеристика: момент двигателя и момент нагрузки от скорости');
-    charts.torque = new MC.Chart($('#chartTorque'), {
-      xLabel: 'n, об/мин', yLabel: 'M, Н·м', xFmt: v => nf(v, 0), yFmt: v => nf(v, 0),
-      pad: { l: 58, r: 22, t: 34, b: 40 }
+  /* подписи осей и aria — по ключам, чтобы пересобрать при смене языка */
+  const CHART_LABELS = {
+    torque: { x: 'n, об/мин', y: 'M, Н·м' },
+    iu: { x: 'нагрузка, %', y: 'I, А', y2: 'U, В' },
+    speed: { x: 'нагрузка, %', y: 'n, об/мин', y2: 's, % / f₂, Гц' },
+    eff: { x: 'нагрузка, %', y: 'η, %' },
+    power: { x: 'нагрузка, %', y: 'P, кВт' },
+    simN: { x: 't, с', y: 'n, об/мин', y2: 's, %' },
+    simI: { x: 't, с', y: 'I, А', y2: 'I / Iн' },
+    simT: { x: 't, с', y: 'M, Н·м' },
+    simU: { x: 't, с', y: 'U, %', y2: 'f, Гц' }
+  };
+  const CHART_ARIA = {
+    chartTorque: 'Механическая характеристика: момент двигателя и момент нагрузки от скорости',
+    chartIU: 'Ток и напряжение от нагрузки',
+    chartSpeed: 'Скорость, скольжение и частота ротора от нагрузки',
+    chartEff: 'КПД и коэффициент мощности от нагрузки',
+    chartPower: 'Потребляемая, полезная мощность и потери от нагрузки'
+  };
+  function applyChartLabels() {
+    Object.keys(CHART_LABELS).forEach(k => {
+      const c = charts[k];
+      if (!c) return;
+      const L = CHART_LABELS[k];
+      const o = { xLabel: t(L.x), yLabel: t(L.y) };
+      if (L.y2) o.y2Label = t(L.y2);
+      c.setOptions(o);
     });
-    aria('chartIU', 'Ток и напряжение от нагрузки');
-    charts.iu = new MC.Chart($('#chartIU'), {
-      xLabel: 'нагрузка, %', yLabel: 'I, А', y2Label: 'U, В', xFmt: v => nf(v, 0),
-      pad: { l: 56, r: 58, t: 34, b: 40 }
+    Object.keys(CHART_ARIA).forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.setAttribute('role', 'img');
+      el.setAttribute('aria-label', t(CHART_ARIA[id]));
     });
-    aria('chartSpeed', 'Скорость, скольжение и частота ротора от нагрузки');
-    charts.speed = new MC.Chart($('#chartSpeed'), {
-      xLabel: 'нагрузка, %', yLabel: 'n, об/мин', y2Label: 's, % / f₂, Гц', xFmt: v => nf(v, 0),
-      pad: { l: 58, r: 62, t: 34, b: 40 }
-    });
-    aria('chartEff', 'КПД и коэффициент мощности от нагрузки');
-    charts.eff = new MC.Chart($('#chartEff'), {
-      xLabel: 'нагрузка, %', yLabel: 'η, %', xFmt: v => nf(v, 0), yFmt: v => nf(v, 0),
-      pad: { l: 56, r: 22, t: 34, b: 40 }
-    });
-    aria('chartPower', 'Потребляемая, полезная мощность и потери от нагрузки');
-    charts.power = new MC.Chart($('#chartPower'), {
-      xLabel: 'нагрузка, %', yLabel: 'P, кВт', xFmt: v => nf(v, 0), yFmt: v => nf(v, 1),
-      pad: { l: 56, r: 22, t: 34, b: 40 }
-    });
+  }
 
-    charts.simN = new MC.Chart($('#chartSimN'), {
-      xLabel: 't, с', yLabel: 'n, об/мин', y2Label: 's, %', xFmt: v => nf(v, 1),
+  function initCharts() {
+    const L = k => ({ xLabel: t(CHART_LABELS[k].x), yLabel: t(CHART_LABELS[k].y), y2Label: CHART_LABELS[k].y2 ? t(CHART_LABELS[k].y2) : undefined });
+    charts.torque = new MC.Chart($('#chartTorque'), Object.assign(L('torque'), {
+      xFmt: v => nf(v, 0), yFmt: v => nf(v, 0),
+      pad: { l: 58, r: 22, t: 34, b: 40 }
+    }));
+    charts.iu = new MC.Chart($('#chartIU'), Object.assign(L('iu'), {
+      xFmt: v => nf(v, 0),
+      pad: { l: 56, r: 58, t: 34, b: 40 }
+    }));
+    charts.speed = new MC.Chart($('#chartSpeed'), Object.assign(L('speed'), {
+      xFmt: v => nf(v, 0),
+      pad: { l: 58, r: 62, t: 34, b: 40 }
+    }));
+    charts.eff = new MC.Chart($('#chartEff'), Object.assign(L('eff'), {
+      xFmt: v => nf(v, 0), yFmt: v => nf(v, 0),
+      pad: { l: 56, r: 22, t: 34, b: 40 }
+    }));
+    charts.power = new MC.Chart($('#chartPower'), Object.assign(L('power'), {
+      xFmt: v => nf(v, 0), yFmt: v => nf(v, 1),
+      pad: { l: 56, r: 22, t: 34, b: 40 }
+    }));
+
+    charts.simN = new MC.Chart($('#chartSimN'), Object.assign(L('simN'), {
+      xFmt: v => nf(v, 1),
       pad: { l: 58, r: 54, t: 34, b: 38 }
-    });
-    charts.simI = new MC.Chart($('#chartSimI'), {
-      xLabel: 't, с', yLabel: 'I, А', y2Label: 'I / Iн', xFmt: v => nf(v, 1),
+    }));
+    charts.simI = new MC.Chart($('#chartSimI'), Object.assign(L('simI'), {
+      xFmt: v => nf(v, 1),
       pad: { l: 58, r: 54, t: 34, b: 38 }
-    });
-    charts.simT = new MC.Chart($('#chartSimT'), {
-      xLabel: 't, с', yLabel: 'M, Н·м', xFmt: v => nf(v, 1), yFmt: v => nf(v, 0),
+    }));
+    charts.simT = new MC.Chart($('#chartSimT'), Object.assign(L('simT'), {
+      xFmt: v => nf(v, 1), yFmt: v => nf(v, 0),
       pad: { l: 58, r: 22, t: 34, b: 38 }
-    });
-    charts.simU = new MC.Chart($('#chartSimU'), {
-      xLabel: 't, с', yLabel: 'U, %', y2Label: 'f, Гц', xFmt: v => nf(v, 1),
+    }));
+    charts.simU = new MC.Chart($('#chartSimU'), Object.assign(L('simU'), {
+      xFmt: v => nf(v, 1),
       pad: { l: 58, r: 54, t: 34, b: 38 }
-    });
+    }));
+    applyChartLabels();
   }
 
   function addChartTools() {
@@ -225,13 +261,13 @@
   };
 
   function tipButton(key) {
-    return `<button type="button" class="tip-btn" data-tip="${key}" aria-label="Подсказка">i</button>`;
+    return `<button type="button" class="tip-btn" data-tip="${key}" aria-label="${t('Подсказка')}">i</button>`;
   }
   let activeTip = null;
   function tipText(key) {
     if (!key) return '';
-    if (key.indexOf('res:') === 0) return RESULT_TIPS[key.slice(4)] || '';
-    return TIPS[key] || '';
+    if (key.indexOf('res:') === 0) return t(RESULT_TIPS[key.slice(4)] || '');
+    return t(TIPS[key] || '');
   }
   function showTip(btn) {
     const pop = document.getElementById('tipPop');
@@ -276,7 +312,8 @@
     document.querySelectorAll('.kv-label, .kpi-label').forEach(el => {
       if (el.querySelector('.tip-btn')) return;
       const text = el.textContent.trim();
-      if (RESULT_TIPS[text]) el.insertAdjacentHTML('beforeend', tipButton('res:' + text));
+      const key = el.dataset.tip || (RESULT_TIPS[text] ? 'res:' + text : '');
+      if (key) el.insertAdjacentHTML('beforeend', tipButton(key));
     });
   }
 
@@ -383,7 +420,7 @@
     const ft = $('#field1phType');
     if (ft) ft.classList.toggle('hidden', !one);
     const ph = $('#polesHint');
-    if (ph) ph.textContent = one ? 'Для однофазных: 2/4/6/8 полюсов; это скорость, а не число обмоток (главная + пусковая).' : '';
+    if (ph) ph.textContent = one ? t('Для однофазных: 2/4/6/8 полюсов; это скорость, а не число обмоток (главная + пусковая).') : '';
   }
 
   function syncSeg(sel, val) {
@@ -400,9 +437,9 @@
     r.style.setProperty('--fill', (state.loadPct / 150 * 100) + '%');
     if (lastRep) {
       const op = lastRep.op;
-      $('#loadTorque').textContent = nf(op.Tload, 1) + ' Н·м';
-      $('#loadPower').textContent = nf(op.p2, 2) + ' кВт';
-      $('#loadSpeed').textContent = nf(op.n, 0) + ' об/мин';
+      $('#loadTorque').textContent = nu(op.Tload, 1, 'Н·м');
+      $('#loadPower').textContent = nu(op.p2, 2, 'кВт');
+      $('#loadSpeed').textContent = nu(op.n, 0, 'об/мин');
     }
   }
 
@@ -412,8 +449,8 @@
     if (el) el.disabled = !on;
     const hint = $('#loadReleaseHint');
     if (hint) hint.textContent = on
-      ? 'Скорость, при которой снимается разгрузка, % от nн. Не проценты нагрузки.'
-      : 'Задайте разгрузку > 0, чтобы использовать это поле.';
+      ? t('Скорость, при которой снимается разгрузка, % от nн. Не проценты нагрузки.')
+      : t('Задайте разгрузку > 0, чтобы использовать это поле.');
   }
 
   function fillBreakerSeries() {
@@ -431,7 +468,7 @@
     const s = MC.vtc.get(state.breakerSeries);
     const el = $('#brkCurve');
     const cur = s.curves.includes(state.curve) ? state.curve : s.curves[0];
-    el.innerHTML = s.curves.map(c => `<option value="${c}">${s.type === 'mccb' ? 'Уставка ' + c : 'Кривая ' + c}</option>`).join('');
+    el.innerHTML = s.curves.map(c => `<option value="${c}">${s.type === 'mccb' ? tf('Уставка {c}', { c }) : tf('Кривая {c}', { c })}</option>`).join('');
     el.value = cur;
     state.curve = cur;
     state.breakerType = s.type;
@@ -450,8 +487,8 @@
     const flc = $('#fieldLoadCurve');
     if (flc) flc.classList.toggle('hidden', state.loadType !== 'custom');
     $('#connHint').textContent = state.conn === 'Y'
-      ? 'Фазное напряжение ' + nf(state.voltage / Math.sqrt(3), 0) + ' В'
-      : 'Фазное напряжение ' + nf(state.voltage, 0) + ' В (равно линейному)';
+      ? tf('Фазное напряжение {u} В', { u: nf(state.voltage / Math.sqrt(3), 0) })
+      : tf('Фазное напряжение {u} В (равно линейному)', { u: nf(state.voltage, 0) });
     const hints = {
       catalog: 'Выбор типоразмера из каталога АИР',
       power: 'Известна мощность на валу и напряжение',
@@ -459,7 +496,7 @@
       torque: 'Известен момент на валу и частота вращения'
     };
     const mh = $('#modeHint');
-    if (mh) mh.textContent = hints[state.mode] || '';
+    if (mh) mh.textContent = t(hints[state.mode] || '');
     const ro = state.autoTypical || state.mode === 'catalog';
     ['eff', 'cos', 'slip', 'kst', 'mst', 'mmax'].forEach(id => {
       const el = document.getElementById(id);
@@ -483,7 +520,7 @@
     const sel = $('#catMotor');
     const cur = preserve ? state.catType : sel.value;
     sel.innerHTML = list.map(m =>
-      `<option value="${m.type}">${m.type}${m.typical ? ' *' : ''} · ${nf(m.p2, m.p2 % 1 ? 2 : 0)} кВт · ${m.n} об/мин</option>`
+      `<option value="${m.type}">${t(m.type)}${m.typical ? ' *' : ''} · ${nf(m.p2, m.p2 % 1 ? 2 : 0)} ${t('кВт')} · ${nf(m.n, 0)} ${t('об/мин')}</option>`
     ).join('');
     if (list.some(m => m.type === cur)) state.catType = cur;
     else if (list.length) state.catType = list[0].type;
@@ -502,11 +539,14 @@
     state.p2 = m.p2;
     const rec = recommendConn(m, state.voltage);
     if (updateConn !== false && state.connAuto) state.conn = rec;
-    $('#catInfo').textContent = `${m.p2} кВт · ${m.n} об/мин · КПД ${m.eff}% · cosφ ${m.cos} · Iп/Iн ${m.kst}` + (m.typical ? ' · типовые данные' : '');
+    $('#catInfo').textContent = tf('{p} кВт · {n} об/мин · КПД {eff}% · cosφ {cos} · Iп/Iн {kst}{typ}', {
+      p: m.p2, n: m.n, eff: m.eff, cos: m.cos, kst: m.kst,
+      typ: m.typical ? t(' · типовые данные') : ''
+    });
     $('#poles').value = m.poles;
     $('#connHint').textContent = state.conn === 'Y'
-      ? 'Фазное напряжение ' + nf(state.voltage / Math.sqrt(3), 0) + ' В'
-      : 'Фазное напряжение ' + nf(state.voltage, 0) + ' В (равно линейному)';
+      ? tf('Фазное напряжение {u} В', { u: nf(state.voltage / Math.sqrt(3), 0) })
+      : tf('Фазное напряжение {u} В (равно линейному)', { u: nf(state.voltage, 0) });
   }
 
   function connFactorFor(cat, U, conn, phases) {
@@ -597,7 +637,7 @@
       rep = E.buildReport(buildCfg());
     } catch (err) {
       console.error(err);
-      setStatus('ошибка: ' + err.message, 'bad');
+      setStatus(tf('ошибка: {m}', { m: err.message }), 'bad');
       return;
     }
     lastRep = rep;
@@ -633,7 +673,7 @@
         get compare() { return compareData; }
       };
     }
-    setStatus('готово', 'ok');
+    setStatus(t('готово'), 'ok');
 
     const key = motorKey(rep);
     if (key !== lastKey) {
@@ -643,6 +683,7 @@
       simState.cfg = simCfg();
     }
     updateCompare();
+    if (I18N.isEn()) I18N.translateDom(document.body);
   }
 
   function motorKey(rep) {
@@ -686,7 +727,8 @@
     arr.push(v);
     while (arr.length > 4) arr.shift();
     setVariants(arr);
-    setStatus('вариант сохранён', 'ok');
+    setStatus(t('вариант сохранён'), 'ok');
+    if (I18N.isEn()) I18N.translateDom(document.body);
   }
   function renderVariants() {
     const arr = getVariants();
@@ -735,10 +777,10 @@
         lastKey = '';
         recalc();
         switchTab('calc');
-        setStatus('проект загружен', 'ok');
+        setStatus(t('проект загружен'), 'ok');
       } catch (e) {
         console.error(e);
-        setStatus('ошибка файла проекта', 'bad');
+        setStatus(t('ошибка файла проекта'), 'bad');
       }
     };
     reader.readAsText(file);
@@ -815,7 +857,7 @@
 </style></head><body>
 <div class="noprint"><button onclick="window.print()">Печать / PDF</button><button onclick="window.close()">Закрыть</button></div>
 <div class="head"><div><h1>${state.projectName ? state.projectName : 'Асинхронный двигатель — расчёт'}</h1>
-<p class="sub">${state.projectName ? 'Асинхронный двигатель — расчёт · ' : ''}${m.catalog ? m.catalog.type : (m.phases === 1 ? 'Однофазный двигатель ' : 'Двигатель ') + nf(m.p2, 1) + ' кВт'}${m.phases === 1 && m.p2 > 7.5 ? ' · оценка (типовые данные до 7,5 кВт)' : ''} · ${nf(m.U, 0)} В · ${m.p2.toFixed(1)} кВт · ${new Date().toLocaleString('ru-RU')}</p></div>${state.projectLogo ? `<img class="logo" src="${state.projectLogo}" alt="">` : ''}</div>
+<p class="sub">${state.projectName ? t('Асинхронный двигатель — расчёт') + ' · ' : ''}${m.catalog ? t(m.catalog.type) : t(m.phases === 1 ? 'Однофазный двигатель' : 'Двигатель') + ' ' + nu(m.p2, 1, 'кВт')}${m.phases === 1 && m.p2 > 7.5 ? t(' · оценка (типовые данные до 7,5 кВт)') : ''} · ${nu(m.U, 0, 'В')} · ${nu(m.p2, 1, 'кВт')} · ${new Date().toLocaleString(I18N.locale())}</p></div>${state.projectLogo ? `<img class="logo" src="${state.projectLogo}" alt="">` : ''}</div>
 
 <div class="two">
 <div>
@@ -843,8 +885,8 @@
 <div>
 <h2>Защита</h2>
 <table>${rows([
-  ['Автомат', nf(b.In, 0) + ' А · ' + (m.phases === 1 ? '1P · ' : '3P · ') + (b.type === 'mccb' ? 'MCCB' : 'MCB ' + b.curve)],
-  ['Отсечка', nf(b.magTrip, 0) + ' А (' + b.mag + '×Iн)'],
+  ['Автомат', nu(b.In, 0, 'А') + ' · ' + (m.phases === 1 ? '1P · ' : '3P · ') + (b.type === 'mccb' ? 'MCCB' : 'MCB ' + b.curve)],
+  ['Отсечка', nu(b.magTrip, 0, 'А') + tf(' ({k}×Iн)', { k: b.mag })],
   ['Icu', nf(b.icu, 0) + ' кА'],
   ['Тепловое реле', nf(lastRep.relay.lo, 1) + '…' + nf(lastRep.relay.hi, 1) + ' А'],
   ['Контактор', nf(lastRep.contactor.i, 0) + ' А / ' + nf(lastRep.contactor.kw, 0) + ' кВт'],
@@ -875,7 +917,7 @@
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.7.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.8.0.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     const w = window.open('', '_blank');
@@ -883,6 +925,11 @@
     w.document.open();
     w.document.write(html);
     w.document.close();
+    if (I18N.isEn() && w.document.body) {
+      w.document.documentElement.setAttribute('lang', 'en');
+      w.document.title = tf('Отчёт — {name}', { name: m.catalog ? m.catalog.type : t('асинхронный двигатель') });
+      I18N.translateDom(w.document.body);
+    }
   }
 
   /* ---------- рендер ---------- */
@@ -900,15 +947,17 @@
     if (state.tab === 'cable') renderCableTab(rep);
     renderVariants();
     updateLoadbar();
-    $('#tagMode').textContent = ({ catalog: 'база', power: 'P₂', current: 'I', torque: 'M' })[rep.motor.mode] || '—';
+    $('#tagMode').textContent = t(({ catalog: 'база', power: 'P₂', current: 'I', torque: 'M' })[rep.motor.mode] || '—');
     $('#tagStart').textContent = methodShort(state.startMethod);
     decorateTips();
     if (state.tab === 'cable') drawVTC(rep);
+    if (I18N.isEn()) I18N.translateDom(document.body);
   }
 
   function kpi(label, value, unit, sub, color) {
+    const tip = RESULT_TIPS[label] ? ` data-tip="res:${label}"` : '';
     return `<div class="kpi" style="--kc:${color || 'var(--mint)'}">
-      <div class="kpi-label">${label}</div>
+      <div class="kpi-label"${tip}>${label}</div>
       <div class="kpi-value">${value}<span class="u">${unit || ''}</span></div>
       <div class="kpi-sub">${sub || ''}</div>
     </div>`;
@@ -935,15 +984,16 @@
     $('#verdict').innerHTML = `
       <b>${name}</b><span class="sep"></span>
       <span>P₂ <b>${nf(m.p2, 1)}</b> кВт · ${nf(m.U, 0)} В · Iн <b>${nf(m.i, 1)}</b> А</span><span class="sep"></span>
-      <span>автомат <b>${nf(b.In, 0)}</b> А${m.phases === 1 ? ' · 1P' : ''} (${b.curve})</span><span class="sep"></span>
-      <span>кабель <b>${c.parallel > 1 ? c.parallel + ' × ' : ''}${nf(c.section, 1)}</b> мм² ${c.material === 'al' ? 'Al' : 'Cu'} · PE ${c.parallel > 1 ? c.parallel + ' × ' : ''}${nf(c.pe, 1)}</span><span class="sep"></span>
+      <span>${t('автомат')} <b>${nf(b.In, 0)}</b> ${t('А')}${m.phases === 1 ? ' · 1P' : ''} (${b.curve})</span><span class="sep"></span>
+      <span>${t('кабель')} <b>${c.parallel > 1 ? c.parallel + ' × ' : ''}${nf(c.section, 1)}</b> ${t('мм²')} ${c.material === 'al' ? 'Al' : 'Cu'} · PE ${c.parallel > 1 ? c.parallel + ' × ' : ''}${nf(c.pe, 1)}</span><span class="sep"></span>
       <span>ΔU <b>${nf(rep.drop.pct, 2)}</b> %</span>
       <span style="margin-left:auto">${stateTxt}</span>
       <button class="mini" data-act="remember" title="Сохранить вариант для сравнения">+ вариант</button>`;
   }
 
   function kv(label, value, unit, cls) {
-    return `<div class="kv-row"><span class="kv-label">${label}</span><span class="kv-value ${cls || ''}">${value}${unit ? `<span class="u">${unit}</span>` : ''}</span></div>`;
+    const tip = RESULT_TIPS[label] ? ` data-tip="res:${label}"` : '';
+    return `<div class="kv-row"><span class="kv-label"${tip}>${label}</span><span class="kv-value ${cls || ''}">${value}${unit ? `<span class="u">${unit}</span>` : ''}</span></div>`;
   }
 
   function renderMotorPanel(rep) {
@@ -964,7 +1014,7 @@
       ${kv('Класс изоляции', m.motorClass + ' · предел ' + m.tempLimit, '°C')}
       ${kv('Постоянная нагрева τ', nf(m.tauMin, 0), 'мин')}
     </div>`;
-    $('#motorNote').textContent = m.note;
+    $('#motorNote').textContent = t(m.note || '');
   }
 
   function methodShort(v) {
@@ -978,21 +1028,22 @@
     const m = rep.motor;
     const cmp = (compareData || []).find(x => x.method === state.startMethod);
     const tStart = cmp && cmp.tStart != null ? nf(cmp.tStart, 2) + ' с' : (cmp ? 'не выходит на скорость' : '—');
-    const ratio = cmp ? ' / ' + nf(cmp.peakI / m.i, 1) + '×Iн' : '';
+    const ratio = cmp ? tf(' / {v}×Iн', { v: nf(cmp.peakI / m.i, 1) }) : '';
     $('#panelStart').innerHTML = `<div class="kv">
-      ${kv('Пусковой ток Iп', nf(m.ist, 1), 'А (' + nf(m.kst, 1) + '×Iн)')}
-      ${kv('Пусковой момент Mп', nf(m.mstAbs, 1), 'Н·м (' + nf(m.mst, 2) + '×Mн)')}
-      ${kv('Максимальный момент', nf(m.mmaxReal.t, 1), 'Н·м (' + nf(m.mmaxReal.t / m.mn, 2) + '×Mн)')}
+      ${kv('Пусковой ток Iп', nf(m.ist, 1), tf('А ({k}×Iн)', { k: nf(m.kst, 1) }))}
+      ${kv('Пусковой момент Mп', nf(m.mstAbs, 1), tf('Н·м ({k}×Mн)', { k: nf(m.mst, 2) }))}
+      ${kv('Максимальный момент', nf(m.mmaxReal.t, 1), tf('Н·м ({k}×Mн)', { k: nf(m.mmaxReal.t / m.mn, 2) }))}
       ${kv('Момент при выбранном пуске', cmp ? nf(cmp.peakT, 0) : '—', cmp ? 'Н·м' : '')}
-      ${kv('Пиковый ток пуска (с линией)', cmp ? nf(cmp.peakI, 0) : '—', cmp ? 'А' + ratio : '')}
+      ${kv('Пиковый ток пуска (с линией)', cmp ? nf(cmp.peakI, 0) : '—', cmp ? t('А') + ratio : '')}
       ${kv('Разгон', tStart, '')}
       ${kv('Пусковая мощность Sп', nf((m.phases === 3 ? Math.sqrt(3) : 1) * m.U * m.ist / 1000, 1), 'кВ·А')}
       ${kv('Инерция привода J∑', nf(m.j + (+state.jExtra || 0), 4), 'кг·м²')}
       ${kv('Способ пуска', methodLabel(state.startMethod), '')}
-      ${kv('Способ задания', m.mode === 'catalog' ? 'каталог АИР' : m.mode === 'current' ? 'по току' : m.mode === 'torque' ? 'по моменту' : 'по мощности', '')}
+      ${kv('Способ задания', t(m.mode === 'catalog' ? 'каталог АИР' : m.mode === 'current' ? 'по току' : m.mode === 'torque' ? 'по моменту' : 'по мощности'), '')}
     </div>
-    <div class="note-line">${startAdvice(m)}</div>
-    ${cmp && cmp.tStart == null ? `<div class="note-line bad" style="color:var(--pink)">${startDiagnosis(rep, cmp)}</div>` : ''}`;
+    <div class="note-line">${t(startAdvice(m))}</div>
+    ${cmp && cmp.tStart == null ? `<div class="note-line bad" style="color:var(--pink)">${t(startDiagnosis(rep, cmp))}</div>` : ''}`;
+    if (I18N.isEn()) I18N.translateDom(document.body);
   }
 
   function startDiagnosis(rep, cmp) {
@@ -1056,7 +1107,7 @@
     const pad = { l: 54, r: 18, t: 22, b: 34 };
     const xmin = 1, xmax = 100000, ymin = 0.01, ymax = 10000;
     const X = I => pad.l + (Math.log10(Math.max(I, xmin)) - Math.log10(xmin)) / (Math.log10(xmax) - Math.log10(xmin)) * (W - pad.l - pad.r);
-    const Y = t => pad.t + (Math.log10(ymax) - Math.log10(Math.max(t, ymin))) / (Math.log10(ymax) - Math.log10(ymin)) * (H - pad.t - pad.b);
+    const Y = tv => pad.t + (Math.log10(ymax) - Math.log10(Math.max(tv, ymin))) / (Math.log10(ymax) - Math.log10(ymin)) * (H - pad.t - pad.b);
     const line = (pts, color, width, dash) => {
       if (!pts.length) return;
       g.save(); g.strokeStyle = color; g.lineWidth = width || 1.6; g.setLineDash(dash || []); g.beginPath();
@@ -1067,14 +1118,14 @@
     g.font = '10px ui-monospace, monospace'; g.fillStyle = C.text; g.strokeStyle = C.line; g.lineWidth = 1;
     for (const d of [1, 10, 100, 1000, 10000, 100000]) {
       const x = X(d); g.globalAlpha = .35; g.beginPath(); g.moveTo(x, pad.t); g.lineTo(x, H - pad.b); g.stroke(); g.globalAlpha = 1;
-      g.textAlign = 'center'; g.fillText(d >= 1000 ? (d / 1000) + 'к' : d, x, H - 14);
+      g.textAlign = 'center'; g.fillText(d >= 1000 ? (d / 1000) + t('к') : d, x, H - 14);
     }
-    for (const t of [0.01, 0.1, 1, 10, 100, 1000, 10000]) {
-      const y = Y(t); g.globalAlpha = .35; g.beginPath(); g.moveTo(pad.l, y); g.lineTo(W - pad.r, y); g.stroke(); g.globalAlpha = 1;
-      g.textAlign = 'right'; g.fillText(t >= 1000 ? (t / 1000) + 'к' : t, pad.l - 6, y + 3);
+    for (const tt of [0.01, 0.1, 1, 10, 100, 1000, 10000]) {
+      const y = Y(tt); g.globalAlpha = .35; g.beginPath(); g.moveTo(pad.l, y); g.lineTo(W - pad.r, y); g.stroke(); g.globalAlpha = 1;
+      g.textAlign = 'right'; g.fillText(tt >= 1000 ? (tt / 1000) + t('к') : tt, pad.l - 6, y + 3);
     }
-    g.textAlign = 'left'; g.fillStyle = C.soft; g.fillText('I, А', W - pad.r - 30, H - 2);
-    g.save(); g.translate(12, pad.t + 40); g.rotate(-Math.PI / 2); g.fillText('t, с', 0, 0); g.restore();
+    g.textAlign = 'left'; g.fillStyle = C.soft; g.fillText(t('I, А'), W - pad.r - 30, H - 2);
+    g.save(); g.translate(12, pad.t + 40); g.rotate(-Math.PI / 2); g.fillText(t('t, с'), 0, 0); g.restore();
     const b = rep.breaker, s = MC.vtc.get(b.series || state.breakerSeries), In = b.In;
     const curve = b.curve && s.curves.includes(b.curve) ? b.curve : s.curves[0];
     // тепловая зона выбранного автомата
@@ -1105,10 +1156,10 @@
     const Istart = rep.iStart || rep.motor.ist;
     g.save(); g.fillStyle = C.mint; g.beginPath(); g.arc(X(Istart), Y(Math.max(tS, 0.02)), 4.5, 0, Math.PI * 2); g.fill();
     g.font = '10px ui-monospace, monospace'; g.fillStyle = C.mint; g.textAlign = 'left';
-    g.fillText('пуск ' + nf(Istart, 0) + ' А / ' + (cmp && cmp.tStart != null ? nf(tS, 2) + ' с' : '?'), X(Istart) + 7, Y(Math.max(tS, 0.02)) - 5);
+    g.fillText(tf('пуск {i} А / {t} с', { i: nf(Istart, 0), t: cmp && cmp.tStart != null ? nf(tS, 2) : '?' }), X(Istart) + 7, Y(Math.max(tS, 0.02)) - 5);
     g.restore();
     // легенда
-    const leg = [['Автомат ' + s.brand + ' ' + s.series + ' ' + In + ' А', C.amber], ['Отсечка', C.red], ['Пуск', C.mint], ['Кабель', C.blue], ['Вышестоящий', C.violet]];
+    const leg = [[tf('Автомат {b} {s} {i} А', { b: s.brand, s: s.series, i: In }), C.amber], [t('Отсечка'), C.red], [t('Пуск'), C.mint], [t('Кабель'), C.blue], [t('Вышестоящий'), C.violet]];
     g.font = '10px -apple-system, sans-serif'; let lx = pad.l + 8, ly = pad.t + 10;
     leg.forEach(([txt, color]) => {
       const tw = g.measureText(txt).width;
@@ -1117,11 +1168,16 @@
       lx += tw + 34;
     });
     const selBad = b.upstream && !b.okSel;
-    $('#tagVTC').textContent = !rep.checks.breakerMag ? 'отсечка на пуске' : selBad ? 'селективность недостаточна' : 'пуск проходит';
+    $('#tagVTC').textContent = !rep.checks.breakerMag ? t('отсечка на пуске') : selBad ? t('селективность недостаточна') : t('пуск проходит');
     $('#tagVTC').className = 'panel-tag ' + (!rep.checks.breakerMag ? 'bad' : selBad ? 'warn' : 'ok');
-    const selTxt = b.upstream ? ' Селективность ' + nf(b.selRatio, 1) + '× ' + (b.okSel ? 'обеспечена' : 'недостаточна') + '.' : '';
-    $('#vtcFoot').textContent = 'Серия ' + s.brand + ' ' + s.series + ', ' + In + ' А, ' + (s.type === 'mccb' ? 'MCCB' : 'кривая ' + curve) + '. Пик пуска ' + nf(Istart, 0) + ' А; отсечка ' + nf(b.magTrip, 0) + ' А.' + selTxt;
-    fillChartTable('dataVTC', ['I, А', 'I/Iн', 't, с'], pts.map(p => [nf(p[0], 0), nf(p[0] / In, 2), nf(p[1], 3)]));
+    const selTxt = b.upstream ? tf(' Селективность {r}× {ok}.', { r: nf(b.selRatio, 1), ok: b.okSel ? t('обеспечена') : t('недостаточна') }) : '';
+    $('#vtcFoot').textContent = tf('Серия {b} {s}, {i} А, {type}. Пик пуска {peak} А; отсечка {mag} А.{sel}', {
+      b: s.brand, s: s.series, i: In,
+      type: s.type === 'mccb' ? 'MCCB' : tf('кривая {c}', { c: curve }),
+      peak: nf(Istart, 0), mag: nf(b.magTrip, 0), sel: selTxt
+    });
+    fillChartTable('dataVTC', [t('I, А'), t('I/Iн'), t('t, с')], pts.map(p => [nf(p[0], 0), nf(p[0] / In, 2), nf(p[1], 3)]));
+    if (I18N.isEn()) I18N.translateDom(document.body);
   }
 
   function renderProtectPanel(rep) {
@@ -1131,8 +1187,8 @@
     $('#tagProtect').textContent = ok ? 'согласовано' : 'проверить';
     $('#tagProtect').className = 'panel-tag ' + (ok ? 'ok' : 'bad');
     $('#panelProtect').innerHTML = `<div class="kv">
-      ${kv('Автоматический выключатель', nf(b.In, 0) + ' А', (m.phases === 1 ? '1P · ' : '') + (b.type === 'mccb' ? 'MCCB' : 'MCB · кривая ' + b.curve))}
-      ${kv('Ток отсечки (мин.)', nf(b.magTrip, 0), 'А  (' + b.mag + '×Iн)')}
+      ${kv('Автоматический выключатель', nf(b.In, 0), t('А') + ' · ' + (m.phases === 1 ? '1P · ' : '') + (b.type === 'mccb' ? 'MCCB' : 'MCB · ' + tf('кривая {c}', { c: b.curve })))}
+      ${kv('Ток отсечки (мин.)', nf(b.magTrip, 0), tf('А  ({k}×Iн)', { k: b.mag }))}
       ${kv('Расчётный ток пуска', nf(rep.iStart, 0), 'А · ' + methodShort(state.startMethod), !rep.checks.breakerMag ? 'bad' : '')}
       ${kv('Отключающая способность', nf(b.icu, 0), 'кА')}
       ${kv('Селективность', b.upstream ? nf(b.selRatio, 1) + '×' : 'не задана', b.upstream ? (b.okSel ? 'обеспечена' : 'недостаточна') : '', b.upstream && !b.okSel ? 'bad' : '')}
@@ -1153,10 +1209,10 @@
     $('#tagCable').textContent = ok ? 'норма' : 'проверить';
     $('#tagCable').className = 'panel-tag ' + (ok ? 'ok' : 'bad');
     $('#panelCable').innerHTML = `<div class="kv">
-      ${kv('Сечение фазных жил', (multi ? c.parallel + ' × ' : '') + nf(c.section, 1), 'мм²  ' + (c.material === 'al' ? 'Al' : 'Cu'))}
+      ${kv('Сечение фазных жил', (multi ? c.parallel + ' × ' : '') + nf(c.section, 1), tf('мм²  {m}', { m: c.material === 'al' ? 'Al' : 'Cu' }))}
       ${kv('Сечение PE', (multi ? c.parallel + ' × ' : '') + nf(c.pe, 1), 'мм²')}
       ${kv('Ток на один кабель', nf(c.allowPer, 1), 'А')}
-      ${kv('Суммарный допустимый', nf(c.allow, 1), 'А  (k = ' + nf(c.k, 2) + ')')}
+      ${kv('Суммарный допустимый', nf(c.allow, 1), tf('А  (k = {k})', { k: nf(c.k, 2) }))}
       ${kv('Нагруженных жил', c.loaded, c.loaded === 2 ? 'L + N' : '3 фазы')}
       ${kv('Падение напряжения', nf(d.pct, 2), '% · ' + nf(d.dU, 1) + ' В', d.pct > +state.dropLimit ? 'bad' : 'accent')}
       ${kv('Просадка при пуске', nf(rep.dropStart.pct, 1), '%', !rep.checks.startDrop ? 'bad' : rep.dropStart.pct > 10 ? 'warn' : '')}
@@ -1214,7 +1270,7 @@
     if (m.phases === 1) {
       const tn = { capacitor: 'конденсаторный', split: 'с расщеплённой фазой', psc: 'PSC' }[m.motor1phType] || 'конденсаторный';
       add('ok', `Однофазный режим: I = P₁/(U·cosφ), кабель 2-жильный (L + N), автомат 1P. Типовые данные — ${tn}.`);
-      if (m.p2 > 7.5) add('warn', `Однофазный двигатель ${nf(m.p2, 1)} кВт — редкий случай: типовые данные до 11 кВт ориентировочные, выше — оценка. Для такой мощности обычно применяют 3 фазы или специальный двигатель.`);
+      if (m.p2 > 7.5) add('warn', tf('Однофазный двигатель {p} кВт — редкий случай: типовые данные до 11 кВт ориентировочные, выше — оценка. Для такой мощности обычно применяют 3 фазы или специальный двигатель.', { p: nf(m.p2, 1) }));
       if (state.voltage > 260) add('warn', `Для однофазного двигателя напряжение ${nf(state.voltage, 0)} В необычно — обычно 220/230 В. Проверьте данные.`);
     }
     const cat = state.mode === 'catalog' ? D.MOTOR_DB.find(x => x.type === state.catType) : null;
@@ -1242,7 +1298,7 @@
     if (!ch.breakerCurrent) add('bad', `Номинал автомата ${nf(rep.breaker.In, 0)} А ниже рабочего тока ${nf(m.i, 1)} А.`);
 
     if (ch.breakerMag) add('ok', `Отсечка автомата (${nf(rep.breaker.magTrip, 0)} А) выше расчётного пускового тока ${nf(rep.iStart, 0)} А для способа «${methodLabel(state.startMethod)}» — ложных срабатываний не будет.`);
-    else add('bad', `Отсечка ${nf(rep.breaker.magTrip, 0)} А может сработать при пуске: расчётный ток для способа «${methodLabel(state.startMethod)}» — ${nf(rep.iStart, 0)} А. ` + (state.curve === 'D' ? 'Даже кривая D не покрывает этот ток — увеличьте номинал или примените MCCB с регулируемой отсечкой.' : 'Выберите кривую D (10–20·Iн), софтстартер/ПЧ или аппарат с регулируемой отсечкой.'));
+    else add('bad', tf('Отсечка {m} А может сработать при пуске: расчётный ток для способа «{meth}» — {i} А. ', { m: nf(rep.breaker.magTrip, 0), meth: methodLabel(state.startMethod), i: nf(rep.iStart, 0) }) + t(state.curve === 'D' ? 'Даже кривая D не покрывает этот ток — увеличьте номинал или примените MCCB с регулируемой отсечкой.' : 'Выберите кривую D (10–20·Iн), софтстартер/ПЧ или аппарат с регулируемой отсечкой.'));
 
     if (rep.breaker.upstream) {
       if (rep.breaker.okSel) add('ok', `Селективность с вышестоящим аппаратом ${nf(rep.breaker.upstream, 0)} А обеспечена (отношение ${nf(rep.breaker.selRatio, 1)} ≥ 1,6).`);
@@ -1306,12 +1362,12 @@
       tLoad.push([n, E.loadTorque(m, n, loadCfg())]);
     }
     charts.torque.setData([
-      { name: 'M двигателя', color: C.mint, data: tEm, width: 2.2 },
-      { name: 'M нагрузки', color: C.amber, data: tLoad, width: 1.8, dash: [5, 4] }
+      { name: t('M двигателя'), color: C.mint, data: tEm, width: 2.2 },
+      { name: t('M нагрузки'), color: C.amber, data: tLoad, width: 1.8, dash: [5, 4] }
     ]);
     charts.torque.setOptions({
       markerX: rep.op.n, xRange: [0, m.ns],
-      hLines: [{ y: m.mn, color: 'rgba(255,255,255,0.22)', label: 'Mн' }]
+      hLines: [{ y: m.mn, color: 'rgba(255,255,255,0.22)', label: t('Mн') }]
     });
     const tfoot = document.querySelector('[data-chart-panel="torque"] .panel-foot');
     if (tfoot) tfoot.textContent = `Кривая M(n) — при U = ${nf(rep.op.U, 0)} В (с учётом кабеля); Mmax в таблице — при номинальном напряжении.`;
@@ -1322,19 +1378,19 @@
     ]);
     charts.iu.setOptions({
       markerX: state.loadPct, xRange: [0, 150], yZero2: false,
-      hLines: [{ y: m.i, color: 'rgba(90,169,255,0.35)', label: 'Iн ' + nf(m.i, 1) + ' А' }]
+      hLines: [{ y: m.i, color: 'rgba(90,169,255,0.35)', label: tf('Iн {i} А', { i: nf(m.i, 1) }) }]
     });
 
     charts.speed.setData([
       { name: 'n', color: C.cyan, data: sw.load.map((x, i) => [x, sw.n[i]]), width: 2.1 },
-      { name: 's, %', color: C.pink, data: sw.load.map((x, i) => [x, sw.s[i]]), axis: 1, width: 1.6 },
-      { name: 'f₂, Гц', color: C.violet, data: sw.load.map((x, i) => [x, sw.f2[i]]), axis: 1, width: 1.6, dash: [4, 3] }
+      { name: t('s, %'), color: C.pink, data: sw.load.map((x, i) => [x, sw.s[i]]), axis: 1, width: 1.6 },
+      { name: t('f₂, Гц'), color: C.violet, data: sw.load.map((x, i) => [x, sw.f2[i]]), axis: 1, width: 1.6, dash: [4, 3] }
     ]);
     charts.speed.setOptions({ markerX: state.loadPct, xRange: [0, 150], yZero: false, yZero2: true });
 
     charts.eff.setData([
-      { name: 'η, %', color: C.mint, data: sw.load.map((x, i) => [x, sw.eta[i]]), width: 2.1 },
-      { name: 'cosφ × 100', color: C.amber, data: sw.load.map((x, i) => [x, sw.cos[i] * 100]), width: 1.8 }
+      { name: t('η, %'), color: C.mint, data: sw.load.map((x, i) => [x, sw.eta[i]]), width: 2.1 },
+      { name: t('cosφ × 100'), color: C.amber, data: sw.load.map((x, i) => [x, sw.cos[i] * 100]), width: 1.8 }
     ]);
     charts.eff.setOptions({ markerX: state.loadPct, xRange: [0, 150], minY: 0, maxY: 100 });
 
@@ -1385,7 +1441,7 @@
     $('#protectTable').innerHTML = `<table>
       <thead><tr><th>Аппарат</th><th>Параметр</th><th>Проверка</th></tr></thead>
       <tbody>
-        <tr><td>Автомат</td><td class="num">${nf(b.In, 0)} А, ${b.type === 'mccb' ? 'MCCB ' + b.mag + '×Iн' : 'кривая ' + b.curve}</td><td>${rep.checks.breakerCurrent && rep.checks.breakerCable ? '<span class="badge ok">ок</span>' : '<span class="badge bad">нет</span>'}</td></tr>
+        <tr><td>Автомат</td><td class="num">${nu(b.In, 0, 'А')}, ${b.type === 'mccb' ? 'MCCB ' + b.mag + '×' + t('Iн') : tf('кривая {c}', { c: b.curve })}</td><td>${rep.checks.breakerCurrent && rep.checks.breakerCable ? '<span class="badge ok">ок</span>' : '<span class="badge bad">нет</span>'}</td></tr>
         <tr><td>Селективность</td><td class="num">${b.upstream ? nf(b.upstream, 0) + ' / ' + nf(b.In, 0) + ' А' : 'не задана'}</td><td>${rep.checks.breakerSel ? '<span class="badge ok">ок</span>' : '<span class="badge warn">проверить</span>'}</td></tr>
         <tr><td>Отсечка</td><td class="num">${nf(b.magTrip, 0)} А</td><td>${rep.checks.breakerMag ? '<span class="badge ok">ок</span>' : '<span class="badge bad">ложный пуск</span>'}</td></tr>
         <tr><td>Icu</td><td class="num">${nf(b.icu, 0)} кА</td><td>${rep.checks.breakerIcu ? '<span class="badge ok">ок</span>' : '<span class="badge bad">мало</span>'}</td></tr>
@@ -1414,10 +1470,11 @@
     $('#checksTag').textContent = chk.every(x => x[1]) ? 'все ок' : 'есть замечания';
     $('#checksTag').className = 'panel-tag ' + (chk.every(x => x[1]) ? 'ok' : 'warn');
 
-    $('#cableNotes').innerHTML = `
+    $('#cableNotes').innerHTML = tHtml(`
       <p>Сечение выбрано по длительно допустимому току с поправками на температуру среды, число кабелей в пучке, способ прокладки и тип изоляции. Для двигателя с прямым пуском номинал автомата принимается ${nf(rep.breaker.rise, 2)}·Iн, чтобы исключить ложные срабатывания при пуске.</p>
       <p>Падение напряжения рассчитано для рабочего тока ${nf(rep.op.I, 1)} А при cosφ = ${nf(rep.op.cos, 2)}; активное сопротивление приведено к температуре жилы ${c.insulation === 'xlpe' ? '90' : '70'} °C.</p>
-      <p>Проверка I²t выполнена по условному времени отключения ${nf(rep.sc.t, 2)} с и коэффициенту k = ${rep.sc.k} (${c.insulation === 'xlpe' ? 'XLPE' : 'ПВХ'}, ${c.material === 'al' ? 'Al' : 'Cu'}). Для токоограничивающих автоматов фактическое I²t ниже расчётного.</p>`;
+      <p>Проверка I²t выполнена по условному времени отключения ${nf(rep.sc.t, 2)} с и коэффициенту k = ${rep.sc.k} (${c.insulation === 'xlpe' ? 'XLPE' : 'ПВХ'}, ${c.material === 'al' ? 'Al' : 'Cu'}). Для токоограничивающих автоматов фактическое I²t ниже расчётного.</p>`);
+    if (I18N.isEn()) I18N.translateDom(document.body);
   }
 
   /* ---------- сравнение способов пуска ---------- */
@@ -1476,6 +1533,7 @@
     $('#compareTable').innerHTML = `<table>
       <thead><tr><th>Способ</th><th class="num">t разгона, с</th><th class="num">Пиковый ток, А</th><th class="num">Пиковый момент, Н·м</th><th>Результат</th></tr></thead>
       <tbody>${rows}</tbody></table>`;
+    if (I18N.isEn()) I18N.translateDom(document.body);
   }
 
   /* ---------- справочные таблицы ---------- */
@@ -1518,6 +1576,7 @@
     });
     $('#motorTable').innerHTML = `<table><thead><tr><th>Тип</th><th class="num">P₂, кВт</th><th class="num">n, об/мин</th><th class="num">I, А</th><th class="num">КПД, %</th><th class="num">cosφ</th><th class="num">Iп/Iн</th><th class="num">Mп/Mн</th><th class="num">Mmax/Mн</th></tr></thead><tbody>${mt}</tbody></table>`;
     $('#dbCount').textContent = D.MOTOR_DB.length + ' типоразмеров · * типовые';
+    if (I18N.isEn()) I18N.translateDom(document.body);
   }
 
   /* ---------- симуляция ---------- */
@@ -1534,7 +1593,7 @@
       charts.simU.setOptions({ xRange: [0, 12] });
     }
     updateSimUI();
-    if (keepRunning) setSimStage('ожидание');
+    if (keepRunning) setSimStage(t('ожидание'));
   }
 
   function startSim() {
@@ -1557,16 +1616,16 @@
     simMotorKey = motorKey(lastRep);
     updateSimUI();
     drawSimCharts(true);
-    setSimStage('разгон');
+    setSimStage(t('разгон'));
   }
 
   function pauseSim() {
     simRunning = false;
     if (simState) simState.running = false;
     if (ghostState) ghostState.running = false;
-    setSimStage(simState && simState.done ? 'завершено' : 'пауза');
+    setSimStage(t(simState && simState.done ? 'завершено' : 'пауза'));
     const pl = $('#simPauseLabel');
-    if (pl) pl.textContent = 'Продолжить';
+    if (pl) pl.textContent = t('Продолжить');
   }
 
   function ensureSim() {
@@ -1593,6 +1652,7 @@
     note.innerHTML = state.sim.overlay !== 'none'
       ? 'Пунктир — <b>' + methodLabel(state.sim.overlay) + '</b>. Сравнение идёт при той же нагрузке и инерции.'
       : 'Выберите «Наложить способ», чтобы сравнить два пуска на графиках.';
+    if (I18N.isEn()) I18N.translateDom(document.body);
   }
 
   function updateSimUI() {
@@ -1600,7 +1660,7 @@
     if (!simState) {
       ['simT', 'simN', 'simI', 'simTq', 'simU'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = id === 'simT' ? '0.00' : '0'; });
       const f = $('#simF'); if (f) f.textContent = nf(state.freq, 1);
-      setSimStage('ожидание');
+      setSimStage(t('ожидание'));
       return;
     }
     const st = simState;
@@ -1620,10 +1680,11 @@
         stage = st.t > lim && st.nNow < 0.9 * st.motor.n ? 'не выходит на скорость' : 'разгон';
       }
     }
-    if (simFollow && st.running) stage += ' · слежение';
-    setSimStage(stage);
+    if (simFollow && st.running) stage = tf('{s} · слежение', { s: t(stage) });
+    setSimStage(t(stage));
     const pl = $('#simPauseLabel');
-    if (pl) pl.textContent = st.running ? 'Пауза' : 'Продолжить';
+    if (pl) pl.textContent = st.running ? t('Пауза') : t('Продолжить');
+    if (I18N.isEn()) I18N.translateDom(document.body);
   }
 
   function drawSimCharts(force) {
@@ -1644,7 +1705,7 @@
     const m = st.motor;
     const nSeries = [
       { name: 'n', color: C.cyan, data: pts.map(p => [p.t, p.n]), width: 2 },
-      { name: 's, %', color: C.pink, data: pts.map(p => [p.t, p.s]), axis: 1, width: 1.5 }
+      { name: t('s, %'), color: C.pink, data: pts.map(p => [p.t, p.s]), axis: 1, width: 1.5 }
     ];
     if (gPts.length) nSeries.push({ name: gName + ': n', color: C.overlay, dash: [6, 4], width: 1.8, data: gPts.map(p => [p.t, p.n]) });
     charts.simN.setData(nSeries);
@@ -1652,26 +1713,26 @@
 
     const iSeries = [
       { name: 'I', color: C.blue, data: pts.map(p => [p.t, p.I]), width: 2 },
-      { name: 'I / Iн', color: C.amber, data: pts.map(p => [p.t, p.I / m.i]), axis: 1, width: 1.5, dash: [4, 3] }
+      { name: t('I / Iн'), color: C.amber, data: pts.map(p => [p.t, p.I / m.i]), axis: 1, width: 1.5, dash: [4, 3] }
     ];
     if (gPts.length) iSeries.push({ name: gName + ': I', color: C.overlay, dash: [6, 4], width: 1.8, data: gPts.map(p => [p.t, p.I]) });
     charts.simI.setData(iSeries);
     charts.simI.setOptions({
       xRange: xr,
-      hLines: [{ y: m.i, color: 'rgba(90,169,255,0.35)', label: 'Iн' }]
+      hLines: [{ y: m.i, color: 'rgba(90,169,255,0.35)', label: t('Iн') }]
     });
 
     const tSeries = [
-      { name: 'M двигателя', color: C.mint, data: pts.map(p => [p.t, p.T]), width: 2 },
-      { name: 'M нагрузки', color: C.amber, data: pts.map(p => [p.t, E.loadTorque(m, p.n, st.cfg.load)]), width: 1.5, dash: [4, 3] }
+      { name: t('M двигателя'), color: C.mint, data: pts.map(p => [p.t, p.T]), width: 2 },
+      { name: t('M нагрузки'), color: C.amber, data: pts.map(p => [p.t, E.loadTorque(m, p.n, st.cfg.load)]), width: 1.5, dash: [4, 3] }
     ];
     if (gPts.length) tSeries.push({ name: gName + ': M', color: C.overlay, dash: [6, 4], width: 1.8, data: gPts.map(p => [p.t, p.T]) });
     charts.simT.setData(tSeries);
     charts.simT.setOptions({ xRange: xr });
 
     const uSeries = [
-      { name: 'U, %', color: C.violet, data: pts.map(p => [p.t, p.U]), width: 2 },
-      { name: 'f₁, Гц', color: C.lime || C.mint, data: pts.map(p => [p.t, p.f]), axis: 1, width: 1.5 }
+      { name: t('U, %'), color: C.violet, data: pts.map(p => [p.t, p.U]), width: 2 },
+      { name: t('f₁, Гц'), color: C.lime || C.mint, data: pts.map(p => [p.t, p.f]), axis: 1, width: 1.5 }
     ];
     if (gPts.length) uSeries.push({ name: gName + ': U', color: C.overlay, dash: [6, 4], width: 1.8, data: gPts.map(p => [p.t, p.U]) });
     charts.simU.setData(uSeries);
@@ -1883,7 +1944,7 @@
           state.projectLogo = c.toDataURL('image/png');
           $('#logoHint').textContent = 'логотип загружен';
           saveState();
-          setStatus('логотип загружен', 'ok');
+          setStatus(t('логотип загружен'), 'ok');
         };
         img.src = reader.result;
       };
@@ -1935,6 +1996,14 @@
     document.addEventListener('keydown', e => { if (e.key === 'Escape') hideTip(); });
     document.addEventListener('scroll', () => { if (activeTip) hideTip(); }, true);
     window.addEventListener('resize', () => { if (activeTip) hideTip(); });
+
+    // язык
+    $('#segLang').addEventListener('click', e => {
+      const b = e.target.closest('button[data-val]');
+      if (!b) return;
+      I18N.setLang(b.dataset.val);
+      hideTip();
+    });
 
     // тема
     $('#segTheme').addEventListener('click', e => {
@@ -2113,7 +2182,7 @@
     const sheets = [];
     sheets.push({ name: 'Параметры', rows: [
       ['Параметр', 'Значение', 'Ед.'],
-      ['Тип двигателя', m.catalog ? m.catalog.type : (m.phases === 1 ? 'Однофазный (' + t1name + ')' : '—') + (m.phases === 1 && m.p2 > 7.5 ? ' — оценка >7,5 кВт' : ''), ''],
+      ['Тип двигателя', m.catalog ? m.catalog.type : (m.phases === 1 ? tf('Однофазный ({t})', { t: t(t1name) }) : '—') + (m.phases === 1 && m.p2 > 7.5 ? t(' — оценка >7,5 кВт') : ''), ''],
       ['Питание', m.phases === 1 ? '1 фаза' : '3 фазы', ''],
       ['Схема', m.phases === 1 ? '1 фаза, L/N' : (m.conn === 'D' ? 'Δ' : 'Y'), ''],
       ['Способ задания', modeName, ''],
@@ -2136,19 +2205,19 @@
       ['Класс изоляции', m.motorClass, ''],
       ['Температура обмотки', rnd(op.temp, 0), '°C'],
       ['Предел температуры', m.tempLimit, '°C'],
-      ['Способ пуска', methodLabel(state.startMethod), '']
+      ['Способ пуска', t(methodLabel(state.startMethod)), '']
     ]});
     sheets.push({ name: 'Защита и кабель', rows: [
       ['Параметр', 'Значение', 'Ед.'],
       ['Тип автомата', b.type === 'mccb' ? 'MCCB' : 'MCB', ''],
       ['Полюсов автомата', m.phases === 1 ? 1 : 3, ''],
       ['Номинал автомата', b.In, 'А'],
-      ['Кривая / уставка', b.type === 'mccb' ? b.mag + '×Iн' : b.curve, ''],
+      ['Кривая / уставка', b.type === 'mccb' ? b.mag + '×' + t('Iн') : b.curve, ''],
       ['Ток отсечки', b.magTrip, 'А'],
       ['Icu', b.icu, 'кА'],
       ['Селективность', b.upstream ? (b.okSel ? 'обеспечена' : 'не обеспечена') : 'не задана', ''],
       ['Тепловое реле', lastRep.relay.lo + '…' + lastRep.relay.hi, 'А'],
-      ['Контактор', lastRep.contactor.i + ' А / ' + lastRep.contactor.kw, 'кВт'],
+      ['Контактор', lastRep.contactor.i + ' ' + t('А') + ' / ' + lastRep.contactor.kw, 'кВт'],
       ['Предохранитель aM', lastRep.fuse, 'А'],
       ['Параллельных кабелей', c.parallel, ''],
       ['Нагруженных жил', c.loaded, ''],
@@ -2171,7 +2240,7 @@
     if (compareData) {
       sheets.push({ name: 'Сравнение пусков', rows: [
         ['Способ', 'Время разгона, с', 'Пиковый ток, А', 'Пиковый момент, Н·м', 'Результат'],
-        ...compareData.map(x => [methodLabel(x.method), x.tStart == null ? '—' : rnd(x.tStart, 2), rnd(x.peakI, 1), rnd(x.peakT, 1), x.stalled || x.tStart == null ? 'не выходит на скорость' : 'разгон'])
+        ...compareData.map(x => [t(methodLabel(x.method)), x.tStart == null ? '—' : rnd(x.tStart, 2), rnd(x.peakI, 1), rnd(x.peakT, 1), x.stalled || x.tStart == null ? t('не выходит на скорость') : t('разгон')])
       ]});
     }
     sheets.push({ name: 'Проверки', rows: [
@@ -2196,6 +2265,13 @@
       ];
       sheets.push({ name: 'Графики', rows: [['График', 'Изображение'], ...chartImgs.map(x => [x.name, ''])] });
     } catch (e) { chartImgs = []; }
+    if (I18N.isEn()) {
+      sheets.forEach(sh => {
+        sh.name = t(sh.name);
+        sh.rows = sh.rows.map(r => r.map(v => (typeof v === 'string' ? I18N.plain(v) : v)));
+      });
+      chartImgs.forEach(x => { x.name = I18N.plain(x.name); });
+    }
     const blob = MC.xlsx.build(sheets, chartImgs);
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -2212,7 +2288,7 @@
       rows.push([sw.load[i], sw.I[i], sw.U[i], sw.n[i], sw.s[i], sw.f2[i], sw.eta[i], sw.cos[i], sw.p1[i], sw.p2[i], sw.dU[i]]
         .map(v => Math.round(v * 1000) / 1000).join(';'));
     }
-    const head = ['# ' + (m.catalog ? m.catalog.type : 'двигатель'), 'P2=' + m.p2 + ' kW', 'U=' + m.U + ' V', 'I=' + m.i.toFixed(2) + ' A'].join(';');
+    const head = ['# ' + (m.catalog ? m.catalog.type : t('двигатель')), 'P2=' + m.p2 + ' kW', 'U=' + m.U + ' V', 'I=' + m.i.toFixed(2) + ' A'].join(';');
     const blob = new Blob(['\ufeff' + head + '\n' + rows.join('\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -2243,15 +2319,39 @@
     return state.theme === 'auto' ? (mqLight && mqLight.matches ? 'light' : 'dark') : state.theme;
   }
   function applyTheme(redraw) {
-    const t = effectiveTheme();
-    document.documentElement.setAttribute('data-theme', t);
-    if (MC.setChartTheme) MC.setChartTheme(t);
-    if (MC.PALETTES && MC.CHART_COLORS) Object.assign(MC.CHART_COLORS, MC.PALETTES[t]);
+    const th = effectiveTheme();
+    document.documentElement.setAttribute('data-theme', th);
+    if (MC.setChartTheme) MC.setChartTheme(th);
+    if (MC.PALETTES && MC.CHART_COLORS) Object.assign(MC.CHART_COLORS, MC.PALETTES[th]);
     syncSeg('#segTheme', state.theme);
     if (redraw !== false && lastRep) {
       render(lastRep);
       if (simState) drawSimCharts();
     }
+  }
+
+  /* ---------- язык ---------- */
+  function syncLangUI() {
+    syncSeg('#segLang', I18N.lang);
+    document.documentElement.setAttribute('lang', I18N.lang);
+  }
+  /* полная перерисовка после смены языка: статику переводит i18n, динамику — рендер */
+  function relang() {
+    syncLangUI();
+    applyChartLabels();
+    fillCatalog(true);
+    if (state.mode === 'catalog') applyCatalog(false);
+    fillBreakerSeries();
+    fillBreakerCurves();
+    syncInputs();
+    renderRef();
+    decorateTips();
+    updateVisibility();
+    updateSimVisibility();
+    if (lastRep) render(lastRep);
+    if (state.tab === 'start') { updateSimUI(); drawSimCharts(true); updateCompare(); }
+    $('#footerStamp').textContent = new Date().toLocaleDateString(I18N.locale());
+    moveUnderline();
   }
 
   /* ---------- мобильная панель ---------- */
@@ -2350,11 +2450,11 @@
       return;
     }
     const last = tour.i === TOUR_STEPS.length - 1;
-    tour.card.innerHTML = `<div class="tour-top"><span class="tour-step">${tour.i + 1} / ${TOUR_STEPS.length}</span><button class="tour-x" data-tour="skip" aria-label="Закрыть">×</button></div>
+    tour.card.innerHTML = tHtml(`<div class="tour-top"><span class="tour-step">${tour.i + 1} / ${TOUR_STEPS.length}</span><button class="tour-x" data-tour="skip" aria-label="Закрыть">×</button></div>
       <h4>${step.title}</h4><p>${step.text}</p>
       <div class="tour-dots">${TOUR_STEPS.map((_, k) => `<span class="tour-dot${k === tour.i ? ' on' : ''}"></span>`).join('')}</div>
       <div class="tour-actions"><button class="btn ghost" data-tour="skip">Пропустить</button>
-      <div class="tour-nav">${tour.i > 0 ? '<button class="btn" data-tour="prev">Назад</button>' : ''}<button class="btn primary" data-tour="next">${last ? 'Готово' : 'Далее'}</button></div></div>`;
+      <div class="tour-nav">${tour.i > 0 ? '<button class="btn" data-tour="prev">Назад</button>' : ''}<button class="btn primary" data-tour="next">${last ? 'Готово' : 'Далее'}</button></div></div>`);
     const isMobile = window.innerWidth <= 980;
     const sel = isMobile && step.mobile ? step.mobile : (step.desktop || step.sel);
     const el = sel ? document.querySelector(sel) : null;
@@ -2453,7 +2553,7 @@
   }
 
   function copyText(text) {
-    const done = () => setStatus('ссылка на расчёт скопирована', 'ok');
+    const done = () => setStatus(t('ссылка на расчёт скопирована'), 'ok');
     const fallback = () => {
       const ta = document.createElement('textarea');
       ta.value = text;
@@ -2473,7 +2573,7 @@
       window.__lastShare = url;
       copyText(url);
     } catch (e) {
-      setStatus('не удалось создать ссылку', 'bad');
+      setStatus(t('не удалось создать ссылку'), 'bad');
     }
   }
 
@@ -2498,6 +2598,8 @@
   }
 
   function init() {
+    I18N.init();
+    syncLangUI();
     initCharts();
     addChartTools();
     fillCatalog(true);
@@ -2507,7 +2609,8 @@
     decorateTips();
     renderRef();
     moveUnderline();
-    $('#footerStamp').textContent = new Date().toLocaleDateString('ru-RU');
+    $('#footerStamp').textContent = new Date().toLocaleDateString(I18N.locale());
+    I18N.onChange(relang);
     applyTheme(false);
     recalc();
     switchTab(state.tab || 'calc');
