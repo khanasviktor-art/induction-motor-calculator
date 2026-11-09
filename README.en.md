@@ -136,6 +136,7 @@ Commands and layout — [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md), agent contra
 | Document | Contents |
 |---|---|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | modules, data flow, state, charts, build |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | development roadmap, priorities, stage status (Russian) |
 | [docs/MODEL.md](docs/MODEL.md) | formulas, assumptions, reference values |
 | [docs/LIMITATIONS.md](docs/LIMITATIONS.md) | important limitations and what to do |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | build, tests, debugging, adding data |

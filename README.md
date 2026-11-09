@@ -136,6 +136,7 @@ npm run test:deep     # только глубокий прогон (629 пров
 | Документ | Что внутри |
 |---|---|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | модули, поток данных, состояние, графики, сборка |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | план развития, приоритеты, статус этапов |
 | [docs/MODEL.md](docs/MODEL.md) | формулы, допущения, эталоны |
 | [docs/LIMITATIONS.md](docs/LIMITATIONS.md) | важные ограничения и что делать |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | сборка, тесты, отладка, добавление данных |
