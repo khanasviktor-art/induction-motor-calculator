@@ -7,7 +7,7 @@
 <title>Асинхронный двигатель — инженерный расчёт</title>
 <meta name="author" content="Виктор Ханас">
 <meta name="generator" content="DeepSeek">
-<meta name="version" content="0.7.6">
+<meta name="version" content="0.7.7">
 <meta name="description" content="Расчёт мощности, тока, момента, кабеля и защиты асинхронного двигателя. Графики характеристик и переходные процессы пуска.">
 <style>
 /* ============================================================
@@ -251,9 +251,10 @@ html[data-theme="light"] .tip-pop { box-shadow: 0 14px 36px rgba(15, 25, 40, .18
 }
 
 .vtc-controls { display: grid; grid-template-columns: 1.2fr 1fr .8fr; gap: 10px; padding: 0 14px 8px; }
-.vtc-box { height: 390px; }
+/* высоту задаёт только CSS: canvas растягивается по блоку (см. drawVTC) */
+.chart-box.vtc-box { height: 390px; }
 .vtc-controls .field { margin-bottom: 0; }
-@media (max-width: 700px) { .vtc-controls { grid-template-columns: 1fr; } .vtc-box { height: 320px; } }
+@media (max-width: 700px) { .vtc-controls { grid-template-columns: 1fr; } .chart-box.vtc-box { height: 320px; } }
 
 .thermal-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; padding: 0 14px 8px; align-items: end; }
 .thermal-grid .field { margin-bottom: 0; }
@@ -1579,7 +1580,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
         <button class="btn ghost" id="btnLoadProject">Открыть проект</button>
       </div>
       <div class="side-foot">
-        <span>v0.7.6</span>
+        <span>v0.7.7</span>
         <span>ПУЭ · IEC 60364</span>
       </div>
     </div>
@@ -1902,7 +1903,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
 <div class="tip-pop" id="tipPop" role="tooltip" aria-hidden="true"></div>
 
 <footer class="footer">
-  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.7.6</span>
+  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.7.7</span>
   <span class="footer-credit">Сделано с помощью <b>DeepSeek</b> · идея: <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></span>
   <span id="footerStamp"></span>
 </footer>
@@ -4964,7 +4965,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.6.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.7.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     const w = window.open('', '_blank');
@@ -5125,12 +5126,13 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
   function drawVTC(rep) {
     const cv = $('#chartVTC');
     if (!cv || !rep) return;
-    const box = cv.parentElement;
     const dpr = window.devicePixelRatio || 1;
-    const W = Math.max(320, box.clientWidth);
-    const H = Math.max(300, Math.min(460, Math.round(W * 0.30)));
-    cv.width = W * dpr; cv.height = H * dpr;
-    cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    // Размер берём у самого canvas: его задаёт CSS (.chart-box.vtc-box), а не
+    // атрибуты. Раньше высота считалась от ширины и canvas вылезал за панель,
+    // наезжая на «Проверку условий».
+    const W = cv.clientWidth || 640;
+    const H = cv.clientHeight || 300;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     const g = cv.getContext('2d');
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, W, H);
@@ -6145,6 +6147,13 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
     });
 
     window.addEventListener('resize', moveUnderline);
+    // ВТХ рисуется в размер блока, поэтому при изменении окна его нужно перерисовать
+    let vtcResizeFrame = 0;
+    window.addEventListener('resize', () => {
+      if (state.tab !== 'cable' || !lastRep) return;
+      cancelAnimationFrame(vtcResizeFrame);
+      vtcResizeFrame = requestAnimationFrame(() => drawVTC(lastRep));
+    });
     document.addEventListener('keydown', e => {
       if (tour.active) return;
       if (e.code === 'Space' && state.tab === 'start' && document.activeElement.tagName !== 'INPUT') {

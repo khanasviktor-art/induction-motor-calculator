@@ -239,9 +239,10 @@ html[data-theme="light"] .tip-pop { box-shadow: 0 14px 36px rgba(15, 25, 40, .18
 }
 
 .vtc-controls { display: grid; grid-template-columns: 1.2fr 1fr .8fr; gap: 10px; padding: 0 14px 8px; }
-.vtc-box { height: 390px; }
+/* высоту задаёт только CSS: canvas растягивается по блоку (см. drawVTC) */
+.chart-box.vtc-box { height: 390px; }
 .vtc-controls .field { margin-bottom: 0; }
-@media (max-width: 700px) { .vtc-controls { grid-template-columns: 1fr; } .vtc-box { height: 320px; } }
+@media (max-width: 700px) { .vtc-controls { grid-template-columns: 1fr; } .chart-box.vtc-box { height: 320px; } }
 
 .thermal-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; padding: 0 14px 8px; align-items: end; }
 .thermal-grid .field { margin-bottom: 0; }

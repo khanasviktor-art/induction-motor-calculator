@@ -122,6 +122,13 @@ try {
   await page.waitForTimeout(600);
   check(await page.$('#chartVTC') !== null, 'нет canvas ВТХ');
   check(await page.$eval('#chartVTC', c => c.height) > 300, 'ВТХ: высота canvas');
+  check(await page.evaluate(() => {
+    const cv = document.querySelector('#chartVTC');
+    const box = cv.parentElement;
+    const next = box.closest('section.panel').nextElementSibling;
+    const c = cv.getBoundingClientRect(), b = box.getBoundingClientRect(), n = next.getBoundingClientRect();
+    return c.height <= b.height + 0.5 && c.width <= b.width + 0.5 && c.bottom <= n.top + 0.5;
+  }), 'ВТХ: canvas вылезает за блок и наезжает на следующую панель');
   const seriesOpts = await page.$$eval('#brkSeries option', os => os.map(o => o.value));
   check(seriesOpts.length === 6, 'ВТХ: не 6 серий');
   await page.selectOption('#brkSeries', 'iek-ba47-29');

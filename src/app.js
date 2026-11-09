@@ -875,7 +875,7 @@
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.6.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.7.7.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     const w = window.open('', '_blank');
@@ -1036,12 +1036,13 @@
   function drawVTC(rep) {
     const cv = $('#chartVTC');
     if (!cv || !rep) return;
-    const box = cv.parentElement;
     const dpr = window.devicePixelRatio || 1;
-    const W = Math.max(320, box.clientWidth);
-    const H = Math.max(300, Math.min(460, Math.round(W * 0.30)));
-    cv.width = W * dpr; cv.height = H * dpr;
-    cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    // Размер берём у самого canvas: его задаёт CSS (.chart-box.vtc-box), а не
+    // атрибуты. Раньше высота считалась от ширины и canvas вылезал за панель,
+    // наезжая на «Проверку условий».
+    const W = cv.clientWidth || 640;
+    const H = cv.clientHeight || 300;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     const g = cv.getContext('2d');
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, W, H);
@@ -2056,6 +2057,13 @@
     });
 
     window.addEventListener('resize', moveUnderline);
+    // ВТХ рисуется в размер блока, поэтому при изменении окна его нужно перерисовать
+    let vtcResizeFrame = 0;
+    window.addEventListener('resize', () => {
+      if (state.tab !== 'cable' || !lastRep) return;
+      cancelAnimationFrame(vtcResizeFrame);
+      vtcResizeFrame = requestAnimationFrame(() => drawVTC(lastRep));
+    });
     document.addEventListener('keydown', e => {
       if (tour.active) return;
       if (e.code === 'Space' && state.tab === 'start' && document.activeElement.tagName !== 'INPUT') {
