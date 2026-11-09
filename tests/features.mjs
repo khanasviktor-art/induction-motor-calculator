@@ -281,6 +281,30 @@ try {
   check((await page.textContent('#thermalFoot')).includes('Класс 20'), 'thermal: подпись класса');
 
 
+  // незавершённый пуск не должен выглядеть как «проходит»
+  await page.click('#segMode button[data-val="catalog"]');
+  await page.waitForTimeout(350);
+  await page.evaluate(() => {
+    const cp = document.querySelector('#catPoles'); cp.value = '4'; cp.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await page.waitForTimeout(300);
+  await page.evaluate(() => {
+    const cm = document.querySelector('#catMotor');
+    const opt = [...cm.options].find(o => o.textContent.includes('АИР280S4'));
+    if (opt) { cm.value = opt.value; cm.dispatchEvent(new Event('change', { bubbles: true })); }
+    const j = document.querySelector('#jExtra'); if (j) { j.value = '5.3'; j.dispatchEvent(new Event('input', { bubbles: true })); }
+    const lt = document.querySelector('#loadType'); if (lt) { lt.value = 'quadratic'; lt.dispatchEvent(new Event('change', { bubbles: true })); }
+  });
+  await page.waitForTimeout(800);
+  await page.click('.tab-btn[data-tab="cable"]');
+  await page.$eval('#loadRange', el => { el.value = '114'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  await page.waitForTimeout(1600);
+  const vtcTag = (await page.textContent('#tagVTC')) || '';
+  check(vtcTag.indexOf('не завершён') >= 0, 'ВТХ: незавершённый пуск не помечен');
+  check(vtcTag.indexOf('проходит') < 0, 'ВТХ: незавершённый пуск показан как проходящий');
+  check(((await page.textContent('#verdict')) || '').indexOf('есть замечания') >= 0, 'ВТХ: вердикт не реагирует');
+  check(((await page.textContent('#checksBody')) || '').toUpperCase().indexOf('ПУСК ЗАВЕРШЁН') >= 0, 'ВТХ: нет проверки завершения');
+
   failed += reportErrors(errors) ? 0 : 1;
   await ctx.close();
 

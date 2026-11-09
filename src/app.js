@@ -804,23 +804,28 @@
     const In = b.In;
     const Istart = rep.iStart || rep.motor.ist;
     const cmp = (compareData || []).find(x => x.method === state.startMethod);
-    const tStart = cmp && cmp.tStart != null ? cmp.tStart : null;
-    /* нагрев определяет не пик, а действующий ток за пуск: сравнение пика на
-       всей длительности даёт завышенную тепловую дозу */
-    const Ieq = cmp && cmp.ieq ? cmp.ieq : Istart;
-    const trip = MC.vtc.thermalTripTime(s, curve, In, Ieq);
+    const pending = !cmp;
+    const hasStart = !!(cmp && cmp.tStart != null);
+    const tStart = hasStart ? cmp.tStart : null;
+    /* Без времени пуска нельзя считать ни действующий ток, ни отношение
+       tср/tпуск: подставлять пик вместо Ieq нельзя — это даёт ложный вердикт. */
+    const Ieq = hasStart && cmp.ieq ? cmp.ieq : null;
+    const trip = Ieq != null ? MC.vtc.thermalTripTime(s, curve, In, Ieq) : null;
     const ratio = (trip != null && tStart != null && tStart > 0) ? trip / tStart : null;
     const level = ratio == null ? null : ratio <= 1 ? 'bad' : ratio <= 2 ? 'warn' : 'ok';
+    const stalled = !!(cmp && cmp.stalled && !hasStart);
+    const incomplete = !pending && !hasStart;
+    const duration = (cmp && cmp.duration) || 25;
     /* повторные пуски: доля времени под пусковым током → эквивалентный ток */
     const starts = +state.motorStartsPerHour || 0;
     let duty = null;
-    if (tStart != null && tStart > 0 && starts > 0) {
+    if (hasStart && tStart > 0 && starts > 0 && Ieq != null) {
       const share = Math.min(1, starts * tStart / 3600);
       const IeqDuty = Ieq * Math.sqrt(share);
       const tripEq = MC.vtc.thermalTripTime(s, curve, In, IeqDuty);
       duty = { starts, share, Ieq: IeqDuty, tripEq, ok: tripEq == null || tripEq >= 3600 };
     }
-    return { s, curve, In, Istart, Ieq, tStart, trip, ratio, level, duty };
+    return { s, curve, In, Istart, Ieq, tStart, trip, ratio, level, duty, pending, hasStart, stalled, incomplete, duration };
   }
 
   function checksList(rep) {
@@ -834,15 +839,16 @@
       ['Отсечка выше Iп', rep.checks.breakerMag]
     ];
     list.push([tf('Температура обмотки {t} °C ≤ предела {lim} °C', { t: nf(rep.op.temp, 0), lim: rep.motor.tempLimit }), rep.op.temp <= rep.motor.tempLimit]);
-    if (th.level) list.push(['Пуск не выходит за тепловую характеристику', th.level !== 'bad']);
+    if (th.incomplete) list.push([tf('Пуск завершён за {d} с', { d: nf(th.duration, 0) }), false]);
+    else if (th.level) list.push(['Пуск не выходит за тепловую характеристику', th.level !== 'bad']);
     if (th.duty) list.push([tf('Тепловой запас при {n} пусках/час', { n: th.duty.starts }), th.duty.ok]);
     list.push(
       ['Icu ≥ тока КЗ', rep.checks.breakerIcu],
-      ['Селективность', rep.checks.breakerSel],
       ['Термическая стойкость', rep.checks.sc],
       ['Контактор AC-3', rep.checks.contactor],
       ['Устойчивость при нагрузке', !rep.op.stalled]
     );
+    if (rep.breaker.upstream) list.push(['Селективность', rep.checks.breakerSel]);
     return list;
   }
 
@@ -927,9 +933,26 @@
     renderCharts(lastRep);
 
     const cmp = (compareData || []).find(x => x.method === state.startMethod);
+    const th = thermalStart(lastRep);
+    const loadNames = {
+      quadratic: 'Вентиляторный (T ∝ n²)', constant: 'Постоянный момент',
+      linear: 'Линейный (T ∝ n)', constpower: 'Постоянная мощность', custom: 'Своя кривая M(n)'
+    };
+    const loadName = t(loadNames[state.loadType] || state.loadType);
+    const brkSeries = [b.brand, b.seriesName].filter(Boolean).join(' ');
+    const cableLay = t({ open: 'Открыто / по воздуху', tray: 'Лоток', pipe: 'Труба', ground: 'Земля' }[c.laying] || c.laying);
+    const cableIns = c.insulation === 'xlpe' ? 'XLPE' : t('ПВХ / резина');
+    const cableStd = c.standard === 'pue' ? 'ПУЭ' : 'IEC 60364';
+    const selTxt = b.upstream ? (b.okSel ? 'обеспечена' : 'не обеспечена') : 'не задана';
+    const thTxt = th.pending ? t('не рассчитана')
+      : th.incomplete ? t('не проверена (пуск не завершён)')
+      : (th.tStart != null && th.trip != null) ? tf('{tr} с / пуск {ts} с', { tr: nf(Math.max(th.trip, 0.02), 2), ts: nf(th.tStart, 2) })
+      : '—';
     const rows = arr => arr.map(x => `<tr><td>${x[0]}</td><td class="r">${x[1]}</td></tr>`).join('');
-    const chk = checksList(lastRep).map(x =>
-      `<tr><td>${x[0]}</td><td class="r ${x[1] ? 'ok' : 'bad'}">${x[1] ? '✓ да' : '✗ нет'}</td></tr>`).join('');
+    const chkRows = checksList(lastRep);
+    const chkTable = arr => `<table>${arr.map(x =>
+      `<tr><td>${x[0]}</td><td class="r ${x[1] ? 'ok' : 'bad'}">${x[1] ? '✓ да' : '✗ нет'}</td></tr>`).join('')}</table>`;
+    const chkHalf = Math.ceil(chkRows.length / 2);
     const csec = (c.parallel > 1 ? c.parallel + ' × ' : '') + nf(c.section, 1) + ' мм²';
     const t1name = { capacitor: 'конденсаторный', split: 'с расщеплённой фазой', psc: 'PSC' }[m.motor1phType] || '';
     const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8">
@@ -939,9 +962,15 @@
   body { font: 10.5pt/1.45 -apple-system, "Segoe UI", system-ui, sans-serif; color: #1b2735; margin: 0; padding: 20px 24px; background: #fff; }
   h1 { font-size: 19pt; margin: 0 0 2px; letter-spacing: -.01em; }
   .sub { color: #5b6b7f; font-size: 9.5pt; margin: 0 0 16px; }
-  h2 { font-size: 11.5pt; margin: 18px 0 6px; padding-bottom: 3px; border-bottom: 1px solid #d9e1eb; }
+  h2 { font-size: 11.5pt; margin: 18px 0 6px; padding-bottom: 3px; border-bottom: 1px solid #d9e1eb; page-break-after: avoid; }
   h3 { font-size: 9.5pt; margin: 0 0 4px; color: #3c4b5e; font-weight: 600; }
   table { width: 100%; border-collapse: collapse; margin: 2px 0 6px; }
+  tr { page-break-inside: avoid; }
+  .checks, .source, .vtc { page-break-inside: avoid; }
+  .vtc { page-break-before: always; page-break-inside: avoid; }
+  .grid.chars { grid-template-columns: 1fr 1fr; }
+  .grid.chars figure.power { grid-column: 1/-1; }
+  .grid.transients { grid-template-columns: 1fr 1fr; gap: 12px; }
   td, th { padding: 4px 6px; border-bottom: 1px solid #e7edf5; font-size: 9.3pt; vertical-align: top; }
   th { text-align: left; color: #5b6b7f; font-size: 8pt; text-transform: uppercase; letter-spacing: .06em; }
   .r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -949,7 +978,7 @@
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 26px; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px; }
   .grid figure { margin: 0; page-break-inside: avoid; }
-  .grid img { width: 100%; border: 1px solid #e1e8f1; border-radius: 6px; }
+  .grid img, .vtc img { width: 100%; border: 1px solid #e1e8f1; border-radius: 6px; }
   .note { margin-top: 16px; font-size: 8.5pt; color: #8593a6; border-top: 1px solid #e7edf5; padding-top: 8px; line-height: 1.5; }
   .note a { color: #0f7a5a; }
   .noprint { position: sticky; top: 0; background: #fff; padding: 8px 0 12px; display: flex; gap: 8px; }
@@ -987,13 +1016,15 @@
 <div>
 <h2>Защита</h2>
 <table>${rows([
-  ['Автомат', nu(b.In, 0, 'А') + ' · ' + (m.phases === 1 ? '1P · ' : '3P · ') + (b.type === 'mccb' ? 'MCCB' : 'MCB ' + b.curve)],
+  ['Автомат', nu(b.In, 0, 'А') + ' · ' + (m.phases === 1 ? '1P · ' : '3P · ') + (b.type === 'mccb' ? 'MCCB' : 'MCB ' + b.curve) + (brkSeries ? ' · ' + brkSeries : '')],
   ['Отсечка', nu(b.magTrip, 0, 'А') + tf(' ({k}×Iн)', { k: b.mag })],
   ['Icu', nf(b.icu, 0) + ' кА'],
-  ['Тепловое реле', nf(lastRep.relay.lo, 1) + '…' + nf(lastRep.relay.hi, 1) + ' А'],
+  ['Ток КЗ', nf(state.isc, 1) + ' кА'],
+  ['Тепловое реле', nf(lastRep.relay.lo, 1) + '…' + nf(lastRep.relay.hi, 1) + ' ' + t('А') + ' (' + t('уставка') + ' ' + nf(lastRep.relay.set, 1) + ' ' + t('А') + ')'],
+  ['Тепловая зона', thTxt],
   ['Контактор', nf(lastRep.contactor.i, 0) + ' А / ' + nf(lastRep.contactor.kw, 0) + ' кВт'],
   ['Предохранитель aM', nf(lastRep.fuse, 0) + ' А'],
-  ['Селективность', b.upstream ? (b.okSel ? 'обеспечена' : 'не обеспечена') : 'не задана']
+  ['Селективность', selTxt]
 ])}</table>
 <h2>Кабель</h2>
 <table>${rows([
@@ -1001,38 +1032,75 @@
   ['Нагруженных жил', c.loaded === 2 ? '2 (L + N)' : '3'],
   ['PE', (c.parallel > 1 ? c.parallel + ' × ' : '') + nf(c.pe, 1) + ' мм²'],
   ['Длина', nf(c.length, 0) + ' м'],
+  ['Изоляция', cableIns],
+  ['Способ прокладки', cableLay],
+  ['Среда кабеля', nf(c.ambient, 0) + ' °C'],
+  ['Группировка', nf(state.cable.group, 0)],
+  ['Стандарт', cableStd],
   ['I доп. суммарно', nf(c.allow, 1) + ' А'],
+  ['Smin по I²t', nf(lastRep.sc.sMin, 1) + ' мм²'],
   ['ΔU раб.', nf(lastRep.drop.pct, 2) + ' %'],
   ['ΔU пуск', nf(lastRep.dropStart.pct, 1) + ' %']
 ])}</table>
 </div>
 </div>
 
+<h2>Исходные данные</h2>
+<div class="two source">
+<div><table>${rows([
+  ['Тип механизма', loadName],
+  ['Нагрузка', nf(state.loadPct, 0) + ' %'],
+  ['J нагрузки', nf(+state.jExtra || 0, 2) + ' кг·м²'],
+  ['Разгрузка на пуске', +state.loadUnload ? nf(state.loadUnload, 0) + ' %' : 'нет'],
+  ['Среда двигателя', nf(m.tempAmbient, 0) + ' °C'],
+  ['Пуск', m.hotStart ? tf('горячий, {p} %', { p: nf(m.hotPct, 0) }) : 'холодный'],
+  ['Пусков в час', nf(m.startsPerHour, 0)],
+  ['Класс перегрузки', m.overloadClass + ''],
+  ['Охлаждение', nf(m.coolTau, 0) + ' мин'],
+  ['Время моделирования', nf(state.sim.duration, 0) + ' с']
+])}</table></div>
+<div><table>${rows([
+  ['Серия автомата', brkSeries || '—'],
+  ['Уставка реле', nf(lastRep.relay.set, 1) + ' А'],
+  ['Вышестоящий', b.upstream ? nf(b.upstream, 0) + ' А' : 'не задан'],
+  ['Стандарт кабеля', cableStd],
+  ['Изоляция', cableIns],
+  ['Способ прокладки', cableLay],
+  ['Среда кабеля', nf(c.ambient, 0) + ' °C'],
+  ['Группировка', nf(state.cable.group, 0)],
+  ['Smin по I²t', nf(lastRep.sc.sMin, 1) + ' мм²'],
+  ['Длина', nf(c.length, 0) + ' м']
+])}</table></div>
+</div>
+
 <h2>Проверки</h2>
-<table>${chk}</table>
+<div class="two checks">
+  <div>${chkTable(chkRows.slice(0, chkHalf))}</div>
+  <div>${chkTable(chkRows.slice(chkHalf))}</div>
+</div>
 
 <h2>Характеристики</h2>
-<div class="grid">
+<div class="grid chars">
   <figure><h3>Механическая характеристика M(n)</h3>${imgs.torque}</figure>
   <figure><h3>Ток и напряжение от нагрузки</h3>${imgs.iu}</figure>
   <figure><h3>Скорость, скольжение, f₂</h3>${imgs.speed}</figure>
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
-  <figure><h3>Мощности</h3>${imgs.power}</figure>
+  <figure class="power"><h3>Мощности</h3>${imgs.power}</figure>
 </div>
 ${trImgs ? `
 <h2>Переходные процессы (пуск)</h2>
-<div class="grid">
+<div class="grid transients">
   <figure><h3>Скорость n(t)</h3><img src="${trImgs.n}" alt=""></figure>
   <figure><h3>Ток I(t)</h3><img src="${trImgs.i}" alt=""></figure>
   <figure><h3>Момент M(t)</h3><img src="${trImgs.m}" alt=""></figure>
   <figure><h3>Напряжение и частота</h3><img src="${trImgs.u}" alt=""></figure>
 </div>` : ''}
 ${vtcImg ? `
+<section class="vtc">
 <h2>ВТХ: защита и пуск</h2>
-<div class="grid">
-  <figure style="grid-column:1/-1"><h3>Время-токовая характеристика</h3><img src="${vtcImg}" alt=""></figure>
-</div>` : ''}
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.11.2.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<figure><h3>Время-токовая характеристика</h3><img src="${vtcImg}" alt=""></figure>
+</section>` : ''}
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.11.3.<br>Для PDF без колонтитулов используйте настольную версию или отключите «Верхние и нижние колонтитулы» в диалоге печати.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     /* настольная версия: отчёт сразу сохраняется в PDF через системный диалог */
@@ -1107,8 +1175,9 @@ ${vtcImg ? `
     const name = m.catalog ? m.catalog.type : 'Двигатель ' + nf(m.p2, 1) + ' кВт';
     const motorHot = rep.op.temp > rep.motor.tempLimit;
     const motorWarm = rep.op.temp > rep.motor.tempLimit - 25;
-    const bad = !rep.checks.cable || !rep.checks.breakerCable || rep.op.stalled || !rep.checks.startDrop || thermalStart(rep).level === 'bad' || motorHot;
-    const warn = !rep.checks.drop || !rep.checks.breakerMag || thermalStart(rep).level === 'warn' || motorWarm;
+    const th = thermalStart(rep);
+    const bad = !rep.checks.cable || !rep.checks.breakerCable || rep.op.stalled || !rep.checks.startDrop || th.level === 'bad' || th.incomplete || motorHot;
+    const warn = !rep.checks.drop || !rep.checks.breakerMag || th.level === 'warn' || motorWarm;
     const stateTxt = bad ? '<span class="bad">✕ есть замечания</span>' : warn ? '<span class="warn">! проверьте условия</span>' : '<span class="ok">✓ проверки пройдены</span>';
     $('#verdict').innerHTML = `
       <b>${name}</b><span class="sep"></span>
@@ -1261,15 +1330,20 @@ ${vtcImg ? `
     const mag = s.mag[curve] || [10, 10];
     const Istart = rep.iStart || rep.motor.ist;
     const cmp = (compareData || []).find(x => x.method === state.startMethod);
-    const tS = cmp && cmp.tStart != null ? cmp.tStart : null;
-    /* нагрев определяет действующий ток за пуск (см. thermalStart) */
-    const Ieq = cmp && cmp.ieq ? cmp.ieq : Istart;
-    const trip = MC.vtc.thermalTripTime(s, curve, In, Ieq);
+    const pending = !cmp;
+    const hasStart = !!(cmp && cmp.tStart != null);
+    const tS = hasStart ? cmp.tStart : null;
+    /* Без времени пуска нет и действующего тока: пик вместо Ieq даёт ложный вердикт. */
+    const Ieq = hasStart && cmp.ieq ? cmp.ieq : null;
+    const trip = Ieq != null ? MC.vtc.thermalTripTime(s, curve, In, Ieq) : null;
     const ratio = (trip != null && tS != null && tS > 0) ? trip / tS : null;
     const level = ratio == null ? null : ratio <= 1 ? 'bad' : ratio <= 2 ? 'warn' : 'ok';
+    const stalled = !!(cmp && cmp.stalled && !hasStart);
+    const incomplete = !pending && !hasStart;
+    const duration = (cmp && cmp.duration) || 25;
     const up = +state.upstreamIn;
     const pad = { l: 58, r: 18, t: 22, b: 34 };
-    const ymin = 0.01, ymax = 10000;
+    const ymin = 0.01, ymax = 100000;
     /* ось токов — по данным: от декады ниже ~Iн/4 до декады выше отсечки и пуска */
     const xmin = Math.max(0.5, Math.pow(10, Math.floor(Math.log10(Math.max(In / 4, 1)))));
     const topI = Math.max(mag[1] * In, Istart * 1.6, up * 1.2, In * 4);
@@ -1288,7 +1362,7 @@ ${vtcImg ? `
       const x = X(d); g.globalAlpha = .35; g.beginPath(); g.moveTo(x, pad.t); g.lineTo(x, H - pad.b); g.stroke(); g.globalAlpha = 1;
       g.textAlign = 'center'; g.fillText(d >= 1000 ? (d / 1000) + t('к') : d, x, H - 14);
     }
-    for (const tt of [0.01, 0.1, 1, 10, 100, 1000, 10000]) {
+    for (const tt of [0.01, 0.1, 1, 10, 100, 1000, 10000, 100000]) {
       const y = Y(tt); g.globalAlpha = .35; g.beginPath(); g.moveTo(pad.l, y); g.lineTo(W - pad.r, y); g.stroke(); g.globalAlpha = 1;
       g.textAlign = 'right'; g.fillText(tt >= 1000 ? (tt / 1000) + t('к') : tt, pad.l - 6, y + 3);
     }
@@ -1302,7 +1376,7 @@ ${vtcImg ? `
     g.lineTo(X(pts[pts.length - 1][0]), H - pad.b); g.lineTo(X(pts[0][0]), H - pad.b); g.closePath(); g.fill(); g.restore();
     // отсечка
     g.save(); g.strokeStyle = C.red; g.lineWidth = 1.4; g.setLineDash([4, 3]);
-    [mag[0] * In, mag[1] * In].forEach(I => { g.beginPath(); g.moveTo(X(I), Y(0.02)); g.lineTo(X(I), Y(10000)); g.stroke(); });
+    [mag[0] * In, mag[1] * In].forEach(I => { g.beginPath(); g.moveTo(X(I), Y(0.02)); g.lineTo(X(I), Y(100000)); g.stroke(); });
     g.restore();
     // вышестоящий
     if (up > 0) {
@@ -1314,26 +1388,43 @@ ${vtcImg ? `
     const k = state.cable.insulation === 'xlpe' ? 143 : 115;
     const S = rep.cable.section;
     line([[1, k * k * S * S / 1], [100000, k * k * S * S / 100000]], C.blue, 1.4, [2, 4]);
-    // пуск
-    const dot = level === 'bad' ? C.red : level === 'warn' ? C.amber : C.mint;
-    const ty = Y(Math.max(tS || 0.6, 0.02));
-    const eqDiff = Math.abs(Ieq - Istart) / Math.max(Istart, 1) > 0.03;
-    g.save(); g.fillStyle = dot; g.beginPath(); g.arc(X(Istart), ty, 4.5, 0, Math.PI * 2); g.fill();
-    if (eqDiff) {
-      /* второй маркер: действующий ток пуска — по нему и считается нагрев */
-      g.strokeStyle = dot; g.lineWidth = 1.4; g.globalAlpha = .9;
-      g.beginPath(); g.arc(X(Ieq), ty, 3.8, 0, Math.PI * 2); g.stroke(); g.globalAlpha = 1;
-      g.beginPath(); g.setLineDash([1, 2]); g.moveTo(X(Ieq), ty); g.lineTo(X(Istart), ty); g.stroke(); g.setLineDash([]);
+    // пуск: точку ставим только при реально завершённом пуске
+    const dot = level === 'bad' || incomplete ? C.red : level === 'warn' ? C.amber : C.mint;
+    let startTxt = '';
+    if (hasStart) {
+      const ty = Y(Math.max(tS, 0.02));
+      const eqDiff = Ieq != null && Math.abs(Ieq - Istart) / Math.max(Istart, 1) > 0.03;
+      g.save(); g.fillStyle = dot; g.beginPath(); g.arc(X(Istart), ty, 4.5, 0, Math.PI * 2); g.fill();
+      if (eqDiff) {
+        /* второй маркер: действующий ток пуска — по нему и считается нагрев */
+        g.strokeStyle = dot; g.lineWidth = 1.4; g.globalAlpha = .9;
+        g.beginPath(); g.arc(X(Ieq), ty, 3.8, 0, Math.PI * 2); g.stroke(); g.globalAlpha = 1;
+        g.beginPath(); g.setLineDash([1, 2]); g.moveTo(X(Ieq), ty); g.lineTo(X(Istart), ty); g.stroke(); g.setLineDash([]);
+      }
+      if (trip != null) { g.globalAlpha = .55; g.strokeStyle = dot; g.lineWidth = 1; g.setLineDash([2, 2]); g.beginPath(); g.moveTo(X(Ieq), ty); g.lineTo(X(Ieq), Y(Math.max(trip, 0.02))); g.stroke(); g.restore(); g.save(); }
+      g.font = '10px ui-monospace, monospace'; g.fillStyle = dot; g.textAlign = 'left';
+      startTxt = trip != null
+        ? (eqDiff
+          ? tf('пуск {i} А / {t} с · экв. {ieq} А → автомат {tr} с', { i: nf(Istart, 0), t: nf(tS, 2), ieq: nf(Ieq, 0), tr: nf(Math.max(trip, 0.02), 2) })
+          : tf('пуск {i} А / {t} с · автомат {tr} с', { i: nf(Istart, 0), t: nf(tS, 2), tr: nf(Math.max(trip, 0.02), 2) }))
+        : tf('пуск {i} А / {t} с', { i: nf(Istart, 0), t: nf(tS, 2) });
+      const tw = g.measureText(startTxt).width;
+      const tx = X(Istart) + 7 + tw > W - pad.r ? Math.max(pad.l + 8, X(Istart) - 7 - tw) : X(Istart) + 7;
+      g.fillText(startTxt, tx, ty - 5);
+      g.restore();
+    } else {
+      g.save(); g.strokeStyle = C.red; g.lineWidth = 1.3; g.setLineDash([5, 4]);
+      g.beginPath(); g.moveTo(X(Istart), pad.t); g.lineTo(X(Istart), H - pad.b); g.stroke();
+      g.setLineDash([]); g.font = '10px ui-monospace, monospace'; g.fillStyle = C.red; g.textAlign = 'left';
+      startTxt = stalled
+        ? tf('пуск {i} А · не разгоняется', { i: nf(Istart, 0) })
+        : pending
+          ? t('расчёт пуска…')
+          : tf('пуск {i} А · за {d} с не вышел на скорость', { i: nf(Istart, 0), d: nf(duration, 0) });
+      g.fillText(startTxt, pad.l + 8, pad.t + 42);
+      g.restore();
     }
-    if (trip != null) { g.globalAlpha = .55; g.strokeStyle = dot; g.lineWidth = 1; g.setLineDash([2, 2]); g.beginPath(); g.moveTo(X(Ieq), ty); g.lineTo(X(Ieq), Y(Math.max(trip, 0.02))); g.stroke(); g.restore(); g.save(); }
-    g.font = '10px ui-monospace, monospace'; g.fillStyle = dot; g.textAlign = 'left';
-    const startTxt = trip != null
-      ? (eqDiff
-        ? tf('пуск {i} А / {t} с · экв. {ieq} А → автомат {tr} с', { i: nf(Istart, 0), t: tS != null ? nf(tS, 2) : '?', ieq: nf(Ieq, 0), tr: nf(Math.max(trip, 0.02), 2) })
-        : tf('пуск {i} А / {t} с · автомат {tr} с', { i: nf(Istart, 0), t: tS != null ? nf(tS, 2) : '?', tr: nf(Math.max(trip, 0.02), 2) }))
-      : tf('пуск {i} А / {t} с', { i: nf(Istart, 0), t: tS != null ? nf(tS, 2) : '?' });
-    g.fillText(startTxt, X(Istart) + 7, ty - 5);
-    g.restore();
+
     // легенда — только те серии, которые действительно нарисованы
     const sec = rep.cable.section;
     const leg = [[tf('Автомат {b} {s} {i} А', { b: s.brand, s: s.series, i: In }), C.amber]];
@@ -1351,29 +1442,36 @@ ${vtcImg ? `
       lx += tw + 34;
     });
     const selBad = b.upstream && !b.okSel;
-    const stalled = cmp && cmp.stalled && cmp.tStart == null;
     let tagTxt, tagCls;
     if (!rep.checks.breakerMag) { tagTxt = t('отсечка на пуске'); tagCls = 'bad'; }
+    else if (pending) { tagTxt = t('расчёт пуска…'); tagCls = 'warn'; }
     else if (stalled) { tagTxt = t('пуск не разгоняется'); tagCls = 'bad'; }
+    else if (incomplete) { tagTxt = tf('пуск не завершён за {d} с', { d: nf(duration, 0) }); tagCls = 'bad'; }
     else if (level === 'bad') { tagTxt = t('пуск вне тепловой зоны'); tagCls = 'bad'; }
     else if (selBad) { tagTxt = t('селективность недостаточна'); tagCls = 'warn'; }
     else if (level === 'warn') { tagTxt = t('пуск на границе тепловой зоны'); tagCls = 'warn'; }
+    else if (level == null) { tagTxt = t('нет данных пуска'); tagCls = 'warn'; }
     else { tagTxt = t('пуск проходит'); tagCls = 'ok'; }
     $('#tagVTC').textContent = tagTxt;
     $('#tagVTC').className = 'panel-tag ' + tagCls;
     const selTxt = b.upstream ? ' ' + tf('Селективность {r}× {ok}.', { r: nf(b.selRatio, 1), ok: b.okSel ? t('обеспечена') : t('недостаточна') }) : '';
     const bandTxt = mag[0] !== mag[1] ? ' ' + tf('Зона отсечки {a}…{b} А.', { a: nf(mag[0] * In, 0), b: nf(mag[1] * In, 0) }) : '';
-    const eqDiffTxt = Math.abs(Ieq - Istart) / Math.max(Istart, 1) > 0.03;
+    const eqDiffTxt = Ieq != null && Math.abs(Ieq - Istart) / Math.max(Istart, 1) > 0.03;
     const thermTxt = (trip != null && tS != null)
       ? ' ' + (eqDiffTxt
         ? tf('Тепловая зона: действующий ток пуска {ieq} А (пик {i} А), автомат {tr} с против пуска {ts} с.', { ieq: nf(Ieq, 0), i: nf(Istart, 0), tr: nf(Math.max(trip, 0.02), 2), ts: nf(tS, 2) })
         : tf('Тепловая зона при {i} А: {tr} с, пуск {ts} с.', { i: nf(Istart, 0), tr: nf(Math.max(trip, 0.02), 2), ts: nf(tS, 2) }))
       : '';
+    const incompTxt = stalled
+      ? ' ' + tf('Тепловая зона не проверена: пуск не разгоняется (конечная скорость {n} об/мин).', { n: nf(cmp && cmp.nEnd, 0) })
+      : incomplete
+        ? ' ' + tf('Тепловая зона не проверена: пуск не завершён за {d} с (конечная скорость {n} об/мин).', { d: nf(duration, 0), n: nf(cmp && cmp.nEnd, 0) })
+        : pending ? ' ' + t('Тепловая зона: расчёт пуска…') : '';
     $('#vtcFoot').textContent = tf('Серия {b} {s}, {i} А, {type}. Пик пуска {peak} А; отсечка {mag} А.{sel}', {
       b: s.brand, s: s.series, i: In,
       type: s.type === 'mccb' ? 'MCCB' : tf('кривая {c}', { c: curve }),
       peak: nf(Istart, 0), mag: nf(b.magTrip, 0), sel: selTxt
-    }) + bandTxt + thermTxt;
+    }) + bandTxt + thermTxt + incompTxt;
     fillChartTable('dataVTC', [t('I, А'), t('I/Iн'), t('t, с')], pts.map(p => [nf(p[0], 0), nf(p[0] / In, 2), nf(p[1], 3)]));
     if (I18N.isEn()) I18N.translateDom(document.body);
   }
@@ -1511,6 +1609,11 @@ ${vtcImg ? `
     const eqNote = (th.Ieq && th.Istart && Math.abs(th.Ieq - th.Istart) / Math.max(th.Istart, 1) > 0.03)
       ? tf(' (действующий ток {ieq} А, пик {i} А)', { ieq: nf(th.Ieq, 0), i: nf(th.Istart, 0) })
       : '';
+    if (th.stalled) {
+      add('bad', tf('Пуск не разгоняется: за {d} с скорость не достигла номинала. Тепловая зона автомата не проверена; проверьте момент нагрузки, инерцию и способ пуска.', { d: nf(th.duration, 0) }));
+    } else if (th.incomplete) {
+      add('bad', tf('Пуск не завершён за {d} с: двигатель ещё разгоняется, тепловая зона автомата не проверена. Увеличьте время моделирования или проверьте нагрузку и момент.', { d: nf(th.duration, 0) }));
+    }
     if (th.level === 'bad') {
       add('bad', tf('Тепловая зона автомата: при {i} А он отключится за {tr} с, а пуск длится {ts} с — сработает по теплу. Уменьшите пусковой ток (софтстартер, ПЧ, Y–Δ) или возьмите аппарат с регулируемой тепловой защитой.', {
         i: nf(th.Ieq || th.Istart, 0), tr: nf(Math.max(th.trip, 0.02), 2), ts: nf(th.tStart, 2)
@@ -1701,15 +1804,16 @@ ${vtcImg ? `
       ['Отсечка выше Iп (с учётом пуска)', rep.checks.breakerMag]
     ];
     chk.push([tf('Температура обмотки {t} °C ≤ предела {lim} °C', { t: nf(rep.op.temp, 0), lim: rep.motor.tempLimit }), rep.op.temp <= rep.motor.tempLimit]);
-    if (th.level) chk.push(['Пуск в тепловой зоне автомата', th.level !== 'bad']);
+    if (th.incomplete) chk.push([tf('Пуск завершён за {d} с', { d: nf(th.duration, 0) }), false]);
+    else if (th.level) chk.push(['Пуск в тепловой зоне автомата', th.level !== 'bad']);
     if (th.duty) chk.push([tf('Тепловой запас при {n} пусках/час', { n: th.duty.starts }), th.duty.ok]);
     chk.push(
       ['Icu ≥ тока КЗ', rep.checks.breakerIcu],
-      ['Селективность', rep.checks.breakerSel],
       ['Термическая стойкость', rep.checks.sc],
       ['Контактор AC-3', rep.checks.contactor],
       ['Устойчивость при нагрузке', !rep.op.stalled]
     );
+    if (rep.breaker.upstream) chk.push(['Селективность', rep.checks.breakerSel]);
     $('#checksBody').innerHTML = `<div class="point-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
       ${chk.map(x => `<div class="point-item ${x[1] ? 'accent' : 'bad'}"><div class="pl">${x[0]}</div><div class="pv" style="font-size:12px">${x[1] ? '✓ выполняется' : '× не выполняется'}</div></div>`).join('')}
     </div>`;

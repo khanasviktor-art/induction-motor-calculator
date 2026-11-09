@@ -203,6 +203,7 @@
     return {
       method: cfg.method,
       tStart: tSt,
+      duration: dur,
       peakI: st.peakI,
       peakT: st.peakT,
       nEnd: st.nNow,
