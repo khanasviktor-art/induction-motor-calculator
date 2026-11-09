@@ -1100,7 +1100,7 @@ ${vtcImg ? `
 <h2>ВТХ: защита и пуск</h2>
 <figure><h3>Время-токовая характеристика</h3><img src="${vtcImg}" alt=""></figure>
 </section>` : ''}
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.11.4.<br>Для PDF без колонтитулов используйте настольную версию или отключите «Верхние и нижние колонтитулы» в диалоге печати.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.11.5.<br>Для PDF без колонтитулов используйте настольную версию или отключите «Верхние и нижние колонтитулы» в диалоге печати.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     /* настольная версия: отчёт сразу сохраняется в PDF через системный диалог */
@@ -1348,8 +1348,16 @@ ${vtcImg ? `
     const xmin = Math.max(0.5, Math.pow(10, Math.floor(Math.log10(Math.max(In / 4, 1)))));
     const topI = Math.max(mag[1] * In, Istart * 1.6, up * 1.2, In * 4);
     const xmax = Math.pow(10, Math.min(5, Math.max(Math.ceil(Math.log10(xmin)) + 1, Math.ceil(Math.log10(topI)))));
-    const X = I => pad.l + (Math.log10(Math.max(I, xmin)) - Math.log10(xmin)) / (Math.log10(xmax) - Math.log10(xmin)) * (W - pad.l - pad.r);
-    const Y = tv => pad.t + (Math.log10(ymax) - Math.log10(Math.max(tv, ymin))) / (Math.log10(ymax) - Math.log10(ymin)) * (H - pad.t - pad.b);
+    /* Оси логарифмические: обрезаем и ток, и время по краям поля, иначе
+       пунктир кабеля уходит за правую/верхнюю границу canvas. */
+    const X = I => {
+      const v = Math.max(xmin, Math.min(xmax, I));
+      return pad.l + (Math.log10(v) - Math.log10(xmin)) / (Math.log10(xmax) - Math.log10(xmin)) * (W - pad.l - pad.r);
+    };
+    const Y = tv => {
+      const v = Math.max(ymin, Math.min(ymax, tv));
+      return pad.t + (Math.log10(ymax) - Math.log10(v)) / (Math.log10(ymax) - Math.log10(ymin)) * (H - pad.t - pad.b);
+    };
     const line = (pts, color, width, dash) => {
       if (!pts.length) return;
       g.save(); g.strokeStyle = color; g.lineWidth = width || 1.6; g.setLineDash(dash || []); g.beginPath();

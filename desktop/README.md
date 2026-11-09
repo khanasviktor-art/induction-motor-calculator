@@ -55,7 +55,7 @@ MC_BRIDGE.printReport(html)            // PDF отчёта
 
 ```bash
 # окно, пересчёт, темы, язык, подсказки
-APP_EXE="desktop/dist/MotorCalculator-0.11.4-win-x64.exe" npm run test:desktop
+APP_EXE="desktop/dist/MotorCalculator-0.11.5-win-x64.exe" npm run test:desktop
 
 # macOS: путь к бинарнику внутри .app
 APP_EXE="desktop/dist/mac-arm64/MotorCalculator.app/Contents/MacOS/MotorCalculator" npm run test:desktop
