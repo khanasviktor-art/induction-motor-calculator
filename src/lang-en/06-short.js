@@ -151,6 +151,7 @@ window.MC_EN = Object.assign(window.MC_EN || {}, {
   "Мощности": "Power",
   "ожидание": "idle",
   "холодный": "cold",
+  "горячий": "hot",
   "Кривая B": "Curve B",
   "Кривая C": "Curve C",
   "Кривая D": "Curve D",

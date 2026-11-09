@@ -833,6 +833,7 @@
       ['Автомат ≤ тока кабеля', rep.checks.breakerCable],
       ['Отсечка выше Iп', rep.checks.breakerMag]
     ];
+    list.push([tf('Температура обмотки {t} °C ≤ предела {lim} °C', { t: nf(rep.op.temp, 0), lim: rep.motor.tempLimit }), rep.op.temp <= rep.motor.tempLimit]);
     if (th.level) list.push(['Пуск не выходит за тепловую характеристику', th.level !== 'bad']);
     if (th.duty) list.push([tf('Тепловой запас при {n} пусках/час', { n: th.duty.starts }), th.duty.ok]);
     list.push(
@@ -1031,7 +1032,7 @@ ${vtcImg ? `
 <div class="grid">
   <figure style="grid-column:1/-1"><h3>Время-токовая характеристика</h3><img src="${vtcImg}" alt=""></figure>
 </div>` : ''}
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.11.1.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.11.2.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     /* настольная версия: отчёт сразу сохраняется в PDF через системный диалог */
@@ -1104,8 +1105,10 @@ ${vtcImg ? `
   function renderVerdict(rep) {
     const m = rep.motor, c = rep.cable, b = rep.breaker;
     const name = m.catalog ? m.catalog.type : 'Двигатель ' + nf(m.p2, 1) + ' кВт';
-    const bad = !rep.checks.cable || !rep.checks.breakerCable || rep.op.stalled || !rep.checks.startDrop || thermalStart(rep).level === 'bad';
-    const warn = !rep.checks.drop || !rep.checks.breakerMag || thermalStart(rep).level === 'warn';
+    const motorHot = rep.op.temp > rep.motor.tempLimit;
+    const motorWarm = rep.op.temp > rep.motor.tempLimit - 25;
+    const bad = !rep.checks.cable || !rep.checks.breakerCable || rep.op.stalled || !rep.checks.startDrop || thermalStart(rep).level === 'bad' || motorHot;
+    const warn = !rep.checks.drop || !rep.checks.breakerMag || thermalStart(rep).level === 'warn' || motorWarm;
     const stateTxt = bad ? '<span class="bad">✕ есть замечания</span>' : warn ? '<span class="warn">! проверьте условия</span>' : '<span class="ok">✓ проверки пройдены</span>';
     $('#verdict').innerHTML = `
       <b>${name}</b><span class="sep"></span>
@@ -1420,9 +1423,10 @@ ${vtcImg ? `
   function renderThermal(rep) {
     const m = rep.motor, op = rep.op;
     if (!$('#thermalTag')) return;
-    $('#thermalTag').textContent = m.hotStart ? 'горячий' : 'холодный';
-    $('#thermalTag').className = 'panel-tag ' + (m.hotStart ? 'warn' : 'ok');
-    const lim = isFinite(op.timeToLimit) ? 'до предела ' + nf(op.timeToLimit, 0) + ' с' : 'предел не достигается';
+    const warm = op.tempStart > m.tempAmbient + 0.5;
+    $('#thermalTag').textContent = warm ? 'горячий' : 'холодный';
+    $('#thermalTag').className = 'panel-tag ' + (warm ? 'warn' : 'ok');
+    const lim = isFinite(op.timeToLimit) ? 'до предела ' + nf(op.timeToLimit, 0) + ' мин' : 'предел не достигается';
     $('#thermalFoot').innerHTML = 'Начальная <b>' + nf(op.tempStart || m.tempAmbient, 0) + ' °C</b> · установившаяся <b>' + nf(op.temp, 0) + ' °C</b> · предел ' + m.tempLimit + ' °C · ' + lim +
       '. Класс ' + m.overloadClass + ' · пусков/час ' + m.startsPerHour + ' · охлаждение ' + m.coolTau + ' мин.';
   }
@@ -1696,6 +1700,7 @@ ${vtcImg ? `
       ['Автомат ≤ тока кабеля', rep.checks.breakerCable],
       ['Отсечка выше Iп (с учётом пуска)', rep.checks.breakerMag]
     ];
+    chk.push([tf('Температура обмотки {t} °C ≤ предела {lim} °C', { t: nf(rep.op.temp, 0), lim: rep.motor.tempLimit }), rep.op.temp <= rep.motor.tempLimit]);
     if (th.level) chk.push(['Пуск в тепловой зоне автомата', th.level !== 'bad']);
     if (th.duty) chk.push([tf('Тепловой запас при {n} пусках/час', { n: th.duty.starts }), th.duty.ok]);
     chk.push(

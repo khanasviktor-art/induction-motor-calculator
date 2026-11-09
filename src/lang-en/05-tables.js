@@ -41,6 +41,7 @@ window.MC_EN = Object.assign(window.MC_EN || {}, {
   "Пояснения к расчёту": "Calculation notes",
   "База двигателей АИР": "AIR motor database",
   "Температура обмотки": "Winding temperature",
+  "Температура обмотки {t} °C ≤ предела {lim} °C": "Winding temperature {t} °C ≤ limit {lim} °C",
   "! проверьте условия": "! check conditions",
   "1P · MCB · кривая B": "1P · MCB · curve B",
   "Переходные процессы": "Transients",
