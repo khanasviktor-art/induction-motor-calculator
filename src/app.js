@@ -761,12 +761,10 @@
   /* ---------- проект ---------- */
   function saveProject() {
     const data = { app: 'motor-calc', version: 2, saved: new Date().toISOString(), state: state };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'motor-project.json';
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    window.MC_BRIDGE.saveText('motor-project.json', JSON.stringify(data, null, 2), 'application/json').then(r => {
+      if (r && r.ok && !r.fallback) setStatus(tf('файл сохранён: {p}', { p: r.path }), 'ok');
+      else if (r && r.error) setStatus(tf('не удалось сохранить файл: {e}', { e: r.error }), 'bad');
+    });
   }
   function loadProject(file) {
     const reader = new FileReader();
@@ -925,9 +923,20 @@
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.8.1.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.9.0.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
+    /* настольная версия: отчёт сразу сохраняется в PDF через системный диалог */
+    if (window.MC_BRIDGE && window.MC_BRIDGE.isShell) {
+      const name = 'motor-report-' + new Date().toISOString().slice(0, 10) + '.pdf';
+      window.MC_BRIDGE.printReport(html, name).then(r => {
+        if (r && r.ok) setStatus(tf('PDF сохранён: {p}', { p: r.path || name }), 'ok');
+        else if (r && r.canceled) setStatus(t('сохранение отменено'), 'ok');
+        else if (r && r.error) setStatus(tf('не удалось сохранить PDF: {e}', { e: r.error }), 'bad');
+      });
+      return;
+    }
+
     const w = window.open('', '_blank');
     if (!w) { window.print(); return; }
     w.document.open();
@@ -992,7 +1001,7 @@
     $('#verdict').innerHTML = `
       <b>${name}</b><span class="sep"></span>
       <span>P₂ <b>${nf(m.p2, 1)}</b> кВт · ${nf(m.U, 0)} В · Iн <b>${nf(m.i, 1)}</b> А</span><span class="sep"></span>
-      <span>${t('автомат')} <b>${nf(b.In, 0)}</b> ${t('А')}${m.phases === 1 ? ' · 1P' : ''} (${b.curve})</span><span class="sep"></span>
+      <span>${t('автомат')} <b>${nf(b.In, 0)}</b> ${t('А')}${m.phases === 1 ? ' · 1P' : ''}${b.type === 'mccb' ? ' · MCCB ' + b.mag + '×' + t('Iн') : ' (' + b.curve + ')'}</span><span class="sep"></span>
       <span>${t('кабель')} <b>${c.parallel > 1 ? c.parallel + ' × ' : ''}${nf(c.section, 1)}</b> ${t('мм²')} ${c.material === 'al' ? 'Al' : 'Cu'} · PE ${c.parallel > 1 ? c.parallel + ' × ' : ''}${nf(c.pe, 1)}</span><span class="sep"></span>
       <span>ΔU <b>${nf(rep.drop.pct, 2)}</b> %</span>
       <span style="margin-left:auto">${stateTxt}</span>
@@ -1195,7 +1204,7 @@
     $('#tagProtect').textContent = ok ? 'согласовано' : 'проверить';
     $('#tagProtect').className = 'panel-tag ' + (ok ? 'ok' : 'bad');
     $('#panelProtect').innerHTML = `<div class="kv">
-      ${kv('Автоматический выключатель', nf(b.In, 0), t('А') + ' · ' + (m.phases === 1 ? '1P · ' : '') + (b.type === 'mccb' ? 'MCCB' : 'MCB · ' + tf('кривая {c}', { c: b.curve })))}
+      ${kv('Автоматический выключатель', nf(b.In, 0), t('А') + ' · ' + (m.phases === 1 ? '1P · ' : '') + (b.type === 'mccb' ? 'MCCB · ' + b.mag + '×' + t('Iн') : 'MCB · ' + tf('кривая {c}', { c: b.curve })))}
       ${kv('Ток отсечки (мин.)', nf(b.magTrip, 0), tf('А  ({k}×Iн)', { k: b.mag }))}
       ${kv('Расчётный ток пуска', nf(rep.iStart, 0), 'А · ' + methodShort(state.startMethod), !rep.checks.breakerMag ? 'bad' : '')}
       ${kv('Отключающая способность', nf(b.icu, 0), 'кА')}
@@ -2007,6 +2016,15 @@
     document.addEventListener('scroll', () => { if (activeTip) hideTip(); }, true);
     window.addEventListener('resize', () => { if (activeTip) hideTip(); });
 
+    /* меню настольной оболочки (Файл → …) */
+    if (window.MC_SHELL && window.MC_SHELL.onMenu) {
+      window.MC_SHELL.onMenu(action => {
+        if (action === 'saveProject') saveProject();
+        else if (action === 'openProject') $('#fileProject').click();
+        else if (action === 'print') openReport();
+      });
+    }
+
     // язык
     $('#segLang').addEventListener('click', e => {
       const b = e.target.closest('button[data-val]');
@@ -2283,11 +2301,11 @@
       chartImgs.forEach(x => { x.name = I18N.plain(x.name); });
     }
     const blob = MC.xlsx.build(sheets, chartImgs);
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'motor-report.xlsx';
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+    /* через мост: в браузере — скачивание, в оболочке — системный диалог */
+    window.MC_BRIDGE.saveBlob('motor-report.xlsx', blob).then(r => {
+      if (r && r.ok && !r.fallback) setStatus(tf('файл сохранён: {p}', { p: r.path }), 'ok');
+      else if (r && r.error) setStatus(tf('не удалось сохранить файл: {e}', { e: r.error }), 'bad');
+    });
   }
 
   function exportCsv() {
@@ -2299,12 +2317,10 @@
         .map(v => Math.round(v * 1000) / 1000).join(';'));
     }
     const head = ['# ' + (m.catalog ? m.catalog.type : t('двигатель')), 'P2=' + m.p2 + ' kW', 'U=' + m.U + ' V', 'I=' + m.i.toFixed(2) + ' A'].join(';');
-    const blob = new Blob(['\ufeff' + head + '\n' + rows.join('\n')], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'motor-curves.csv';
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    window.MC_BRIDGE.saveText('motor-curves.csv', '\ufeff' + head + '\n' + rows.join('\n'), 'text/csv;charset=utf-8').then(r => {
+      if (r && r.ok && !r.fallback) setStatus(tf('файл сохранён: {p}', { p: r.path }), 'ok');
+      else if (r && r.error) setStatus(tf('не удалось сохранить файл: {e}', { e: r.error }), 'bad');
+    });
   }
 
   /* ---------- цикл симуляции ---------- */

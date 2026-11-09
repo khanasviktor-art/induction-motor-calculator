@@ -131,7 +131,8 @@ CHROME_PATH="/path/to/chrome" npm test
 | [docs/TESTING.md](docs/TESTING.md) | матрица тестов, эталонные значения, CI |
 | [docs/DATA.md](docs/DATA.md) | схема справочников, добавление двигателей |
 | [docs/I18N.md](docs/I18N.md) | язык интерфейса: i18n-слой, словарь, правила перевода |
-| [docs/WINDOWS.md](docs/WINDOWS.md) | Windows-версия: паритет функций, обёртка, чек-лист приёмки |
+| [docs/WINDOWS.md](docs/WINDOWS.md) | Windows-версия: состояние, паритет функций, обёртка, чек-лист приёмки |
+| [desktop/README.md](desktop/README.md) | настольная оболочка: сборка, мост `MC_BRIDGE`, ограничения |
 | [docs/AGENTS.md](docs/AGENTS.md) | контракт для AI-агентов, ловушки |
 | [docs/PUBLISHING.md](docs/PUBLISHING.md) | имя репозитория, description, topics, Pages, релиз |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | как отправить PR |
@@ -143,6 +144,7 @@ CHROME_PATH="/path/to/chrome" npm test
 index.html              собранное приложение (коммитится)
 src/
   index.html            разметка
+  shell.js              мост к настольной оболочке (с браузерным фолбэком)
   style.css             оформление, темы, адаптив
   data.js               АИР, кабели, аппараты
   engine.js             установившийся режим
@@ -154,10 +156,27 @@ src/
   lang-en/              куски словаря по темам
   app.js                состояние, UI, отчёт, проекты
 build.mjs               инлайнит src/ → index.html
+desktop/                Electron-оболочка (main.js, preload.js, save.js, app/)
+tools/                  i18n, сборка оболочки, иконка
 tests/                  Playwright: smoke, static, transient, features
 docs/                   документация и скриншоты
 .github/                CI и шаблоны issue/PR
 ```
+
+## Настольная версия (Windows)
+
+Тот же `index.html` в оболочке Electron: своё окно, меню, сохранение файлов через
+системные диалоги и PDF отчёта через `printToPDF`. Расчёт, интерфейс и тесты
+остаются общими с веб-версией — оболочка содержит только системную часть.
+
+```bash
+cd desktop && npm install && cd ..   # один раз, скачивает Electron
+npm run desktop                      # запустить окно
+npm run desktop:dist                 # собрать portable exe в desktop/dist
+```
+
+Подробности — [desktop/README.md](desktop/README.md) и [docs/WINDOWS.md](docs/WINDOWS.md).
+Готовый exe: `desktop/dist/MotorCalculator-0.9.0-win-x64.exe` (в git не хранится).
 
 ## Тесты
 

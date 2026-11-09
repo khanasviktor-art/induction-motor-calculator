@@ -1,0 +1,7 @@
+# Настройки pnpm для папки desktop/ (pnpm 11 читает их только отсюда).
+# Разрешаем установочные скрипты Electron: без них не скачивается бинарник,
+# и `npm run desktop` падает с «Electron failed to install correctly».
+allowBuilds:
+  electron: true
+  electron-builder: true
+  electron-winstaller: true

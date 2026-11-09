@@ -555,10 +555,16 @@
     }
 
     exportPNG(name) {
-      const a = document.createElement('a');
-      a.download = (name || 'chart') + '.png';
-      a.href = this.toPNGData(THEME.panel || '#0f1620');
-      a.click();
+      const file = (name || 'chart') + '.png';
+      const dataUrl = this.toPNGData(THEME.panel || '#0f1620');
+      /* через мост: в браузере — скачивание, в оболочке — диалог сохранения */
+      if (window.MC_BRIDGE && window.MC_BRIDGE.saveDataUrl) window.MC_BRIDGE.saveDataUrl(file, dataUrl);
+      else {
+        const a = document.createElement('a');
+        a.download = file;
+        a.href = dataUrl;
+        a.click();
+      }
     }
 
     _onDown(e) {

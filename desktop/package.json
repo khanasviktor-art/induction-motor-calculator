@@ -1,0 +1,73 @@
+{
+  "name": "induction-motor-calculator-desktop",
+  "productName": "MotorCalculator",
+  "version": "0.9.0",
+  "private": true,
+  "description": "Асинхронный двигатель — инженерный расчёт (настольная версия)",
+  "author": {
+    "name": "Виктор Ханас",
+    "email": "khanas.viktor@gmail.com"
+  },
+  "license": "MIT",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --remote-debugging-port=9222",
+    "dist:win": "electron-builder --win portable --x64",
+    "dist:mac": "electron-builder --mac dmg --x64 --arm64"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "electron-builder",
+      "electron-winstaller"
+    ]
+  },
+  "build": {
+    "appId": "ru.khanas.motor-calculator",
+    "productName": "MotorCalculator",
+    "copyright": "© 2026 Виктор Ханас",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "save.js",
+      "app/**",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "MotorCalculator-${version}-win-${arch}.exe",
+      "legalTrademarks": "",
+      "signAndEditExecutable": true
+    },
+    "portable": {
+      "artifactName": "MotorCalculator-${version}-win-${arch}.exe",
+      "requestExecutionLevel": "user"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "MotorCalculator-${version}-setup.exe"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.utilities",
+      "icon": "build/icon.icns",
+      "artifactName": "MotorCalculator-${version}-${arch}.dmg"
+    }
+  }
+}

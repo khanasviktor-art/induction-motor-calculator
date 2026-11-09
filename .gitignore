@@ -6,3 +6,6 @@ Thumbs.db
 .env
 .env.*
 i18n-work/
+desktop/node_modules/
+desktop/dist/
+desktop/app/

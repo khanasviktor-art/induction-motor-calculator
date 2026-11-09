@@ -2,6 +2,24 @@
 
 Все заметные изменения. Формат — [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/), версии — [SemVer](https://semver.org/lang/ru/).
 
+## [0.9.0] — 2026-11-09
+
+### Добавлено
+
+- **Настольная версия для Windows** (Electron, `desktop/`): portable exe 71 МБ, окно 1360×900 с запоминанием размера и позиции, меню (Файл/Правка/Вид/Справка), «О программе» с версиями приложения и оболочки, single-instance, открытие внешних ссылок в системном браузере.
+- Мост `src/shell.js` (`window.MC_BRIDGE`): сохранение CSV/XLSX/PNG/проекта и PDF отчёта. В браузере — те же вызовы скачивают файл ссылкой, в оболочке — системный диалог через `fs`; одна сборка `index.html` работает и на Pages, и в exe.
+- PDF отчёта собирается через `printToPDF` (A4, фон, поля), без диалога печати Chromium.
+- `MC_SAVE_DIR` — сохранение без диалогов в заданную папку (автотест и пакетная работа).
+- `npm run desktop`, `npm run desktop:dist`, `tools/build-desktop.cjs`, `tools/run-desktop.cjs`, иконка `tools/make-icon.py` → `desktop/build/icon.ico`.
+- `tests/desktop.mjs`: 24 проверки собранного exe, включая реальные файлы на диске (CSV, XLSX, PNG, PDF).
+- `desktop/README.md`, обновлён `docs/WINDOWS.md` (состояние, сборка, что проверять руками).
+
+### Исправлено
+
+- MCCB: в итоговой строке и в панели аппарата печаталось «автомат 80 А (null)» и «MCB · кривая null» — теперь для MCCB показывается «MCCB 80 А · 10×Iₙ». Глубокий тест дополнен проверкой на `null` в тексте.
+- Electron в окружениях с `ELECTRON_RUN_AS_NODE=1` запускался как Node — оболочка и тестовый стенд снимают эту переменную.
+- `desktop/save.js` не попадал в пакет (`build.files`) — собранный exe падал с «Cannot find module './save'».
+
 ## [0.8.1] — 2026-11-09
 
 ### Добавлено

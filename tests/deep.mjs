@@ -101,7 +101,7 @@ async function domProblems() {
   return page.evaluate(() => {
     const out = [];
     const txt = document.body.innerText;
-    ['NaN', 'undefined', '[object'].forEach(bad => { if (txt.indexOf(bad) >= 0) out.push('текст: ' + bad); });
+    ['NaN', 'undefined', '[object', 'null'].forEach(bad => { if (txt.indexOf(bad) >= 0) out.push('текст: ' + bad); });
     const visible = el => !!el && el.getBoundingClientRect().height > 0;
     const required = ['#kpis', '#verdict', '#panelMotor', '#panelStart', '#panelPoint'];
     const tab = (document.querySelector('.tab-panel.active') || {}).dataset;

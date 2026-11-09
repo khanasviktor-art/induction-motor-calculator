@@ -18,7 +18,7 @@
      APP_KEEP_OPEN=1  не закрывать приложение после проверки */
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 
@@ -55,19 +55,39 @@ process.on('uncaughtException', e => {
 });
 
 const debugArg = '--remote-debugging-port=' + PORT;
+/* оболочка может ждать switch до app.ready (Electron), поэтому передаём и
+   переменной окружения, и первым аргументом */
 const env = Object.assign({}, process.env, {
-  WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: debugArg
+  WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: debugArg,
+  MC_DEBUG_PORT: String(PORT)
 });
-const argv = ARGS.slice();
-if (!argv.some(a => a.indexOf('--remote-debugging-port') === 0)) argv.push(debugArg);
+if (process.env.APP_SAVE_DIR) env.MC_SAVE_DIR = process.env.APP_SAVE_DIR;
+/* иначе Electron запустится как Node и окна не будет */
+delete env.ELECTRON_RUN_AS_NODE;
+const argv = ARGS.slice().filter(a => a.indexOf('--remote-debugging-port') !== 0);
+if (!ARGS.some(a => a.indexOf('--remote-debugging-port') === 0)) argv.unshift(debugArg);
 
 console.log('desktop: запуск ' + EXE + ' ' + argv.join(' '));
 const child = spawn(EXE, argv, { env, detached: false, stdio: 'ignore' });
 
 /* останавливаем приложение и сразу выходим: продолжать прогон после провала
-   нельзя, иначе проверки идут по null-странице */
+   нельзя, иначе проверки идут по null-странице.
+   В обёртке живут дочерние процессы, поэтому на Windows гасим всё дерево:
+   иначе следующий запуск упрётся в single-instance lock и порт не поднимется. */
+function killTree() {
+  if (KEEP) return;
+  try {
+    if (process.platform === 'win32' && child.pid) {
+      spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+    } else {
+      child.kill('SIGTERM');
+    }
+  } catch (e) {
+    try { child.kill(); } catch (err) { }
+  }
+}
 function stop(code) {
-  if (!KEEP) { try { child.kill(); } catch (e) { } }
+  killTree();
   process.exit(code);
 }
 
@@ -126,6 +146,10 @@ try {
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
 
+  /* первый запуск в оболочке — чистый профиль: гасим автозапуск тура,
+     иначе он перекрывает интерфейс во время проверок */
+  await page.evaluate(() => { try { localStorage.setItem('motor-tour-v1', '1'); } catch (e) { } });
+  await page.reload();
   await page.waitForTimeout(1200);
 
   const url = page.url();
@@ -205,6 +229,54 @@ try {
     return a === 'en' && b === 'ru';
   });
   check(langOk, 'переключение языка работает');
+
+  /* файловые операции: только с APP_SAVE_DIR (иначе в оболочке откроются
+     системные диалоги, которые автоматизировать нельзя) */
+  if (process.env.APP_SAVE_DIR) {
+    const saveDir = process.env.APP_SAVE_DIR;
+    fs.mkdirSync(saveDir, { recursive: true });
+    for (const f of fs.readdirSync(saveDir)) { try { fs.unlinkSync(path.join(saveDir, f)); } catch (e) { } }
+
+    await page.click('.tab-btn[data-tab="charts"]');
+    await page.waitForTimeout(600);
+
+    const files = () => { try { return fs.readdirSync(saveDir); } catch (e) { return []; } };
+    const has = re => files().some(f => re.test(f));
+    const sizeOf = re => {
+      const f = files().find(x => re.test(x));
+      return f ? fs.statSync(path.join(saveDir, f)).size : 0;
+    };
+
+    await page.click('#btnCsv');
+    await page.waitForTimeout(1500);
+    check(has(/\.csv$/i), 'CSV сохранён в папку', files());
+
+    await page.click('#btnXlsx');
+    await page.waitForTimeout(3000);
+    check(has(/\.xlsx$/i), 'XLSX сохранён в папку', files());
+    check(sizeOf(/\.xlsx$/i) > 5000, 'XLSX не пустой', sizeOf(/\.xlsx$/i));
+
+    const pngClicked = await page.evaluate(() => {
+      const b = document.querySelector('[data-png]');
+      if (!b) return false;
+      b.click();
+      return true;
+    });
+    await page.waitForTimeout(1500);
+    check(pngClicked && has(/\.png$/i), 'PNG графика сохранён в папку', files());
+    check(sizeOf(/\.png$/i) > 3000, 'PNG не пустой', sizeOf(/\.png$/i));
+
+    await page.click('#btnPrint');
+    await page.waitForTimeout(6000);
+    check(has(/\.pdf$/i), 'PDF отчёта сохранён в папку', files());
+    check(sizeOf(/\.pdf$/i) > 20000, 'PDF не пустой', sizeOf(/\.pdf$/i));
+
+    const pdfName = files().find(f => /\.pdf$/i.test(f));
+    if (pdfName) {
+      const head = fs.readFileSync(path.join(saveDir, pdfName)).slice(0, 5).toString('latin1');
+      check(head === '%PDF-', 'PDF: сигнатура %PDF-', JSON.stringify(head));
+    }
+  }
 
   /* скриншот окна — чтобы было на что посмотреть */
   const shot = path.join(OUT, 'desktop-window.png');
