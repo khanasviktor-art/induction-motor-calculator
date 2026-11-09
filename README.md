@@ -131,6 +131,7 @@ CHROME_PATH="/path/to/chrome" npm test
 | [docs/TESTING.md](docs/TESTING.md) | матрица тестов, эталонные значения, CI |
 | [docs/DATA.md](docs/DATA.md) | схема справочников, добавление двигателей |
 | [docs/I18N.md](docs/I18N.md) | язык интерфейса: i18n-слой, словарь, правила перевода |
+| [docs/WINDOWS.md](docs/WINDOWS.md) | Windows-версия: паритет функций, обёртка, чек-лист приёмки |
 | [docs/AGENTS.md](docs/AGENTS.md) | контракт для AI-агентов, ловушки |
 | [docs/PUBLISHING.md](docs/PUBLISHING.md) | имя репозитория, description, topics, Pages, релиз |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | как отправить PR |
@@ -170,7 +171,14 @@ npm test
 - Переключение языка: в EN-режиме на всех вкладках, в подсказках, на графиках,
   в отчёте и в XLSX не остаётся кириллицы, выбор переживает перезагрузку,
   возврат на RU восстанавливает русский текст.
+- Глубокий прогон (`tests/deep.mjs`): 58 комбинаций фаз × режимов × способов пуска ×
+  MCB/MCCB, физические инварианты, ВТХ, экспорты (PNG/CSV/XLSX/отчёт), персистентность
+  (state, проект, варианты, share-ссылка), границы и ошибки, интерфейс, производительность
+  и эталоны чисел 15 состояний (`tests/fixtures/deep-baseline.json`).
 - Проверяется совпадение данных графиков с расчётом, рабочая точка, `tStart`/пики, монотонность.
+- Для Windows-версии — проверка **упакованного** приложения по CDP:
+  `APP_EXE="C:\\dist\\MotorCalculator.exe" npm run test:desktop`; приёмочный
+  чек-лист и подводные камни обёртки — [docs/WINDOWS.md](docs/WINDOWS.md).
 
 Текущий статус: **все тесты проходят**. Подробности — [docs/TESTING.md](docs/TESTING.md).
 

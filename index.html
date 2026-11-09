@@ -7,7 +7,7 @@
 <title>Асинхронный двигатель — инженерный расчёт</title>
 <meta name="author" content="Виктор Ханас">
 <meta name="generator" content="DeepSeek">
-<meta name="version" content="0.8.0">
+<meta name="version" content="0.8.1">
 <meta name="description" content="Расчёт мощности, тока, момента, кабеля и защиты асинхронного двигателя. Графики характеристик и переходные процессы пуска.">
 <style>
 /* ============================================================
@@ -1592,7 +1592,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
         <button class="btn ghost" id="btnLoadProject">Открыть проект</button>
       </div>
       <div class="side-foot">
-        <span>v0.8.0</span>
+        <span>v0.8.1</span>
         <span>ПУЭ · IEC 60364</span>
       </div>
     </div>
@@ -1915,7 +1915,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
 <div class="tip-pop" id="tipPop" role="tooltip" aria-hidden="true"></div>
 
 <footer class="footer">
-  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.8.0</span>
+  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.8.1</span>
   <span class="footer-credit">Сделано с помощью <b>DeepSeek</b> · идея: <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></span>
   <span id="footerStamp"></span>
 </footer>
@@ -4358,6 +4358,7 @@ Object.assign(window.MC_EN, {
   "В земле": "In ground",
   "В лотке / пучке": "In tray / bundle",
   "В трубе / стене": "In conduit / wall",
+  "Вариант": "Variant",
   "вариант сохранён": "variant saved",
   "Вентиляторный (T ∝ n²)": "Fan (T ∝ n²)",
   "Виктор Ханас": "Viktor Khanas",
@@ -4372,6 +4373,7 @@ Object.assign(window.MC_EN, {
   "Второй способ пуска для наложения на графики. Его кривые рисуются пунктиром; «нет» отключает сравнение.": "Second starting method to overlay on the charts. Its curves are drawn dashed; \"none\" disables the comparison.",
   "ВТХ: защита и пуск": "Time-current curve: protection and starting",
   "Выберите «Наложить способ», чтобы сравнить два пуска на графиках.": "Select 'Overlay method' to compare two starts on the charts.",
+  "Выберите кривую D (10–20·Iн), софтстартер/ПЧ или аппарат с регулируемой отсечкой.": "Choose curve D (10–20·Iₙ), a soft starter/VFD, or a device with an adjustable trip.",
   "Выберите способ пуска и нажмите «Пуск». Ниже — ток, момент, скорость и напряжение. В настройках можно наложить второй способ пунктиром.": "Choose a starting method and press \"Start\". Below are current, torque, speed and voltage. In the settings a second method can be overlaid as a dashed line.",
   "Выбор сечения": "Cross-section selection",
   "Выбор типоразмера из каталога АИР": "Frame size selection from the AIR catalogue",
@@ -4388,6 +4390,7 @@ Object.assign(window.MC_EN, {
   "График": "Chart",
   "Графики": "Charts",
   "Гц": "Hz",
+  "Даже кривая D не покрывает этот ток — увеличьте номинал или примените MCCB с регулируемой отсечкой.": "Even curve D does not cover this current — increase the rating or use an MCCB with an adjustable trip.",
   "Далее": "Next",
   "Данные ВТХ": "Time-current data",
   "Данные графика": "Chart data",
@@ -4429,6 +4432,8 @@ Object.assign(window.MC_EN, {
   "Здесь задаются сеть, двигатель, нагрузка, кабель и защита. На телефоне панель открывается кнопкой «Параметры».": "Here the supply, motor, load, cable and protection are set. On a phone the panel opens with the \"Settings\" button.",
   "Значение": "Value",
   "Идейный вдохновитель — Виктор Ханас ·": "Idea and inspiration — Viktor Khanas ·",
+  "Известен момент на валу и частота вращения": "Shaft torque and speed are known",
+  "Известен ток и напряжение — мощность восстановится": "Current and voltage are known — power will be derived",
   "Известна мощность на валу и напряжение": "Shaft power and voltage are known",
   "Изображение": "Image",
   "Изоляция": "Insulation",
@@ -4668,7 +4673,9 @@ Object.assign(window.MC_EN, {
   "Пиковый ток пуска (с линией)": "Starting peak current (line included)",
   "Пиковый ток, А": "Peak current, A",
   "Питание": "Supply",
+  "по моменту": "by torque",
   "по мощности": "by power",
+  "по току": "by current",
   "Поделиться расчётом": "Share calculation",
   "Подсказка": "Tip",
   "Пока нет сохранённых вариантов. Нажмите «+ вариант» в строке итога.": "No saved variants yet. Press the '+ variant' button in the result row.",
@@ -4884,6 +4891,7 @@ Object.assign(window.MC_EN, {
   "Точки в % от nн и Mн через «;». Например: 0:0; 50:50; 100:100. Масштаб задаёт ползунок нагрузки.": "Points in % of nₙ and Mₙ, separated by a semicolon. For example: 0:0; 50:50; 100:100. The load slider sets the scale.",
   "Трёхжильный кабель, 3 нагруженные жилы, воздух, 25 °C (ПУЭ) / 30 °C (IEC). Для однофазной нагрузки — 2 жилы (поправка 1,12).": "Three-core cable, 3 loaded cores, air, 25 °C (PUE) / 30 °C (IEC). For a single-phase load — 2 cores (correction factor 1.12).",
   "Трёхфазный или однофазный двигатель. Для однофазного ток считается по I = P₁/(U·cosφ), без √3.": "Three-phase or single-phase motor. For a single-phase motor the current is calculated as I = P₁/(U·cosφ), without √3.",
+  "Удалить": "Delete",
   "УЗО (рекомендация)": "RCD (recommended)",
   "Уравнение движения": "Equation of motion",
   "Уставка {c}": "Setting {c}",
@@ -5007,6 +5015,7 @@ Object.assign(window.MC_EN, {
   "ΔU пуск": "ΔU start",
   "ΔU раб.": "ΔU run.",
   "ΔU рабочее": "ΔU running",
+  "ΔUп, %": "ΔUst, %",
   "η, %": "η, %",
   "τ нагрева": "Heating τ",
 });
@@ -6219,7 +6228,7 @@ Object.assign(window.MC_EN, {
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.8.0.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.8.1.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     const w = window.open('', '_blank');
@@ -6600,7 +6609,7 @@ Object.assign(window.MC_EN, {
     if (!ch.breakerCurrent) add('bad', `Номинал автомата ${nf(rep.breaker.In, 0)} А ниже рабочего тока ${nf(m.i, 1)} А.`);
 
     if (ch.breakerMag) add('ok', `Отсечка автомата (${nf(rep.breaker.magTrip, 0)} А) выше расчётного пускового тока ${nf(rep.iStart, 0)} А для способа «${methodLabel(state.startMethod)}» — ложных срабатываний не будет.`);
-    else add('bad', tf('Отсечка {m} А может сработать при пуске: расчётный ток для способа «{meth}» — {i} А. ', { m: nf(rep.breaker.magTrip, 0), meth: methodLabel(state.startMethod), i: nf(rep.iStart, 0) }) + t(state.curve === 'D' ? 'Даже кривая D не покрывает этот ток — увеличьте номинал или примените MCCB с регулируемой отсечкой.' : 'Выберите кривую D (10–20·Iн), софтстартер/ПЧ или аппарат с регулируемой отсечкой.'));
+    else add('bad', tf('Отсечка {m} А может сработать при пуске: расчётный ток для способа «{meth}» — {i} А. ', { m: nf(rep.breaker.magTrip, 0), meth: t(methodLabel(state.startMethod)), i: nf(rep.iStart, 0) }) + t(state.curve === 'D' ? 'Даже кривая D не покрывает этот ток — увеличьте номинал или примените MCCB с регулируемой отсечкой.' : 'Выберите кривую D (10–20·Iн), софтстартер/ПЧ или аппарат с регулируемой отсечкой.'));
 
     if (rep.breaker.upstream) {
       if (rep.breaker.okSel) add('ok', `Селективность с вышестоящим аппаратом ${nf(rep.breaker.upstream, 0)} А обеспечена (отношение ${nf(rep.breaker.selRatio, 1)} ≥ 1,6).`);

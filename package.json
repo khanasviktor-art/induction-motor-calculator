@@ -1,6 +1,6 @@
 {
   "name": "induction-motor-calculator",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "private": true,
   "type": "module",
   "description": "Офлайн-калькулятор асинхронного двигателя: ток, мощность, кабель, защита, графики и переходные процессы пуска.",
@@ -31,7 +31,9 @@
     "test:static": "node build.mjs && node tests/charts-static.mjs",
     "test:transient": "node build.mjs && node tests/charts-transient.mjs",
     "test:features": "node build.mjs && node tests/features.mjs",
-    "test:i18n": "node build.mjs && node tests/i18n.mjs"
+    "test:i18n": "node build.mjs && node tests/i18n.mjs",
+    "test:deep": "node build.mjs && node tests/deep.mjs",
+    "test:desktop": "node tests/desktop.mjs"
   },
   "devDependencies": {
     "playwright-core": "^1.49.1"

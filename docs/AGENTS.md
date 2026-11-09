@@ -35,7 +35,8 @@ src/app.js       состояние/UI
 src/index.html   разметка
 src/style.css    стили
 build.mjs        сборка
-tests/           Playwright
+tests/           Playwright: engine, smoke, charts, features, i18n, deep, desktop
+tools/           i18n: сборка словаря, аудит, сбор инвентаря
 docs/            документация
 index.html       собранный файл (коммитится)
 ```
@@ -95,7 +96,7 @@ __mcDebug.rep.op                        // рабочая точка
 11. **Тур.** Автозапуск через 1,2 с; ключ `motor-tour-v1`; тесты выставляют ключ, иначе тур блокирует клики.
 12. **XLSX.** ZIP без сжатия; строки `inlineStr`; не добавляйте внешнюю библиотеку.
 13. **Отчёт.** Новое окно с inline CSS; 5 PNG; `window.print()`. Не заменяйте на сервер.
-14. **Тесты.** `CHROME_PATH`; в CI — `browser-actions/setup-chrome`.
+14. **Тесты.** `CHROME_PATH`; в CI — `browser-actions/setup-chrome`. Глубокий прогон — `tests/deep.mjs`: при правке расчёта/порогов обновите эталоны `node tests/deep.mjs --baseline` **осознанно** и посмотрите diff. Упакованное приложение проверяется `tests/desktop.mjs` (нужен `APP_EXE`, см. `docs/WINDOWS.md`).
 15. **i18n.** `nf()` живёт в `i18n.js` (локаль языка) — не возвращайте `toFixed`/`toLocaleString('ru-RU')` в форматирование ради «привычной запятой»: в EN нужна точка. `const t = …` как локальная переменная затеняет переводчик — не называйте так переменные в `app.js`.
 
 ## 6. Рабочий процесс

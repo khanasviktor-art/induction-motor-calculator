@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.dirname(dir);
-const files = ['engine.mjs', 'smoke.mjs', 'charts-static.mjs', 'charts-transient.mjs', 'features.mjs', 'i18n.mjs'];
+const files = ['engine.mjs', 'smoke.mjs', 'charts-static.mjs', 'charts-transient.mjs', 'features.mjs', 'i18n.mjs', 'deep.mjs'];
 let failed = 0;
 
 /* статическая проверка словаря: у каждого t()/tf() в src должен быть перевод */

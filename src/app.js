@@ -925,7 +925,7 @@
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.8.0.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.8.1.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     const w = window.open('', '_blank');
@@ -1306,7 +1306,7 @@
     if (!ch.breakerCurrent) add('bad', `Номинал автомата ${nf(rep.breaker.In, 0)} А ниже рабочего тока ${nf(m.i, 1)} А.`);
 
     if (ch.breakerMag) add('ok', `Отсечка автомата (${nf(rep.breaker.magTrip, 0)} А) выше расчётного пускового тока ${nf(rep.iStart, 0)} А для способа «${methodLabel(state.startMethod)}» — ложных срабатываний не будет.`);
-    else add('bad', tf('Отсечка {m} А может сработать при пуске: расчётный ток для способа «{meth}» — {i} А. ', { m: nf(rep.breaker.magTrip, 0), meth: methodLabel(state.startMethod), i: nf(rep.iStart, 0) }) + t(state.curve === 'D' ? 'Даже кривая D не покрывает этот ток — увеличьте номинал или примените MCCB с регулируемой отсечкой.' : 'Выберите кривую D (10–20·Iн), софтстартер/ПЧ или аппарат с регулируемой отсечкой.'));
+    else add('bad', tf('Отсечка {m} А может сработать при пуске: расчётный ток для способа «{meth}» — {i} А. ', { m: nf(rep.breaker.magTrip, 0), meth: t(methodLabel(state.startMethod)), i: nf(rep.iStart, 0) }) + t(state.curve === 'D' ? 'Даже кривая D не покрывает этот ток — увеличьте номинал или примените MCCB с регулируемой отсечкой.' : 'Выберите кривую D (10–20·Iн), софтстартер/ПЧ или аппарат с регулируемой отсечкой.'));
 
     if (rep.breaker.upstream) {
       if (rep.breaker.okSel) add('ok', `Селективность с вышестоящим аппаратом ${nf(rep.breaker.upstream, 0)} А обеспечена (отношение ${nf(rep.breaker.selRatio, 1)} ≥ 1,6).`);
