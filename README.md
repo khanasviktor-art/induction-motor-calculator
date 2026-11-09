@@ -5,7 +5,7 @@
 Офлайн-калькулятор асинхронного двигателя: ток, мощность, момент, кабель, защита, ВТХ, графики характеристик и переходные процессы пуска. Один файл `index.html`, без сервера, CDN и интернета.
 
 [![CI](https://github.com/khanasviktor-art/induction-motor-calculator/actions/workflows/ci.yml/badge.svg)](https://github.com/khanasviktor-art/induction-motor-calculator/actions/workflows/ci.yml)
-**Версия 0.11.1** · MIT · [Открыть в браузере](https://khanasviktor-art.github.io/induction-motor-calculator/) · Windows-exe в `desktop/dist`
+**Версия 0.11.1** · MIT · [Открыть в браузере](https://khanasviktor-art.github.io/induction-motor-calculator/) · Windows-exe собирается отдельно · macOS DMG — в [релизе](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.11.1)
 
 ![Интерфейс](docs/screenshots/charts-default.png)
 
@@ -66,17 +66,18 @@ Chrome не в стандартном месте:
 CHROME_PATH="/path/to/chrome" npm test
 ```
 
-## Настольная версия (Windows)
+## Настольная версия (Windows и macOS)
 
 Тот же `index.html` в оболочке Electron: своё окно, меню, сохранение файлов через системные диалоги и PDF отчёта через `printToPDF`.
 
 ```bash
 cd desktop && npm install && cd ..   # один раз, скачивает Electron
 npm run desktop                      # запустить окно
-npm run desktop:dist                 # собрать portable exe в desktop/dist
+npm run desktop:dist     # собрать Windows portable exe
+npm run desktop:dist:mac # собрать macOS DMG (x64 + arm64)
 ```
 
-Готовый файл: `desktop/dist/MotorCalculator-0.11.1-win-x64.exe` (~71 МБ, в git не хранится). Подробности — [desktop/README.md](desktop/README.md) и [docs/WINDOWS.md](docs/WINDOWS.md). Версия для macOS — в планах (конфигурация `dist:mac` уже есть, сборка требует macOS).
+Windows-exe собирается на Windows (portable, ~71 МБ) и в git не хранится. macOS DMG для Apple Silicon и Intel — в [релизе v0.11.1](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.11.1). Подробности — [desktop/README.md](desktop/README.md), [docs/WINDOWS.md](docs/WINDOWS.md).
 
 ## Язык
 

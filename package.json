@@ -36,7 +36,8 @@
     "test:desktop": "node tests/desktop.mjs",
     "build:desktop": "node tools/build-desktop.cjs",
     "desktop": "node tools/build-desktop.cjs && node tools/run-desktop.cjs",
-    "desktop:dist": "node tools/build-desktop.cjs && node tools/run-desktop.cjs --dist"
+    "desktop:dist": "node tools/build-desktop.cjs && node tools/run-desktop.cjs --dist",
+    "desktop:dist:mac": "node tools/build-desktop.cjs && node tools/run-desktop.cjs --mac"
   },
   "devDependencies": {
     "playwright-core": "^1.49.1"

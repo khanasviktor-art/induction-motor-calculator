@@ -29,12 +29,15 @@ if (!fs.existsSync(path.join(desktop, 'app', 'index.html'))) {
   fail('нет desktop/app/index.html — сначала npm run build:desktop');
 }
 
-if (process.argv.includes('--dist')) {
+const wantMac = process.argv.includes('--mac');
+if (process.argv.includes('--dist') || wantMac) {
   if (!fs.existsSync(builderCli)) {
     fail('нет electron-builder. Установите зависимости оболочки:\n' +
       '  cd desktop && npm install   (или pnpm install)');
   }
-  const args = [builderCli, '--win', 'portable', '--x64'];
+  const args = wantMac
+    ? [builderCli, '--mac', 'dmg', '--x64', '--arm64']
+    : [builderCli, '--win', 'portable', '--x64'];
   console.log('desktop: electron-builder ' + args.slice(1).join(' ') + ' (это может занять пару минут)');
   const r = spawnSync(process.execPath, args, { cwd: desktop, stdio: 'inherit', env: cleanEnv });
   process.exit(r.status || 0);
