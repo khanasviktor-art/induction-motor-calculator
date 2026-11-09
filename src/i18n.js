@@ -32,7 +32,12 @@
     if (saved === 'en' || saved === 'ru') lang = saved;
   } catch (e) { }
 
-  const originals = new Map();   // узел -> исходная строка; узел -> { 'a:title': … }
+  /* Исходные строки переводов: узел -> строка, элемент -> { атрибут: строка }.
+     Хранятся для всех переведённых узлов (и статических, и динамических), чтобы
+     при возврате на RU вернуть русский текст даже там, где перерисовки нет
+     (кнопки инструментов графиков, aria-label подсказок и т.п.). */
+  const origText = new WeakMap();
+  const origAttr = new WeakMap();
   const listeners = [];
 
   function isEn() { return lang === 'en'; }
@@ -108,14 +113,23 @@
 
   const u = t;
 
-  /* --- статическая разметка ---------------------------------- */
-  function storeAttr(el, name) {
-    let map = originals.get(el);
-    if (!map || !(map instanceof Object) || Array.isArray(map)) { map = {}; originals.set(el, map); }
-    if (map['a:' + name] === undefined) map['a:' + name] = el.getAttribute(name);
+  /* --- запоминание исходного текста -------------------------- */
+  function rememberText(node) {
+    const cur = node.nodeValue;
+    const prev = origText.get(node);
+    /* если приложение записало новый русский текст — обновляем запись */
+    if (prev === undefined || (cur !== prev && CYR.test(cur))) origText.set(node, cur);
   }
 
-  function walkStatic(first) {
+  function rememberAttr(el, name) {
+    const cur = el.getAttribute(name);
+    let map = origAttr.get(el);
+    if (!map) { map = {}; origAttr.set(el, map); }
+    if (map[name] === undefined || (cur !== map[name] && CYR.test(cur))) map[name] = cur;
+  }
+
+  /* первый проход: запомнить всё русское в статической разметке */
+  function rememberStatic() {
     const root = document.body;
     if (!root) return;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, null);
@@ -123,33 +137,50 @@
     while (node) {
       if (node.nodeType === 3) {
         const raw = node.nodeValue;
-        if (first) {
-          if (raw && CYR.test(raw) && translatePlain(raw.trim()) !== raw.trim()) originals.set(node, raw);
-        } else if (originals.has(node)) {
-          const src = originals.get(node);
-          const key = src.trim();
-          node.nodeValue = isEn() ? src.replace(key, translatePlain(key)) : src;
-        }
+        if (raw && CYR.test(raw) && translatePlain(raw.trim()) !== raw.trim()) rememberText(node);
       } else if (node.nodeType === 1) {
         for (const a of ATTRS) {
           if (!node.hasAttribute(a)) continue;
-          if (first) {
-            const v = node.getAttribute(a);
-            if (CYR.test(v) && translatePlain(v) !== v) storeAttr(node, a);
-          } else {
-            const map = originals.get(node);
-            if (!map || map['a:' + a] === undefined) continue;
-            const src = map['a:' + a];
-            node.setAttribute(a, isEn() ? translatePlain(src) : src);
-          }
+          const v = node.getAttribute(a);
+          if (CYR.test(v) && translatePlain(v) !== v) rememberAttr(node, a);
         }
       }
       node = walker.nextNode();
     }
   }
 
-  function applyStatic() {
-    walkStatic(false);
+  /* применить текущий язык ко всему, что уже переводилось */
+  function applyStored() {
+    const root = document.body;
+    if (!root) return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, null);
+    let node = walker.currentNode;
+    while (node) {
+      if (node.nodeType === 3) {
+        const src = origText.get(node);
+        if (src !== undefined) {
+          const key = src.trim();
+          if (isEn()) {
+            node.nodeValue = translateText(src);
+          } else if (!CYR.test(node.nodeValue || '')) {
+            /* на RU возвращаем исходник только там, где сейчас не русский текст */
+            node.nodeValue = src;
+          }
+        }
+      } else if (node.nodeType === 1) {
+        const map = origAttr.get(node);
+        if (map) for (const a in map) {
+          const cur = node.getAttribute(a) || '';
+          if (isEn()) node.setAttribute(a, translatePlain(map[a]));
+          else if (!CYR.test(cur)) node.setAttribute(a, map[a]);
+        }
+      }
+      node = walker.nextNode();
+    }
+  }
+
+  function applyAll() {
+    applyStored();
     document.title = t('Асинхронный двигатель — инженерный расчёт');
     const meta = document.querySelector('meta[name="description"]');
     if (meta) meta.setAttribute('content', t('Расчёт мощности, тока, момента, кабеля и защиты асинхронного двигателя. Графики характеристик и переходные процессы пуска.'));
@@ -158,28 +189,29 @@
   /* --- HTML-строки ------------------------------------------- */
   const holder = document.createElement('template');
 
+  /* перевод текста узла: одна строка или многострочный блок (формулы) */
+  function translateText(raw) {
+    if (!raw) return raw;
+    if (raw.indexOf('\n') !== -1) {
+      return raw.split('\n').map(part => {
+        const k = part.trim();
+        if (!k) return part;
+        const tr = translatePlain(k);
+        return tr === k ? part : part.replace(k, tr);
+      }).join('\n');
+    }
+    const key = raw.trim();
+    if (!key) return raw;
+    const tr = translatePlain(key);
+    return tr === key ? raw : raw.replace(key, tr);
+  }
+
   function translateNode(node) {
     if (node.nodeType === 3) {
       const raw = node.nodeValue;
       if (!raw || !CYR.test(raw)) return;
-      /* многострочные блоки (формулы) переводим построчно */
-      if (raw.indexOf('\n') !== -1) {
-        let changed = false;
-        const out = raw.split('\n').map(part => {
-          const k = part.trim();
-          if (!k) return part;
-          const tr = translatePlain(k);
-          if (tr === k) return part;
-          changed = true;
-          return part.replace(k, tr);
-        });
-        if (changed) node.nodeValue = out.join('\n');
-        return;
-      }
-      const key = raw.trim();
-      if (!key) return;
-      const tr = translatePlain(key);
-      if (tr !== key) node.nodeValue = raw.replace(key, tr);
+      rememberText(node);
+      node.nodeValue = translateText(raw);
       return;
     }
     if (node.nodeType !== 1) return;
@@ -187,7 +219,7 @@
       if (!node.hasAttribute(a)) continue;
       const v = node.getAttribute(a);
       const tr = translatePlain(v);
-      if (tr !== v) node.setAttribute(a, tr);
+      if (tr !== v) { rememberAttr(node, a); node.setAttribute(a, tr); }
     }
     for (let c = node.firstChild; c; c = c.nextSibling) translateNode(c);
   }
@@ -204,13 +236,16 @@
   function setLang(next, opts) {
     const v = next === 'en' ? 'en' : 'ru';
     const force = !!(opts && opts.force);
-    if (v === lang && !force) { applyStatic(); return lang; }
+    if (v === lang && !force) { applyAll(); return lang; }
     lang = v;
     try { localStorage.setItem(LS_KEY, lang); } catch (e) { }
     document.documentElement.setAttribute('lang', lang);
     document.documentElement.setAttribute('data-lang', lang);
-    applyStatic();
+    /* сначала возвращаем/переводим уже известные узлы (в обе стороны),
+       затем приложение перерисовывает динамику на нужном языке */
+    applyAll();
     listeners.forEach(fn => { try { fn(lang); } catch (e) { console.error(e); } });
+    applyAll();
     return lang;
   }
 
@@ -236,6 +271,6 @@
     plain: translatePlain,
     /* односторонний перевод готового поддерева (динамика после рендера) */
     translateDom: function (node) { if (isEn() && node) translateNode(node); },
-    init: function () { walkStatic(true); applyStatic(); }
+    init: function () { rememberStatic(); applyAll(); }
   };
 })();

@@ -291,7 +291,7 @@
   }
   function hideTip() {
     const pop = document.getElementById('tipPop');
-    if (pop) { pop.classList.remove('show'); pop.setAttribute('aria-hidden', 'true'); }
+    if (pop) { pop.classList.remove('show'); pop.setAttribute('aria-hidden', 'true'); pop.innerHTML = ''; }
     if (activeTip) activeTip.classList.remove('active');
     activeTip = null;
   }
@@ -539,14 +539,22 @@
     state.p2 = m.p2;
     const rec = recommendConn(m, state.voltage);
     if (updateConn !== false && state.connAuto) state.conn = rec;
-    $('#catInfo').textContent = tf('{p} кВт · {n} об/мин · КПД {eff}% · cosφ {cos} · Iп/Iн {kst}{typ}', {
-      p: m.p2, n: m.n, eff: m.eff, cos: m.cos, kst: m.kst,
-      typ: m.typical ? t(' · типовые данные') : ''
-    });
+    setCatInfo(m);
     $('#poles').value = m.poles;
     $('#connHint').textContent = state.conn === 'Y'
       ? tf('Фазное напряжение {u} В', { u: nf(state.voltage / Math.sqrt(3), 0) })
       : tf('Фазное напряжение {u} В (равно линейному)', { u: nf(state.voltage, 0) });
+  }
+
+  /* подпись выбранного типоразмера — нужна и при смене языка, когда
+     каталожный режим уже не активен */
+  function setCatInfo(m) {
+    const el = $('#catInfo');
+    if (!el || !m) return;
+    el.textContent = tf('{p} кВт · {n} об/мин · КПД {eff}% · cosφ {cos} · Iп/Iн {kst}{typ}', {
+      p: m.p2, n: m.n, eff: m.eff, cos: m.cos, kst: m.kst,
+      typ: m.typical ? t(' · типовые данные') : ''
+    });
   }
 
   function connFactorFor(cat, U, conn, phases) {
@@ -1661,6 +1669,8 @@
       ['simT', 'simN', 'simI', 'simTq', 'simU'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = id === 'simT' ? '0.00' : '0'; });
       const f = $('#simF'); if (f) f.textContent = nf(state.freq, 1);
       setSimStage(t('ожидание'));
+      const p0 = $('#simPauseLabel');
+      if (p0) p0.textContent = t('Пауза');
       return;
     }
     const st = simState;
@@ -2337,10 +2347,10 @@
   }
   /* полная перерисовка после смены языка: статику переводит i18n, динамику — рендер */
   function relang() {
+    hideTip();
     syncLangUI();
     applyChartLabels();
     fillCatalog(true);
-    if (state.mode === 'catalog') applyCatalog(false);
     fillBreakerSeries();
     fillBreakerCurves();
     syncInputs();
@@ -2348,8 +2358,18 @@
     decorateTips();
     updateVisibility();
     updateSimVisibility();
-    if (lastRep) render(lastRep);
-    if (state.tab === 'start') { updateSimUI(); drawSimCharts(true); updateCompare(); }
+    if (state.mode === 'catalog') applyCatalog(false);
+    setCatInfo(D.MOTOR_DB.find(x => x.type === state.catType));
+    /* полный пересчёт: заметки движка и статус тоже должны быть на новом языке */
+    recalc();
+    /* и перерисовка скрытых вкладок — иначе в них остаётся прежний язык */
+    if (lastRep) {
+      renderCableTab(lastRep);
+      drawVTC(lastRep);
+    }
+    renderCompare();
+    updateSimUI();
+    if (simState) drawSimCharts(true);
     $('#footerStamp').textContent = new Date().toLocaleDateString(I18N.locale());
     moveUnderline();
   }

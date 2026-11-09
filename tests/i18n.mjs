@@ -174,12 +174,82 @@ if (uniq.length) uniq.slice(0, 60).forEach(s => console.error('   · ' + s.repla
 
 /* --- возврат на RU --- */
 await page.click('#segLang button[data-val="ru"]');
-await page.waitForTimeout(800);
+await page.waitForTimeout(900);
 await page.click('.tab-btn[data-tab="calc"]');
 await page.waitForTimeout(600);
 const backText = await page.evaluate(() => document.body.innerText);
 check(CYR.test(backText), 'RU: русский вернулся');
 check(backText.includes('Сечение') || backText.includes('Мощность') || backText.includes('номинальный'), 'RU: знакомые подписи на месте');
+
+/* английские значения словаря, оставшиеся в DOM после возврата на RU */
+const enLeft = await page.evaluate(() => {
+  /* только те переводы, что действительно отличаются от русского ключа:
+     «s, %» → «s, %» — это не английская подпись, а та же самая */
+  const values = new Set(Object.entries(window.MC_EN || {})
+    .filter(([k, v]) => typeof v === 'string' && v.length > 3 && v !== k)
+    .map(([, v]) => v));
+  const out = [];
+  const walk = node => {
+    if (node.nodeType === 3) {
+      const v = (node.nodeValue || '').replace(/\s+/g, ' ').trim();
+      if (v && values.has(v)) out.push(v);
+      return;
+    }
+    if (node.nodeType !== 1) return;
+    if (node.tagName === 'SCRIPT' || node.tagName === 'STYLE') return;
+    for (const a of ['title', 'aria-label', 'placeholder', 'alt']) {
+      const v = node.getAttribute(a);
+      if (v && values.has(v)) out.push('[' + a + '] ' + v);
+    }
+    for (let c = node.firstChild; c; c = c.nextSibling) walk(c);
+  };
+  walk(document.body);
+  return [...new Set(out)];
+});
+check(enLeft.length === 0, `RU: английских подписей не осталось (найдено ${enLeft.length})`);
+enLeft.slice(0, 40).forEach(s => console.error('   · EN→RU: ' + s.slice(0, 140)));
+
+await page.click('.tab-btn[data-tab="calc"]');
+await page.waitForTimeout(400);
+
+/* --- RU → EN → RU на чистом состоянии: текст всех вкладок должен
+       вернуться символ в символ (номер вкладки в тексте не участвует) --- */
+{
+  const clean = await browser.newContext({ viewport: { width: 1600, height: 1050 } });
+  const p2 = await clean.newPage();
+  await p2.goto(APP_URL);
+  await p2.waitForTimeout(250);
+  await p2.evaluate(() => { localStorage.setItem('motor-tour-v1', '1'); localStorage.setItem('motor-calc-lang', 'ru'); });
+  await p2.reload();
+  await p2.waitForTimeout(900);
+  const norm = s => s.replace(/[\d\s.,:;/%()\-–—×·]+/g, ' ').trim();
+  const TABS = ['calc', 'charts', 'start', 'cable', 'ref'];
+  const snap = async tab => {
+    await p2.click(`.tab-btn[data-tab="${tab}"]`);
+    await p2.waitForTimeout(650);
+    return norm(await p2.evaluate(() => document.body.innerText));
+  };
+  const before = {};
+  for (const tab of TABS) before[tab] = await snap(tab);
+  await p2.click('#segLang button[data-val="en"]');
+  await p2.waitForTimeout(900);
+  for (const tab of TABS) { await p2.click(`.tab-btn[data-tab="${tab}"]`); await p2.waitForTimeout(350); }
+  await p2.click('#segLang button[data-val="ru"]');
+  await p2.waitForTimeout(1100);
+  const drift = [];
+  for (const tab of TABS) {
+    const now = await snap(tab);
+    if (now !== before[tab]) drift.push({ tab, before: before[tab], now });
+  }
+  check(drift.length === 0, `RU: круг RU→EN→RU не меняет текст (расхождения: ${drift.map(d => d.tab).join(', ') || 'нет'})`);
+  drift.forEach(d => {
+    const a = d.before.split(' '), b = d.now.split(' ');
+    const i = Math.max(0, a.findIndex((w, k) => w !== b[k]));
+    console.error('   · ' + d.tab + ' было:  …' + a.slice(Math.max(0, i - 8), i + 8).join(' '));
+    console.error('   · ' + d.tab + ' стало: …' + b.slice(Math.max(0, i - 8), i + 8).join(' '));
+  });
+  await clean.close();
+}
 
 /* --- переживает перезагрузку --- */
 await page.click('#segLang button[data-val="en"]');
