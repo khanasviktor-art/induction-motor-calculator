@@ -850,6 +850,7 @@
     const savedViews = {};
     ['torque', 'iu', 'speed', 'eff', 'power'].forEach(k => { savedViews[k] = charts[k].view; charts[k].view = null; });
     document.documentElement.setAttribute('data-theme', 'light');
+    document.documentElement.setAttribute('data-tone', 'light');
     if (MC.setChartTheme) MC.setChartTheme('light');
     Object.assign(MC.CHART_COLORS, MC.PALETTES.light);
     renderCharts(lastRep);
@@ -859,6 +860,7 @@
       eff: img(charts.eff), power: img(charts.power)
     };
     document.documentElement.setAttribute('data-theme', prevTheme);
+    document.documentElement.setAttribute('data-tone', themeTone(prevTheme));
     if (MC.setChartTheme) MC.setChartTheme(prevTheme);
     Object.assign(MC.CHART_COLORS, MC.PALETTES[prevTheme] || MC.PALETTES.dark);
     ['torque', 'iu', 'speed', 'eff', 'power'].forEach(k => { charts[k].view = savedViews[k]; });
@@ -957,7 +959,7 @@
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.9.2.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.10.0.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     /* настольная версия: отчёт сразу сохраняется в PDF через системный диалог */
@@ -988,6 +990,7 @@
     renderKpis(rep);
     renderVerdict(rep);
     renderMotorPanel(rep);
+    updateJExtraHint(rep);
     renderStartPanel(rep);
     renderProtectPanel(rep);
     renderCablePanel(rep);
@@ -1045,6 +1048,29 @@
   function kv(label, value, unit, cls) {
     const tip = RESULT_TIPS[label] ? ` data-tip="res:${label}"` : '';
     return `<div class="kv-row"><span class="kv-label"${tip}>${label}</span><span class="kv-value ${cls || ''}">${value}${unit ? `<span class="u">${unit}</span>` : ''}</span></div>`;
+  }
+
+  /* J нагрузки в долях от инерции ротора: так видно, «тяжёлый» ли маховик.
+     Раньше 0,3 кг·м² по умолчанию для двигателя 7,5 кВт молча растягивало пуск
+     в 7 раз — теперь отношение показано рядом с полем. */
+  function jExtraRatio(rep) {
+    const jm = rep && rep.motor ? rep.motor.j : 0;
+    const jx = +state.jExtra || 0;
+    if (!(jm > 0) || !(jx > 0)) return null;
+    return jx / jm;
+  }
+
+  function updateJExtraHint(rep) {
+    const el = $('#jExtraRatio');
+    if (!el) return;
+    const r = jExtraRatio(rep);
+    if (r == null) {
+      el.textContent = '';
+      el.className = 'hint hint-ratio';
+      return;
+    }
+    el.textContent = tf('= {r} × J ротора', { r: nf(r, r < 10 ? 1 : 0) });
+    el.className = 'hint hint-ratio' + (r > 10 ? ' bad' : r > 5 ? ' warn' : '');
   }
 
   function renderMotorPanel(rep) {
@@ -1373,6 +1399,13 @@
     const cat = state.mode === 'catalog' ? D.MOTOR_DB.find(x => x.type === state.catType) : null;
     if (state.loadType === 'constpower') {
       add('warn', 'Постоянная мощность: M = P/ω. При снижении скорости момент растёт к бесконечности; прямой пуск, Y–Δ и автотрансформатор без разгрузки/сцепления не разгонят. Для ПЧ тоже нужна разгрузка и запас по моменту.');
+    }
+    /* инерция нагрузки: слишком большой маховик затягивает пуск и тепловую проверку */
+    const jr = jExtraRatio(rep);
+    if (jr != null && jr > 10) {
+      add('warn', tf('J нагрузки {j} кг·м² — это {r}× инерции ротора. Такой маховик растягивает пуск и греет обмотку; проверьте значение (для вентилятора это обычно 0,1…1 × J ротора).', {
+        j: nf(+state.jExtra || 0, 2), r: nf(jr, 0)
+      }));
     }
     if (cat && /380\/660/.test(cat.un) && state.voltage >= 360 && state.voltage <= 415 && m.conn === 'Y') {
       add('warn', `В каталоге выбран ${cat.type} (380/660 В), но схема Y при ${nf(state.voltage, 0)} В: на фазе 220 В. Момент и ток снижены примерно в ${(m.connFactor * m.connFactor).toFixed(2)} раза; для 380 В нужна Δ.`);
@@ -2159,11 +2192,27 @@
     $('#segTheme').addEventListener('click', e => {
       const b = e.target.closest('button[data-val]');
       if (!b) return;
-      state.theme = b.dataset.val;
-      saveState();
-      syncSeg('#segTheme', state.theme);
-      applyTheme();
+      setTheme(b.dataset.val);
     });
+    /* выбор цветовой схемы */
+    $('#btnPalette').addEventListener('click', e => {
+      e.stopPropagation();
+      if (paletteOpen()) closePalette(); else openPalette();
+    });
+    $('#palettePop').addEventListener('click', e => {
+      const b = e.target.closest('[data-theme-id]');
+      if (!b) return;
+      setTheme(b.dataset.themeId);
+      closePalette();
+    });
+    document.addEventListener('click', e => {
+      if (!paletteOpen()) return;
+      if (e.target.closest('#palettePop') || e.target.closest('#btnPalette')) return;
+      closePalette();
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && paletteOpen()) { closePalette(); e.stopPropagation(); }
+    }, true);
     if (mqLight && mqLight.addEventListener) {
       mqLight.addEventListener('change', () => { if (state.theme === 'auto') applyTheme(); });
     }
@@ -2466,12 +2515,85 @@
   function effectiveTheme() {
     return state.theme === 'auto' ? (mqLight && mqLight.matches ? 'light' : 'dark') : state.theme;
   }
+
+  /* Схемы оформления: id → название и «тон» (светлый/тёмный).
+     Тон задаёт структурные правила CSS (html[data-tone]) и палитру графиков. */
+  const THEME_LIST = [
+    { id: 'dark', name: 'Тёмная', tone: 'dark' },
+    { id: 'light', name: 'Светлая', tone: 'light' },
+    { id: 'graphite', name: 'Графит', tone: 'dark' },
+    { id: 'ocean', name: 'Океан', tone: 'dark' },
+    { id: 'warm', name: 'Тёплая бумага', tone: 'light' },
+    { id: 'auto', name: 'Как в системе', tone: 'auto' }
+  ];
+  const themeTone = id => (id === 'light' || id === 'warm') ? 'light' : 'dark';
+  const swatchOf = id => ({
+    dark: 'linear-gradient(135deg,#0c1118 50%,#46e0a5 50%)',
+    light: 'linear-gradient(135deg,#ffffff 50%,#0f9d72 50%)',
+    graphite: 'linear-gradient(135deg,#15181b 50%,#8fd6b4 50%)',
+    ocean: 'linear-gradient(135deg,#0a1e30 50%,#4be0d0 50%)',
+    warm: 'linear-gradient(135deg,#faf5ec 50%,#b1682f 50%)',
+    auto: 'linear-gradient(135deg,#0c1118 50%,#ffffff 50%)'
+  })[id] || '#888';
+
+  function buildPalette() {
+    const pop = $('#palettePop');
+    if (!pop) return;
+    pop.innerHTML = THEME_LIST.map(x => `
+      <button class="palette-item" data-theme-id="${x.id}" role="menuitem">
+        <span class="palette-sw" style="background:${swatchOf(x.id)}"></span>
+        <span>${t(x.name)}</span><span class="chk">✓</span>
+      </button>`).join('');
+    updatePaletteUI();
+  }
+
+  function updatePaletteUI() {
+    const pop = $('#palettePop');
+    if (!pop) return;
+    pop.querySelectorAll('.palette-item').forEach(b => b.classList.toggle('active', b.dataset.themeId === state.theme));
+  }
+
+  function paletteOpen() {
+    const pop = $('#palettePop');
+    return !!(pop && pop.classList.contains('show'));
+  }
+
+  function openPalette() {
+    const pop = $('#palettePop'), btn = $('#btnPalette');
+    if (!pop || !btn) return;
+    buildPalette();
+    pop.classList.add('show');
+    const r = btn.getBoundingClientRect();
+    const w = pop.offsetWidth || 200, h = pop.offsetHeight || 260;
+    pop.style.left = Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8)) + 'px';
+    pop.style.top = (r.bottom + h + 16 > window.innerHeight ? Math.max(8, r.top - h - 8) : r.bottom + 8) + 'px';
+    btn.setAttribute('aria-expanded', 'true');
+  }
+
+  function closePalette() {
+    const pop = $('#palettePop');
+    if (!pop || !pop.classList.contains('show')) return;
+    pop.classList.remove('show');
+    const btn = $('#btnPalette');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+  }
+
+  function setTheme(id) {
+    if (!THEME_LIST.some(x => x.id === id)) id = 'dark';
+    state.theme = id;
+    saveState();
+    applyTheme();
+  }
+
   function applyTheme(redraw) {
     const th = effectiveTheme();
+    const tone = themeTone(th);
     document.documentElement.setAttribute('data-theme', th);
+    document.documentElement.setAttribute('data-tone', tone);
     if (MC.setChartTheme) MC.setChartTheme(th);
-    if (MC.PALETTES && MC.CHART_COLORS) Object.assign(MC.CHART_COLORS, MC.PALETTES[th]);
+    if (MC.PALETTES && MC.CHART_COLORS) Object.assign(MC.CHART_COLORS, MC.PALETTES[th] || MC.PALETTES[tone]);
     syncSeg('#segTheme', state.theme);
+    updatePaletteUI();
     if (redraw !== false && lastRep) {
       render(lastRep);
       if (simState) drawSimCharts();
@@ -2508,6 +2630,7 @@
     renderCompare();
     updateSimUI();
     if (simState) drawSimCharts(true);
+    buildPalette();
     $('#footerStamp').textContent = new Date().toLocaleDateString(I18N.locale());
     moveUnderline();
   }
@@ -2770,6 +2893,7 @@
     $('#footerStamp').textContent = new Date().toLocaleDateString(I18N.locale());
     I18N.onChange(relang);
     applyTheme(false);
+    buildPalette();
     recalc();
     switchTab(state.tab || 'calc');
     requestAnimationFrame(loop);

@@ -7,7 +7,7 @@
 <title>Асинхронный двигатель — инженерный расчёт</title>
 <meta name="author" content="Виктор Ханас">
 <meta name="generator" content="DeepSeek">
-<meta name="version" content="0.9.2">
+<meta name="version" content="0.10.0">
 <meta name="description" content="Расчёт мощности, тока, момента, кабеля и защиты асинхронного двигателя. Графики характеристик и переходные процессы пуска.">
 <style>
 /* ============================================================
@@ -193,7 +193,7 @@ body {
 .tip-pop.show { opacity: 1; transform: none; }
 .tip-pop b { color: var(--text); font-weight: 600; }
 .tip-pop sub, .tip-pop sup { font-size: .72em; }
-html[data-theme="light"] .tip-pop { box-shadow: 0 14px 36px rgba(15, 25, 40, .18); }
+html[data-tone="light"] .tip-pop { box-shadow: 0 14px 36px rgba(15, 25, 40, .18); }
 
 /* ---------- обучение ---------- */
 .tour-layer { position: fixed; inset: 0; z-index: 600; }
@@ -1146,31 +1146,192 @@ html[data-theme="light"] {
   --shadow: 0 10px 30px rgba(15, 25, 40, 0.08);
   --thumb: #ffffff;
 }
-html[data-theme="light"] body {
+html[data-tone="light"] body {
   background:
     radial-gradient(900px 500px at 8% -10%, rgba(15, 157, 114, 0.09), transparent 60%),
     radial-gradient(700px 400px at 95% 0%, rgba(47, 127, 209, 0.08), transparent 60%),
     var(--bg);
 }
-html[data-theme="light"] .brand-mark { box-shadow: inset 0 1px 0 rgba(255,255,255,.7); }
-html[data-theme="light"] .status { background: rgba(15,25,40,.03); }
-html[data-theme="light"] .panel-tag { background: rgba(15,25,40,.04); }
-html[data-theme="light"] .point-item { background: rgba(15,25,40,.025); border-color: rgba(15,25,40,.06); }
-html[data-theme="light"] .sim-note { margin: 2px 17px 8px; font-size: 10.5px; line-height: 1.45; color: var(--muted); min-height: 14px; }
+html[data-tone="light"] .brand-mark { box-shadow: inset 0 1px 0 rgba(255,255,255,.7); }
+html[data-tone="light"] .status { background: rgba(15,25,40,.03); }
+html[data-tone="light"] .panel-tag { background: rgba(15,25,40,.04); }
+html[data-tone="light"] .point-item { background: rgba(15,25,40,.025); border-color: rgba(15,25,40,.06); }
+html[data-tone="light"] .sim-note { margin: 2px 17px 8px; font-size: 10.5px; line-height: 1.45; color: var(--muted); min-height: 14px; }
 .sim-note b { color: var(--mint); font-weight: 500; }
 .sim-readout { background: rgba(15,25,40,.025); }
-html[data-theme="light"] .kv-row { border-bottom-color: rgba(15,25,40,.07); }
-html[data-theme="light"] td { border-bottom-color: rgba(15,25,40,.07); }
-html[data-theme="light"] tr:hover td { background: rgba(15,25,40,.025); }
-html[data-theme="light"] .prose code, html[data-theme="light"] .formula { background: rgba(var(--blue-rgb), .07); }
-html[data-theme="light"] .chart-box canvas { filter: none; }
-html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
+html[data-tone="light"] .kv-row { border-bottom-color: rgba(15,25,40,.07); }
+html[data-tone="light"] td { border-bottom-color: rgba(15,25,40,.07); }
+html[data-tone="light"] tr:hover td { background: rgba(15,25,40,.025); }
+html[data-tone="light"] .prose code, html[data-tone="light"] .formula { background: rgba(var(--blue-rgb), .07); }
+html[data-tone="light"] .chart-box canvas { filter: none; }
+html[data-tone="light"] ::selection { background: rgba(15,157,114,.2); }
 
 @media (max-width: 540px) {
   #btnTour { display: none; }
   #btnMenu { font-size: 0; gap: 0; padding: 0 10px; }
   #btnMenu svg { width: 18px; height: 18px; }
   .brand-text h1 { font-size: 13px; max-width: 150px; }
+}
+
+/* ---------- графит: нейтральная тёмная, мягкий зелёный акцент ---------- */
+html[data-theme="graphite"] {
+  --bg: #101214;
+  --bg-2: #15181b;
+  --panel: #1a1e22;
+  --panel-2: #15181c;
+  --panel-a: rgba(26, 30, 34, 0.96);
+  --panel-b: rgba(21, 24, 28, 0.96);
+  --input-bg: #14171a;
+  --table-head: #171b1f;
+  --line: #2b3137;
+  --line-soft: #23282d;
+  --text: #e7eaee;
+  --text-soft: #bcc3cb;
+  --muted: #8d969f;
+  --muted-2: #6a737c;
+  --mint: #8fd6b4;
+  --blue: #7fb2ff;
+  --amber: #f0b25a;
+  --pink: #ff8a9b;
+  --violet: #b9a0ff;
+  --accent-rgb: 143, 214, 180;
+  --blue-rgb: 127, 178, 255;
+  --ink-rgb: 255, 255, 255;
+  --btn-a: #21262b;
+  --btn-b: #1a1e22;
+  --btn-a-h: #282e34;
+  --btn-b-h: #1e2227;
+  --primary-a: #24382f;
+  --primary-b: #1a2a23;
+  --primary-a-h: #2c4438;
+  --primary-b-h: #203229;
+  --seg-a: #2b3a33;
+  --seg-b: #202c26;
+  --topbar-bg: rgba(16, 18, 20, 0.72);
+  --sidebar-a: rgba(23, 26, 30, 0.9);
+  --sidebar-b: rgba(16, 18, 20, 0.9);
+  --loadbar-a: rgba(28, 32, 37, 0.9);
+  --loadbar-b: rgba(22, 25, 29, 0.92);
+  --footer-bg: rgba(16, 18, 20, 0.7);
+  --inset-bg: rgba(0, 0, 0, 0.2);
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  --thumb: #e8fff5;
+}
+
+/* ---------- океан: тёмная синяя, бирюзовый акцент ---------- */
+html[data-theme="ocean"] {
+  --bg: #071726;
+  --bg-2: #0a1e30;
+  --panel: #0f2438;
+  --panel-2: #0b1d2d;
+  --panel-a: rgba(15, 36, 56, 0.96);
+  --panel-b: rgba(11, 29, 45, 0.96);
+  --input-bg: #0a1c2b;
+  --table-head: #0d2437;
+  --line: #1b3a54;
+  --line-soft: #142c40;
+  --text: #dcecfa;
+  --text-soft: #b2cbe0;
+  --muted: #7f9cb5;
+  --muted-2: #5f7c94;
+  --mint: #4be0d0;
+  --blue: #6fb3ff;
+  --amber: #ffc46b;
+  --pink: #ff7f9e;
+  --violet: #a99bff;
+  --accent-rgb: 75, 224, 208;
+  --blue-rgb: 111, 179, 255;
+  --ink-rgb: 255, 255, 255;
+  --btn-a: #143049;
+  --btn-b: #0f2539;
+  --btn-a-h: #193b58;
+  --btn-b-h: #122c43;
+  --primary-a: #0f3f45;
+  --primary-b: #0a2c31;
+  --primary-a-h: #125057;
+  --primary-b-h: #0d353b;
+  --seg-a: #124049;
+  --seg-b: #0c2f36;
+  --topbar-bg: rgba(7, 23, 38, 0.72);
+  --sidebar-a: rgba(11, 30, 47, 0.9);
+  --sidebar-b: rgba(7, 23, 38, 0.9);
+  --loadbar-a: rgba(16, 42, 64, 0.9);
+  --loadbar-b: rgba(11, 32, 49, 0.92);
+  --footer-bg: rgba(7, 23, 38, 0.7);
+  --inset-bg: rgba(0, 0, 0, 0.18);
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+  --thumb: #dcfff9;
+}
+
+/* ---------- тёплая бумага: светлая, терракотовый акцент ---------- */
+html[data-theme="warm"] {
+  --bg: #f3ede2;
+  --bg-2: #faf5ec;
+  --panel: #fffdf8;
+  --panel-2: #f8f2e7;
+  --panel-a: rgba(255, 253, 248, 0.98);
+  --panel-b: rgba(250, 245, 236, 0.98);
+  --input-bg: #f6f0e5;
+  --table-head: #f2ebdf;
+  --line: #ddd2c0;
+  --line-soft: #e9e0d2;
+  --text: #2a2620;
+  --text-soft: #4a4238;
+  --muted: #6b6154;
+  --muted-2: #948879;
+  --mint: #b1682f;
+  --blue: #3a6ea5;
+  --amber: #a86a12;
+  --pink: #c94a5f;
+  --violet: #7c5aa8;
+  --accent-rgb: 177, 104, 47;
+  --blue-rgb: 58, 110, 165;
+  --ink-rgb: 40, 30, 20;
+  --btn-a: #fffdf8;
+  --btn-b: #f4ecdf;
+  --btn-a-h: #fdf8ef;
+  --btn-b-h: #efe5d5;
+  --primary-a: #f6e6d5;
+  --primary-b: #efd9c2;
+  --primary-a-h: #f2ddc8;
+  --primary-b-h: #e8cdb1;
+  --seg-a: #f0ddc9;
+  --seg-b: #e7cfb6;
+  --topbar-bg: rgba(255, 253, 248, 0.82);
+  --sidebar-a: rgba(252, 247, 239, 0.96);
+  --sidebar-b: rgba(246, 240, 230, 0.96);
+  --loadbar-a: rgba(255, 253, 248, 0.95);
+  --loadbar-b: rgba(250, 245, 236, 0.95);
+  --footer-bg: rgba(255, 253, 248, 0.7);
+  --inset-bg: rgba(40, 30, 20, 0.04);
+  --shadow: 0 10px 30px rgba(60, 45, 25, 0.12);
+  --thumb: #ffffff;
+}
+
+/* ---------- выбор цветовой схемы ---------- */
+.hint-ratio { margin-top: 3px; font-variant-numeric: tabular-nums; }
+.hint-ratio.warn { color: var(--amber); }
+.hint-ratio.bad { color: var(--pink); }
+.palette-pop {
+  position: fixed; z-index: 420; display: none;
+  min-width: 190px; padding: 6px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 11px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+}
+.palette-pop.show { display: block; }
+.palette-item {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  padding: 7px 9px; border: 0; border-radius: 8px; background: none;
+  color: var(--text-soft); font: inherit; font-size: 11.5px; text-align: left; cursor: pointer;
+}
+.palette-item:hover { background: var(--inset-bg); color: var(--text); }
+.palette-item.active { background: var(--seg-a); color: var(--text); }
+.palette-sw { width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(127, 127, 127, 0.35); flex: none; }
+.palette-item .chk { margin-left: auto; opacity: 0; font-size: 11px; }
+.palette-item.active .chk { opacity: 1; color: var(--mint); }
+html[data-tone="light"] .palette-pop { box-shadow: 0 16px 40px rgba(15, 25, 40, 0.18); }
+
+@media (max-width: 540px) {
   .theme-switch { width: 88px; }
   .loadbar-foot span:last-child { display: none; }
 }
@@ -1219,6 +1380,10 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
         <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><rect x="3" y="4" width="14" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7.5 17h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </button>
     </div>
+    <button class="btn icon" id="btnPalette" title="Цветовая схема" aria-label="Цветовая схема">
+      <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 3.2a6.8 6.8 0 0 0 0 13.6c.9 0 1.5-.6 1.5-1.4 0-.4-.2-.8-.4-1-.2-.3-.4-.6-.4-.9 0-.7.6-1.3 1.4-1.3h1.2c1.8 0 3.2-1.5 3.2-3.3 0-3.1-2.9-5.7-6.5-5.7z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><circle cx="7.4" cy="8.2" r="1.05" fill="currentColor"/><circle cx="10.1" cy="6.6" r="1.05" fill="currentColor"/><circle cx="12.8" cy="8.2" r="1.05" fill="currentColor"/></svg>
+    </button>
+    <div class="palette-pop" id="palettePop" role="dialog" aria-label="Цветовая схема"></div>
     <div class="status" id="status"><span class="pulse"></span><span id="statusText">готов</span></div>
     <button class="btn ghost" id="btnPrint" title="Печать или сохранение в PDF">
       <svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true"><path d="M5 7V3h10v4M5 14H3V9h14v5h-2M5 12h10v5H5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
@@ -1450,6 +1615,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
           <label for="jExtra">J нагрузки (приведённый)</label>
           <div class="input-wrap"><input id="jExtra" type="number" min="0" max="500" step="0.05" value="0.3"><span class="unit">кг·м²</span></div>
           <div class="hint">Инертность механизма, приведённая к валу. Влияет на время пуска. Ориентир: вентилятор 0,1…1 от J двигателя, конвейер 1…5, пресс 3…10.</div>
+          <div class="hint hint-ratio" id="jExtraRatio"></div>
         </div>
       </section>
 
@@ -1592,7 +1758,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
         <button class="btn ghost" id="btnLoadProject">Открыть проект</button>
       </div>
       <div class="side-foot">
-        <span>v0.9.2</span>
+        <span>v0.10.0</span>
         <span>ПУЭ · IEC 60364</span>
       </div>
     </div>
@@ -1915,7 +2081,7 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
 <div class="tip-pop" id="tipPop" role="tooltip" aria-hidden="true"></div>
 
 <footer class="footer">
-  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.9.2</span>
+  <span>Инженерный калькулятор асинхронного двигателя · ПУЭ / IEC 60364 · офлайн · v0.10.0</span>
   <span class="footer-credit">Сделано с помощью <b>DeepSeek</b> · идея: <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></span>
   <span id="footerStamp"></span>
 </footer>
@@ -2996,6 +3162,27 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
       tooltipBg: 'rgba(255,255,255,0.97)', tooltipBorder: 'rgba(15,25,40,0.14)',
       refLine: 'rgba(181,115,15,0.55)', refText: 'rgba(150,95,10,0.9)',
       panel: '#ffffff'
+    },
+    graphite: {
+      grid: 'rgba(255,255,255,0.05)', gridStrong: 'rgba(255,255,255,0.09)',
+      axis: 'rgba(255,255,255,0.15)', text: '#8d969f', textBright: '#cfd6dd',
+      tooltipBg: 'rgba(20,23,26,0.95)', tooltipBorder: 'rgba(255,255,255,0.13)',
+      refLine: 'rgba(240,178,90,0.5)', refText: 'rgba(240,178,90,0.82)',
+      panel: '#1a1e22'
+    },
+    ocean: {
+      grid: 'rgba(190,225,255,0.06)', gridStrong: 'rgba(190,225,255,0.11)',
+      axis: 'rgba(190,225,255,0.17)', text: '#7f9cb5', textBright: '#cfe4f6',
+      tooltipBg: 'rgba(9,26,41,0.95)', tooltipBorder: 'rgba(190,225,255,0.14)',
+      refLine: 'rgba(255,196,107,0.52)', refText: 'rgba(255,196,107,0.85)',
+      panel: '#0f2438'
+    },
+    warm: {
+      grid: 'rgba(60,45,25,0.07)', gridStrong: 'rgba(60,45,25,0.13)',
+      axis: 'rgba(60,45,25,0.22)', text: '#6b6154', textBright: '#2a2620',
+      tooltipBg: 'rgba(255,253,248,0.97)', tooltipBorder: 'rgba(60,45,25,0.15)',
+      refLine: 'rgba(168,106,18,0.55)', refText: 'rgba(140,88,12,0.9)',
+      panel: '#fffdf8'
     }
   };
   let THEME = THEMES.dark;
@@ -3645,7 +3832,10 @@ html[data-theme="light"] ::selection { background: rgba(15,157,114,.2); }
   root.MC.CHART_THEMES = THEMES;
   root.MC.PALETTES = {
     dark: { mint: '#46e0a5', blue: '#5aa9ff', amber: '#ffb454', pink: '#ff6b8b', violet: '#b98bff', cyan: '#4fd8e8', gray: '#8fa0b8', lime: '#c6e75a', overlay: '#ff9f5a' },
-    light: { mint: '#0f9d72', blue: '#2f7fd1', amber: '#b5730f', pink: '#d64564', violet: '#7a55c9', cyan: '#0e8fa8', gray: '#6b7a8e', lime: '#6f8f0f', overlay: '#c06a1e' }
+    light: { mint: '#0f9d72', blue: '#2f7fd1', amber: '#b5730f', pink: '#d64564', violet: '#7a55c9', cyan: '#0e8fa8', gray: '#6b7a8e', lime: '#6f8f0f', overlay: '#c06a1e' },
+    graphite: { mint: '#8fd6b4', blue: '#7fb2ff', amber: '#f0b25a', pink: '#ff8a9b', violet: '#b9a0ff', cyan: '#8fd8e0', gray: '#a3adb6', lime: '#c9dd7a', overlay: '#ff9f5a' },
+    ocean: { mint: '#4be0d0', blue: '#6fb3ff', amber: '#ffc46b', pink: '#ff7f9e', violet: '#a99bff', cyan: '#5fe3f0', gray: '#8fa8bf', lime: '#c2e26a', overlay: '#ffa45f' },
+    warm: { mint: '#b1682f', blue: '#3a6ea5', amber: '#a86a12', pink: '#c94a5f', violet: '#7c5aa8', cyan: '#217f8c', gray: '#7d7264', lime: '#6f7a1a', overlay: '#b25a1e' }
   };
   root.MC.CHART_COLORS = Object.assign({}, root.MC.PALETTES.dark);
 })(typeof globalThis !== 'undefined' ? globalThis : this);
@@ -4190,6 +4380,7 @@ Object.assign(window.MC_EN, {
   "× не выполняется": "× fails",
   "×Iн": "×Iₙ",
   "<b>Ток</b> 30 А": "<b>Current</b> 30 A",
+  "= {r} × J ротора": "= {r} × rotor J",
   "✓ выполняется": "✓ passes",
   "✓ да": "✓ yes",
   "✓ проверки пройдены": "✓ checks passed",
@@ -4429,6 +4620,7 @@ Object.assign(window.MC_EN, {
   "граница": "edge",
   "График": "Chart",
   "Графики": "Charts",
+  "Графит": "Graphite",
   "Гц": "Hz",
   "Даже кривая D не покрывает этот ток — увеличьте номинал или примените MCCB с регулируемой отсечкой.": "Even curve D does not cover this current — increase the rating or use an MCCB with an adjustable trip.",
   "Далее": "Next",
@@ -4654,6 +4846,7 @@ Object.assign(window.MC_EN, {
   "Ожидаемый ток КЗ в точке подключения. Проверяются Icu автомата и термическая стойкость кабеля по I²t.": "Expected short-circuit current at the point of connection. The breaker Icu and the cable thermal withstand by I²t are checked.",
   "ожидание": "idle",
   "ок": "OK",
+  "Океан": "Ocean",
   "Ом": "Ω",
   "опрокидывание": "stall",
   "Основные параметры": "Main parameters",
@@ -4840,6 +5033,7 @@ Object.assign(window.MC_EN, {
   "Сброс": "Reset",
   "Сбросить все параметры": "Reset all settings",
   "Сбросить масштаб": "Reset zoom",
+  "Светлая": "Light",
   "Светлая тема": "Light theme",
   "Своя кривая M(n)": "Custom M(n) curve",
   "Свыше 125 А автоматически применяется MCCB": "Above 125 A an MCCB is applied automatically",
@@ -4915,9 +5109,11 @@ Object.assign(window.MC_EN, {
   "Схема обмоток. В звезде фазное напряжение в √3 раз меньше линейного, в треугольнике равно линейному. Для 380/660 при 380 В — треугольник.": "Winding connection. In star the phase voltage is √3 times lower than the line voltage, in delta it equals the line voltage. For 380/660 at 380 V — delta.",
   "Схема Y при 380 В для двигателя 380/660 снижает момент примерно в 3 раза. Переключите на Δ; после этого проверьте пуск.": "The Y connection at 380 V on a 380/660 motor reduces torque about three times. Switch to Δ, then check the start.",
   "Тема и отчёт": "Theme and report",
+  "Тёмная": "Dark",
   "Тёмная тема": "Dark theme",
   "Температура обмотки": "Winding temperature",
   "Температура среды для кабеля. Поправка выбирается по таблицам ПУЭ или IEC.": "Ambient temperature for the cable. The correction factor is taken from the PUE or IEC tables.",
+  "Тёплая бумага": "Warm paper",
   "Тепловая зона": "Thermal zone",
   "Тепловая зона автомата: при {i} А он отключится за {tr} с, а пуск длится {ts} с — сработает по теплу. Уменьшите пусковой ток (софтстартер, ПЧ, Y–Δ) или возьмите аппарат с регулируемой тепловой защитой.": "Breaker thermal zone: at {i} A it trips in {tr} s, while the start takes {ts} s — it will trip on heat. Reduce the starting current (soft starter, VFD, Y–Δ) or use a device with an adjustable thermal trip.",
   "Тепловая зона при {i} А: {tr} с, пуск {ts} с.": "Thermal zone at {i} A: {tr} s, start {ts} s.",
@@ -4976,6 +5172,7 @@ Object.assign(window.MC_EN, {
   "Характер момента сопротивления: постоянный, вентиляторный (∝ n²), линейный (∝ n) или постоянная мощность. Постоянная мощность: M = P/ω, при нулевой скорости момент стремится к бесконечности; пуск без разгрузки/сцепления или ПЧ с разгрузкой невозможен.": "Nature of the load torque: constant, fan-type (∝ n²), linear (∝ n) or constant power. Constant power: M = P/ω, at zero speed the torque tends to infinity; starting without unloading or decoupling the load is impossible, and a VFD also needs unloading.",
   "Характеристики": "Characteristics",
   "холодный": "cold",
+  "Цветовая схема": "Color scheme",
   "ч": "h",
   "Частота": "Frequency",
   "Частота в роторе f₂": "Rotor frequency f₂",
@@ -5032,6 +5229,7 @@ Object.assign(window.MC_EN, {
   "J = 0 — автооценка по мощности. Моменты можно взять из паспорта.": "J = 0 — auto-estimate from the power rating. Torques can be taken from the datasheet.",
   "J нагрузки — приведённый к валу момент инерции механизма, кг·м². Это «инертность» нагрузки: чем больше J, тем медленнее разгон и больше нагрев при пуске. Ориентир: вентилятор 0,1…1 от J двигателя, конвейер 1…5, пресс 3…10. Если неизвестно — начните с 0,3…1.": "Load J is the moment of inertia of the driven machine referred to the shaft, kg·m². It is the \"inertia\" of the load: the larger J, the slower the run-up and the greater the heating during starting. Rule of thumb: fan 0.1…1 of the motor J, conveyor 1…5, press 3…10. If unknown, start with 0.3…1.",
   "J нагрузки (приведённый)": "Load inertia J (referred to the shaft)",
+  "J нагрузки {j} кг·м² — это {r}× инерции ротора. Такой маховик растягивает пуск и греет обмотку; проверьте значение (для вентилятора это обычно 0,1…1 × J ротора).": "Load inertia {j} kg·m² is {r}× the rotor inertia. Such a flywheel stretches the start and heats the winding; check the value (a fan is usually 0.1…1 × rotor J).",
   "J ротора": "Rotor J",
   "M двигателя": "Motor torque",
   "M двигателя, Н·м": "Motor torque, N·m",
@@ -6318,6 +6516,7 @@ Object.assign(window.MC_EN, {
     const savedViews = {};
     ['torque', 'iu', 'speed', 'eff', 'power'].forEach(k => { savedViews[k] = charts[k].view; charts[k].view = null; });
     document.documentElement.setAttribute('data-theme', 'light');
+    document.documentElement.setAttribute('data-tone', 'light');
     if (MC.setChartTheme) MC.setChartTheme('light');
     Object.assign(MC.CHART_COLORS, MC.PALETTES.light);
     renderCharts(lastRep);
@@ -6327,6 +6526,7 @@ Object.assign(window.MC_EN, {
       eff: img(charts.eff), power: img(charts.power)
     };
     document.documentElement.setAttribute('data-theme', prevTheme);
+    document.documentElement.setAttribute('data-tone', themeTone(prevTheme));
     if (MC.setChartTheme) MC.setChartTheme(prevTheme);
     Object.assign(MC.CHART_COLORS, MC.PALETTES[prevTheme] || MC.PALETTES.dark);
     ['torque', 'iu', 'speed', 'eff', 'power'].forEach(k => { charts[k].view = savedViews[k]; });
@@ -6425,7 +6625,7 @@ Object.assign(window.MC_EN, {
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.9.2.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.10.0.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     /* настольная версия: отчёт сразу сохраняется в PDF через системный диалог */
@@ -6456,6 +6656,7 @@ Object.assign(window.MC_EN, {
     renderKpis(rep);
     renderVerdict(rep);
     renderMotorPanel(rep);
+    updateJExtraHint(rep);
     renderStartPanel(rep);
     renderProtectPanel(rep);
     renderCablePanel(rep);
@@ -6513,6 +6714,29 @@ Object.assign(window.MC_EN, {
   function kv(label, value, unit, cls) {
     const tip = RESULT_TIPS[label] ? ` data-tip="res:${label}"` : '';
     return `<div class="kv-row"><span class="kv-label"${tip}>${label}</span><span class="kv-value ${cls || ''}">${value}${unit ? `<span class="u">${unit}</span>` : ''}</span></div>`;
+  }
+
+  /* J нагрузки в долях от инерции ротора: так видно, «тяжёлый» ли маховик.
+     Раньше 0,3 кг·м² по умолчанию для двигателя 7,5 кВт молча растягивало пуск
+     в 7 раз — теперь отношение показано рядом с полем. */
+  function jExtraRatio(rep) {
+    const jm = rep && rep.motor ? rep.motor.j : 0;
+    const jx = +state.jExtra || 0;
+    if (!(jm > 0) || !(jx > 0)) return null;
+    return jx / jm;
+  }
+
+  function updateJExtraHint(rep) {
+    const el = $('#jExtraRatio');
+    if (!el) return;
+    const r = jExtraRatio(rep);
+    if (r == null) {
+      el.textContent = '';
+      el.className = 'hint hint-ratio';
+      return;
+    }
+    el.textContent = tf('= {r} × J ротора', { r: nf(r, r < 10 ? 1 : 0) });
+    el.className = 'hint hint-ratio' + (r > 10 ? ' bad' : r > 5 ? ' warn' : '');
   }
 
   function renderMotorPanel(rep) {
@@ -6841,6 +7065,13 @@ Object.assign(window.MC_EN, {
     const cat = state.mode === 'catalog' ? D.MOTOR_DB.find(x => x.type === state.catType) : null;
     if (state.loadType === 'constpower') {
       add('warn', 'Постоянная мощность: M = P/ω. При снижении скорости момент растёт к бесконечности; прямой пуск, Y–Δ и автотрансформатор без разгрузки/сцепления не разгонят. Для ПЧ тоже нужна разгрузка и запас по моменту.');
+    }
+    /* инерция нагрузки: слишком большой маховик затягивает пуск и тепловую проверку */
+    const jr = jExtraRatio(rep);
+    if (jr != null && jr > 10) {
+      add('warn', tf('J нагрузки {j} кг·м² — это {r}× инерции ротора. Такой маховик растягивает пуск и греет обмотку; проверьте значение (для вентилятора это обычно 0,1…1 × J ротора).', {
+        j: nf(+state.jExtra || 0, 2), r: nf(jr, 0)
+      }));
     }
     if (cat && /380\/660/.test(cat.un) && state.voltage >= 360 && state.voltage <= 415 && m.conn === 'Y') {
       add('warn', `В каталоге выбран ${cat.type} (380/660 В), но схема Y при ${nf(state.voltage, 0)} В: на фазе 220 В. Момент и ток снижены примерно в ${(m.connFactor * m.connFactor).toFixed(2)} раза; для 380 В нужна Δ.`);
@@ -7627,11 +7858,27 @@ Object.assign(window.MC_EN, {
     $('#segTheme').addEventListener('click', e => {
       const b = e.target.closest('button[data-val]');
       if (!b) return;
-      state.theme = b.dataset.val;
-      saveState();
-      syncSeg('#segTheme', state.theme);
-      applyTheme();
+      setTheme(b.dataset.val);
     });
+    /* выбор цветовой схемы */
+    $('#btnPalette').addEventListener('click', e => {
+      e.stopPropagation();
+      if (paletteOpen()) closePalette(); else openPalette();
+    });
+    $('#palettePop').addEventListener('click', e => {
+      const b = e.target.closest('[data-theme-id]');
+      if (!b) return;
+      setTheme(b.dataset.themeId);
+      closePalette();
+    });
+    document.addEventListener('click', e => {
+      if (!paletteOpen()) return;
+      if (e.target.closest('#palettePop') || e.target.closest('#btnPalette')) return;
+      closePalette();
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && paletteOpen()) { closePalette(); e.stopPropagation(); }
+    }, true);
     if (mqLight && mqLight.addEventListener) {
       mqLight.addEventListener('change', () => { if (state.theme === 'auto') applyTheme(); });
     }
@@ -7934,12 +8181,85 @@ Object.assign(window.MC_EN, {
   function effectiveTheme() {
     return state.theme === 'auto' ? (mqLight && mqLight.matches ? 'light' : 'dark') : state.theme;
   }
+
+  /* Схемы оформления: id → название и «тон» (светлый/тёмный).
+     Тон задаёт структурные правила CSS (html[data-tone]) и палитру графиков. */
+  const THEME_LIST = [
+    { id: 'dark', name: 'Тёмная', tone: 'dark' },
+    { id: 'light', name: 'Светлая', tone: 'light' },
+    { id: 'graphite', name: 'Графит', tone: 'dark' },
+    { id: 'ocean', name: 'Океан', tone: 'dark' },
+    { id: 'warm', name: 'Тёплая бумага', tone: 'light' },
+    { id: 'auto', name: 'Как в системе', tone: 'auto' }
+  ];
+  const themeTone = id => (id === 'light' || id === 'warm') ? 'light' : 'dark';
+  const swatchOf = id => ({
+    dark: 'linear-gradient(135deg,#0c1118 50%,#46e0a5 50%)',
+    light: 'linear-gradient(135deg,#ffffff 50%,#0f9d72 50%)',
+    graphite: 'linear-gradient(135deg,#15181b 50%,#8fd6b4 50%)',
+    ocean: 'linear-gradient(135deg,#0a1e30 50%,#4be0d0 50%)',
+    warm: 'linear-gradient(135deg,#faf5ec 50%,#b1682f 50%)',
+    auto: 'linear-gradient(135deg,#0c1118 50%,#ffffff 50%)'
+  })[id] || '#888';
+
+  function buildPalette() {
+    const pop = $('#palettePop');
+    if (!pop) return;
+    pop.innerHTML = THEME_LIST.map(x => `
+      <button class="palette-item" data-theme-id="${x.id}" role="menuitem">
+        <span class="palette-sw" style="background:${swatchOf(x.id)}"></span>
+        <span>${t(x.name)}</span><span class="chk">✓</span>
+      </button>`).join('');
+    updatePaletteUI();
+  }
+
+  function updatePaletteUI() {
+    const pop = $('#palettePop');
+    if (!pop) return;
+    pop.querySelectorAll('.palette-item').forEach(b => b.classList.toggle('active', b.dataset.themeId === state.theme));
+  }
+
+  function paletteOpen() {
+    const pop = $('#palettePop');
+    return !!(pop && pop.classList.contains('show'));
+  }
+
+  function openPalette() {
+    const pop = $('#palettePop'), btn = $('#btnPalette');
+    if (!pop || !btn) return;
+    buildPalette();
+    pop.classList.add('show');
+    const r = btn.getBoundingClientRect();
+    const w = pop.offsetWidth || 200, h = pop.offsetHeight || 260;
+    pop.style.left = Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8)) + 'px';
+    pop.style.top = (r.bottom + h + 16 > window.innerHeight ? Math.max(8, r.top - h - 8) : r.bottom + 8) + 'px';
+    btn.setAttribute('aria-expanded', 'true');
+  }
+
+  function closePalette() {
+    const pop = $('#palettePop');
+    if (!pop || !pop.classList.contains('show')) return;
+    pop.classList.remove('show');
+    const btn = $('#btnPalette');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+  }
+
+  function setTheme(id) {
+    if (!THEME_LIST.some(x => x.id === id)) id = 'dark';
+    state.theme = id;
+    saveState();
+    applyTheme();
+  }
+
   function applyTheme(redraw) {
     const th = effectiveTheme();
+    const tone = themeTone(th);
     document.documentElement.setAttribute('data-theme', th);
+    document.documentElement.setAttribute('data-tone', tone);
     if (MC.setChartTheme) MC.setChartTheme(th);
-    if (MC.PALETTES && MC.CHART_COLORS) Object.assign(MC.CHART_COLORS, MC.PALETTES[th]);
+    if (MC.PALETTES && MC.CHART_COLORS) Object.assign(MC.CHART_COLORS, MC.PALETTES[th] || MC.PALETTES[tone]);
     syncSeg('#segTheme', state.theme);
+    updatePaletteUI();
     if (redraw !== false && lastRep) {
       render(lastRep);
       if (simState) drawSimCharts();
@@ -7976,6 +8296,7 @@ Object.assign(window.MC_EN, {
     renderCompare();
     updateSimUI();
     if (simState) drawSimCharts(true);
+    buildPalette();
     $('#footerStamp').textContent = new Date().toLocaleDateString(I18N.locale());
     moveUnderline();
   }
@@ -8238,6 +8559,7 @@ Object.assign(window.MC_EN, {
     $('#footerStamp').textContent = new Date().toLocaleDateString(I18N.locale());
     I18N.onChange(relang);
     applyTheme(false);
+    buildPalette();
     recalc();
     switchTab(state.tab || 'calc');
     requestAnimationFrame(loop);

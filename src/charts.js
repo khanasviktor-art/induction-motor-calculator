@@ -20,6 +20,27 @@
       tooltipBg: 'rgba(255,255,255,0.97)', tooltipBorder: 'rgba(15,25,40,0.14)',
       refLine: 'rgba(181,115,15,0.55)', refText: 'rgba(150,95,10,0.9)',
       panel: '#ffffff'
+    },
+    graphite: {
+      grid: 'rgba(255,255,255,0.05)', gridStrong: 'rgba(255,255,255,0.09)',
+      axis: 'rgba(255,255,255,0.15)', text: '#8d969f', textBright: '#cfd6dd',
+      tooltipBg: 'rgba(20,23,26,0.95)', tooltipBorder: 'rgba(255,255,255,0.13)',
+      refLine: 'rgba(240,178,90,0.5)', refText: 'rgba(240,178,90,0.82)',
+      panel: '#1a1e22'
+    },
+    ocean: {
+      grid: 'rgba(190,225,255,0.06)', gridStrong: 'rgba(190,225,255,0.11)',
+      axis: 'rgba(190,225,255,0.17)', text: '#7f9cb5', textBright: '#cfe4f6',
+      tooltipBg: 'rgba(9,26,41,0.95)', tooltipBorder: 'rgba(190,225,255,0.14)',
+      refLine: 'rgba(255,196,107,0.52)', refText: 'rgba(255,196,107,0.85)',
+      panel: '#0f2438'
+    },
+    warm: {
+      grid: 'rgba(60,45,25,0.07)', gridStrong: 'rgba(60,45,25,0.13)',
+      axis: 'rgba(60,45,25,0.22)', text: '#6b6154', textBright: '#2a2620',
+      tooltipBg: 'rgba(255,253,248,0.97)', tooltipBorder: 'rgba(60,45,25,0.15)',
+      refLine: 'rgba(168,106,18,0.55)', refText: 'rgba(140,88,12,0.9)',
+      panel: '#fffdf8'
     }
   };
   let THEME = THEMES.dark;
@@ -669,7 +690,10 @@
   root.MC.CHART_THEMES = THEMES;
   root.MC.PALETTES = {
     dark: { mint: '#46e0a5', blue: '#5aa9ff', amber: '#ffb454', pink: '#ff6b8b', violet: '#b98bff', cyan: '#4fd8e8', gray: '#8fa0b8', lime: '#c6e75a', overlay: '#ff9f5a' },
-    light: { mint: '#0f9d72', blue: '#2f7fd1', amber: '#b5730f', pink: '#d64564', violet: '#7a55c9', cyan: '#0e8fa8', gray: '#6b7a8e', lime: '#6f8f0f', overlay: '#c06a1e' }
+    light: { mint: '#0f9d72', blue: '#2f7fd1', amber: '#b5730f', pink: '#d64564', violet: '#7a55c9', cyan: '#0e8fa8', gray: '#6b7a8e', lime: '#6f8f0f', overlay: '#c06a1e' },
+    graphite: { mint: '#8fd6b4', blue: '#7fb2ff', amber: '#f0b25a', pink: '#ff8a9b', violet: '#b9a0ff', cyan: '#8fd8e0', gray: '#a3adb6', lime: '#c9dd7a', overlay: '#ff9f5a' },
+    ocean: { mint: '#4be0d0', blue: '#6fb3ff', amber: '#ffc46b', pink: '#ff7f9e', violet: '#a99bff', cyan: '#5fe3f0', gray: '#8fa8bf', lime: '#c2e26a', overlay: '#ffa45f' },
+    warm: { mint: '#b1682f', blue: '#3a6ea5', amber: '#a86a12', pink: '#c94a5f', violet: '#7c5aa8', cyan: '#217f8c', gray: '#7d7264', lime: '#6f7a1a', overlay: '#b25a1e' }
   };
   root.MC.CHART_COLORS = Object.assign({}, root.MC.PALETTES.dark);
 })(typeof globalThis !== 'undefined' ? globalThis : this);

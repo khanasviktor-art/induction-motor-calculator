@@ -718,6 +718,106 @@ section('7. интерфейс: вкладки, подсказки, тур, гр
   await page.waitForTimeout(400);
 }
 
+section('7b. цветовые схемы и инерция нагрузки');
+{
+  /* палитра: открывается, содержит все схемы, закрывается по Esc */
+  await page.click('#btnPalette');
+  await page.waitForTimeout(200);
+  const pal = await page.evaluate(() => {
+    const pop = document.querySelector('#palettePop');
+    return {
+      shown: pop.classList.contains('show'),
+      items: [...pop.querySelectorAll('.palette-item')].map(b => b.dataset.themeId),
+      active: [...pop.querySelectorAll('.palette-item.active')].map(b => b.dataset.themeId),
+      rect: pop.getBoundingClientRect()
+    };
+  });
+  check(pal.shown && pal.items.length >= 6, 'палитра: открывается и перечисляет схемы', pal.items);
+  check(pal.items.indexOf('graphite') >= 0 && pal.items.indexOf('ocean') >= 0 && pal.items.indexOf('warm') >= 0,
+    'палитра: новые схемы на месте', pal.items);
+  check(pal.active.length === 1, 'палитра: подсвечена текущая схема', pal.active);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+  check(!(await page.evaluate(() => document.querySelector('#palettePop').classList.contains('show'))), 'палитра: закрывается по Esc');
+
+  /* каждая схема: data-theme, тон, фон и палитра графиков */
+  const seen = new Set();
+  for (const id of ['graphite', 'ocean', 'warm', 'light', 'dark']) {
+    await page.click('#btnPalette');
+    await page.waitForTimeout(150);
+    await page.click(`#palettePop [data-theme-id="${id}"]`);
+    await page.waitForTimeout(450);
+    const s = await page.evaluate(() => {
+      const cs = getComputedStyle(document.documentElement);
+      return {
+        theme: document.documentElement.getAttribute('data-theme'),
+        tone: document.documentElement.getAttribute('data-tone'),
+        bg: cs.getPropertyValue('--bg').trim(),
+        text: cs.getPropertyValue('--text').trim(),
+        mint: window.MC.CHART_COLORS.mint,
+        state: window.__mcDebug.state.theme
+      };
+    });
+    const toneOk = id === 'warm' || id === 'light' ? s.tone === 'light' : s.tone === 'dark';
+    check(s.theme === id && s.state === id && toneOk, `схема «${id}» применена`, s);
+    check(!!s.bg && !!s.text && !!s.mint, `схема «${id}»: переменные определены`, { bg: s.bg, mint: s.mint });
+    seen.add(s.bg + s.mint);
+  }
+  check(seen.size === 5, 'схемы различаются фоном и палитрой', seen.size);
+
+  /* выбор сохраняется */
+  await page.click('#btnPalette');
+  await page.waitForTimeout(150);
+  await page.click('#palettePop [data-theme-id="ocean"]');
+  await page.waitForTimeout(400);
+  await page.reload();
+  await page.waitForTimeout(900);
+  const afterReload = await page.evaluate(() => ({
+    theme: document.documentElement.getAttribute('data-theme'),
+    tone: document.documentElement.getAttribute('data-tone')
+  }));
+  check(afterReload.theme === 'ocean' && afterReload.tone === 'dark', 'схема переживает перезагрузку', afterReload);
+  await page.evaluate(() => {
+    document.querySelector('#btnPalette').click();
+    document.querySelector('#palettePop [data-theme-id="dark"]').click();
+  });
+  await page.waitForTimeout(400);
+
+  /* инерция нагрузки: «× J ротора» рядом с полем и предупреждение при большом J */
+  const jHint = await page.evaluate(async () => {
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    document.querySelector('#segMode button[data-val="power"]').click();
+    await wait(200);
+    const p2 = document.querySelector('#p2');
+    p2.value = '7.5';
+    p2.dispatchEvent(new Event('input', { bubbles: true }));
+    await wait(900);
+    const big = document.querySelector('#jExtra');
+    big.value = '0.3';
+    big.dispatchEvent(new Event('input', { bubbles: true }));
+    await wait(900);
+    const a = {
+      text: document.querySelector('#jExtraRatio').textContent,
+      cls: document.querySelector('#jExtraRatio').className,
+      warn: [...document.querySelectorAll('#panelWarn .warn-item')].map(e => e.textContent.replace(/\s+/g, ' ').trim()).filter(t => /J нагрузки/.test(t))
+    };
+    const small = document.querySelector('#jExtra');
+    small.value = '0.02';
+    small.dispatchEvent(new Event('input', { bubbles: true }));
+    await wait(900);
+    const b = {
+      text: document.querySelector('#jExtraRatio').textContent,
+      cls: document.querySelector('#jExtraRatio').className,
+      warn: [...document.querySelectorAll('#panelWarn .warn-item')].map(e => e.textContent.replace(/\s+/g, ' ').trim()).filter(t => /J нагрузки/.test(t))
+    };
+    return { a, b };
+  });
+  check(/× J ротора/.test(jHint.a.text), 'J нагрузки: показано отношение к ротору', jHint.a.text);
+  check(jHint.a.cls.indexOf('bad') >= 0 && jHint.a.warn.length === 1, 'J нагрузки: предупреждение при большом маховике', jHint.a);
+  check(/× J ротора/.test(jHint.b.text) && jHint.b.cls.indexOf('bad') < 0 && jHint.b.warn.length === 0,
+    'J нагрузки: при разумном значении предупреждения нет', jHint.b);
+}
+
 section('8. производительность');
 {
   await page.click('.tab-btn[data-tab="calc"]');
