@@ -24,11 +24,14 @@
   },
   "scripts": {
     "build": "node build.mjs",
+    "i18n": "node tools/i18n-assemble.cjs",
+    "i18n:audit": "node tools/i18n-audit.cjs",
     "test": "node build.mjs && node tests/run.mjs",
     "test:smoke": "node build.mjs && node tests/smoke.mjs",
     "test:static": "node build.mjs && node tests/charts-static.mjs",
     "test:transient": "node build.mjs && node tests/charts-transient.mjs",
-    "test:features": "node build.mjs && node tests/features.mjs"
+    "test:features": "node build.mjs && node tests/features.mjs",
+    "test:i18n": "node build.mjs && node tests/i18n.mjs"
   },
   "devDependencies": {
     "playwright-core": "^1.49.1"

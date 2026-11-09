@@ -167,14 +167,19 @@ CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" npm t
 `.github/workflows/ci.yml`:
 
 1. checkout;
-2. Node 20 + npm cache;
+2. Node 22 + npm cache;
 3. Chrome (`browser-actions/setup-chrome`);
 4. `npm ci`;
-5. `npm run build`;
-6. `git diff --exit-code -- index.html` — собранный файл должен совпадать с коммитом;
-7. `npm test` с `CHROME_PATH`.
+5. `npm run i18n` + `git diff --exit-code -- src/lang-en.js` — словарь должен быть собран из `src/lang-en/*.js`;
+6. `npm run build`;
+7. `git diff --exit-code -- index.html` — собранный файл должен совпадать с коммитом;
+8. `npm test` с `CHROME_PATH` (первым шагом внутри него — `tools/i18n-audit.cjs`).
 
-Если CI падает на `git diff` — соберите локально и закоммитьте `index.html`.
+Если CI падает на `git diff` — соберите локально (`npm run i18n && npm run build`) и закоммитьте `src/lang-en.js` и `index.html`.
+
+`npm test` начинается со статической проверки словаря: у каждого литерала в
+`t()/tf()/tHtml()` должен быть перевод в `src/lang-en.js` (иначе код 1). Это ловит
+строки, которые в EN остались бы русскими, но которых нет в браузерных сценариях.
 
 ## 9. Как добавить тест
 

@@ -32,11 +32,14 @@ OUT=dist/app.html npm run build
 ## 3. Тесты
 
 ```bash
-npm test               # сборка + все тесты
+npm test               # сборка + аудит словаря + все тесты
+npm run i18n           # собрать src/lang-en.js из src/lang-en/*.js
+npm run i18n:audit     # проверить, что у всех t()/tf() есть перевод
 npm run test:smoke
 npm run test:static
 npm run test:transient
 npm run test:features
+npm run test:i18n
 ```
 
 Тесты используют Playwright-core и **системный Chrome**. Путь по умолчанию:
