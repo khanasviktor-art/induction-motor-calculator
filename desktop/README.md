@@ -70,7 +70,8 @@ APP_EXE="..." APP_SAVE_DIR="C:\temp\mc" npm run test:desktop
 ## Ограничения сегодняшней версии
 
 - Собраны Windows portable exe и macOS DMG (arm64). Windows-exe в git не
-  хранится; macOS DMG — в релизе.
+  хранится; macOS DMG — в релизе. Intel Mac (x64) не поддерживается: macOS-
+  сборка и релизы только для Apple Silicon.
 - Нет подписи кода: SmartScreen на Windows и Gatekeeper на macOS покажут
   предупреждение при первом запуске.
 - Нет автообновления: новая версия = новый exe/dmg.
