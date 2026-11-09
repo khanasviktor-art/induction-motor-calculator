@@ -884,6 +884,18 @@ tbody tr:hover td { background: rgba(var(--ink-rgb), 0.025); }
   margin-bottom: 12px;
 }
 .charts-grid.two { margin-bottom: 12px; }
+/* выбор графиков для экспорта */
+.export-panel { margin-top: 12px; }
+.export-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 7px 14px;
+  padding: 8px 17px 4px;
+}
+.export-grid .checkline { font-size: 11.5px; color: var(--text-soft); }
+.export-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 7px; }
+.export-actions .chip { height: 26px; }
+
 .charts-grid .chart-panel[data-chart-panel="power"] { grid-column: span 2; }
 
 .chart-panel { display: flex; flex-direction: column; }

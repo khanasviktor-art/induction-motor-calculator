@@ -5,7 +5,7 @@
 An offline calculator for induction motors: current, power, torque, cable sizing, protection, time-current curves, performance charts, and starting transients. A single `index.html` — no server, no CDN, no internet.
 
 [![CI](https://github.com/khanasviktor-art/induction-motor-calculator/actions/workflows/ci.yml/badge.svg)](https://github.com/khanasviktor-art/induction-motor-calculator/actions/workflows/ci.yml)
-**Version 0.11.5** · MIT · [Open in browser](https://khanasviktor-art.github.io/induction-motor-calculator/) · Windows exe built separately · macOS DMG (Apple Silicon) in the [release](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.11.5)
+**Version 0.12.0** · MIT · [Open in browser](https://khanasviktor-art.github.io/induction-motor-calculator/) · Windows exe built separately · macOS DMG (Apple Silicon) in the [release](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.12.0)
 
 ![Interface](docs/screenshots/charts-default.png)
 
@@ -36,10 +36,10 @@ For engineers and electricians who need a quick check of a motor and its feeder:
 - Mechanical characteristic as torque vs speed (torque horizontal), I/U, n/s/f₂, η/cosφ, powers.
 - Four transient charts n(t), I(t), M(t), U(t)/f(t) with zoom and overlay of a second starting method.
 - **Simulation time** 2…120 s: the run stops by itself, samples are kept for the whole interval.
-- Wheel zoom, pan, double-click reset, PNG of every chart.
+- Wheel zoom, pan, double-click reset, PNG of every chart and a selectable chart set for PDF/PNG.
 
 **Export and reports**
-- PDF/print: 5 characteristics + 4 transients + the time-current curve (10 images), project name and logo.
+- PDF/print: selected charts (by default 5 characteristics + 4 transients + the time-current curve), project name and logo.
 - XLSX (7 sheets, charts as images), CSV.
 - Project JSON, up to 4 comparison variants, share link `?p=…`.
 
@@ -77,7 +77,7 @@ npm run desktop:dist     # build a Windows portable exe
 npm run desktop:dist:mac # build macOS DMG (arm64)
 ```
 
-Windows exe is built on Windows (portable, ~71 MB) and is not stored in git. macOS DMG for Apple Silicon is in the [v0.11.5 release](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.11.5). Intel Macs are not supported. Details — [desktop/README.md](desktop/README.md), [docs/WINDOWS.md](docs/WINDOWS.md).
+Windows exe is built on Windows (portable, ~71 MB) and is not stored in git. macOS DMG for Apple Silicon is in the [v0.12.0 release](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.12.0). Intel Macs are not supported. Details — [desktop/README.md](desktop/README.md), [docs/WINDOWS.md](docs/WINDOWS.md).
 
 ## Language
 

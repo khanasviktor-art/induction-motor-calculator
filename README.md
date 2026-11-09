@@ -5,7 +5,7 @@
 Офлайн-калькулятор асинхронного двигателя: ток, мощность, момент, кабель, защита, ВТХ, графики характеристик и переходные процессы пуска. Один файл `index.html`, без сервера, CDN и интернета.
 
 [![CI](https://github.com/khanasviktor-art/induction-motor-calculator/actions/workflows/ci.yml/badge.svg)](https://github.com/khanasviktor-art/induction-motor-calculator/actions/workflows/ci.yml)
-**Версия 0.11.5** · MIT · [Открыть в браузере](https://khanasviktor-art.github.io/induction-motor-calculator/) · Windows-exe собирается отдельно · macOS DMG (Apple Silicon) — в [релизе](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.11.5)
+**Версия 0.12.0** · MIT · [Открыть в браузере](https://khanasviktor-art.github.io/induction-motor-calculator/) · Windows-exe собирается отдельно · macOS DMG (Apple Silicon) — в [релизе](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.12.0)
 
 ![Интерфейс](docs/screenshots/charts-default.png)
 
@@ -36,10 +36,10 @@
 - Механическая характеристика в координатах «момент — скорость» (момент по горизонтали), I/U, n/s/f₂, η/cosφ, мощности.
 - Четыре графика переходных процессов n(t), I(t), M(t), U(t)/f(t) с зумом и наложением второго способа пуска.
 - **Время моделирования** 2…120 с: прогон останавливается сам, данные копятся весь интервал.
-- Зум колесом, панорамирование, двойной клик — сброс, PNG каждого графика.
+- Зум колесом, панорамирование, двойной клик — сброс, PNG каждого графика и выбор набора графиков для PDF/PNG.
 
 **Экспорт и отчёт**
-- PDF/печать: 5 характеристик + 4 переходных процесса + ВТХ (10 изображений), название объекта и логотип.
+- PDF/печать: выбранные графики (по умолчанию 5 характеристик + 4 переходных процесса + ВТХ), название объекта и логотип.
 - XLSX (7 листов, графики картинками), CSV.
 - Проект в JSON, варианты для сравнения (до 4), ссылка на расчёт `?p=…`.
 
@@ -77,7 +77,7 @@ npm run desktop:dist     # собрать Windows portable exe
 npm run desktop:dist:mac # собрать macOS DMG (arm64)
 ```
 
-Windows-exe собирается на Windows (portable, ~71 МБ) и в git не хранится. macOS DMG для Apple Silicon — в [релизе v0.11.5](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.11.5). Intel Mac не поддерживается. Подробности — [desktop/README.md](desktop/README.md), [docs/WINDOWS.md](docs/WINDOWS.md).
+Windows-exe собирается на Windows (portable, ~71 МБ) и в git не хранится. macOS DMG для Apple Silicon — в [релизе v0.12.0](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.12.0). Intel Mac не поддерживается. Подробности — [desktop/README.md](desktop/README.md), [docs/WINDOWS.md](docs/WINDOWS.md).
 
 ## Язык
 

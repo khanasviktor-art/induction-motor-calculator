@@ -35,8 +35,23 @@
     breakerType: 'mcb', breakerSeries: 'abb-s200', mccbMag: 10, upstreamIn: 0,
     sim: { tSwitch: 2, tRamp: 6, uStart: 30, iLimit: 3, duration: 20, speed: 1, overlay: 'none' },
     charts: { torque: true, iu: true, speed: true, eff: true, power: true },
+    exportCharts: { torque: true, iu: true, speed: true, eff: true, power: true, simN: true, simI: true, simT: true, simU: true, vtc: true },
     tab: 'calc', theme: 'dark'
   };
+
+  /* какие графики включать в PDF и PNG-экспорт */
+  const EXPORT_CHARTS = [
+    { key: 'torque', label: 'Механическая характеристика M(n)' },
+    { key: 'iu', label: 'Ток и напряжение от нагрузки' },
+    { key: 'speed', label: 'Скорость, скольжение, f₂' },
+    { key: 'eff', label: 'КПД и cosφ' },
+    { key: 'power', label: 'Мощности' },
+    { key: 'simN', label: 'Скорость n(t)' },
+    { key: 'simI', label: 'Ток I(t)' },
+    { key: 'simT', label: 'Момент M(t)' },
+    { key: 'simU', label: 'Напряжение и частота' },
+    { key: 'vtc', label: 'ВТХ: защита и пуск' }
+  ];
 
   const STORE_KEY = 'motor-calc-v1';
   let state;
@@ -387,6 +402,7 @@
     syncPhaseUI();
     updateVisibility();
     updateSimVisibility();
+    renderExportCharts();
   }
 
   function syncPhaseUI() {
@@ -901,6 +917,72 @@
     return out;
   }
 
+  function exportChartSelected(key) {
+    return state.exportCharts[key] !== false;
+  }
+
+  function updateExportTag() {
+    const n = EXPORT_CHARTS.filter(d => exportChartSelected(d.key)).length;
+    const tag = $('#exportTag');
+    if (!tag) return;
+    tag.textContent = tf('выбрано {n} из {total}', { n, total: EXPORT_CHARTS.length });
+    tag.className = 'panel-tag' + (n === 0 ? ' bad' : n === EXPORT_CHARTS.length ? ' ok' : '');
+  }
+
+  function renderExportCharts() {
+    const box = $('#exportCharts');
+    if (!box) return;
+    box.innerHTML = EXPORT_CHARTS.map(d =>
+      `<label class="checkline"><input type="checkbox" data-export="${d.key}"${exportChartSelected(d.key) ? ' checked' : ''}><span>${t(d.label)}</span></label>`
+    ).join('');
+    updateExportTag();
+  }
+
+  function setAllExport(v) {
+    EXPORT_CHARTS.forEach(d => { state.exportCharts[d.key] = !!v; });
+    renderExportCharts();
+    saveState();
+  }
+
+  async function exportSelectedPng() {
+    if (!lastRep) return;
+    const selected = EXPORT_CHARTS.filter(d => exportChartSelected(d.key)).map(d => d.key);
+    if (!selected.length) {
+      setStatus(t('выберите хотя бы один график'), 'bad');
+      return;
+    }
+    const jobs = [];
+    const staticMap = {
+      torque: ['motor-torque.png', charts.torque], iu: ['motor-current-voltage.png', charts.iu],
+      speed: ['motor-speed-slip.png', charts.speed], eff: ['motor-efficiency-cos.png', charts.eff],
+      power: ['motor-power.png', charts.power]
+    };
+    selected.forEach(k => {
+      if (staticMap[k]) jobs.push([staticMap[k][0], staticMap[k][1].toPNGData('#ffffff')]);
+    });
+    const simKeys = selected.filter(k => k.indexOf('sim') === 0);
+    if (simKeys.length) {
+      const tr = reportTransientImages(lastRep);
+      const map = { simN: ['motor-speed-t.png', tr && tr.n], simI: ['motor-current-t.png', tr && tr.i], simT: ['motor-torque-t.png', tr && tr.m], simU: ['motor-voltage-f.png', tr && tr.u] };
+      simKeys.forEach(k => { if (map[k] && map[k][1]) jobs.push([map[k][0], map[k][1]]); });
+    }
+    if (selected.indexOf('vtc') >= 0) {
+      try {
+        drawVTC(lastRep);
+        const cv = $('#chartVTC');
+        if (cv) jobs.push(['motor-vtc.png', cv.toDataURL('image/png')]);
+      } catch (e) { }
+    }
+    let saved = 0;
+    for (const [name, data] of jobs) {
+      const r = await window.MC_BRIDGE.saveDataUrl(name, data);
+      if (r && r.canceled) { setStatus(t('сохранение отменено'), 'ok'); return; }
+      if (r && r.ok) saved++;
+      await new Promise(resolve => setTimeout(resolve, 120));
+    }
+    setStatus(tf('PNG сохранено: {n}', { n: saved }), 'ok');
+  }
+
   function openReport() {
     if (!lastRep) return;
     const m = lastRep.motor, c = lastRep.cable, b = lastRep.breaker, op = lastRep.op;
@@ -917,20 +999,45 @@
       torque: img(charts.torque), iu: img(charts.iu), speed: img(charts.speed),
       eff: img(charts.eff), power: img(charts.power)
     };
-    /* ВТХ и переходные процессы — их в отчёте раньше не было */
+    /* ВТХ и переходные процессы — только если отмечены для экспорта */
+    const selChart = k => state.exportCharts[k] !== false;
+    const wantVtc = selChart('vtc');
+    const wantTrans = EXPORT_CHARTS.some(d => d.key.indexOf('sim') === 0 && selChart(d.key));
     let vtcImg = '';
-    try {
-      drawVTC(lastRep);
-      const cv = $('#chartVTC');
-      if (cv) vtcImg = cv.toDataURL('image/png');
-    } catch (e) { vtcImg = ''; }
-    const trImgs = reportTransientImages(lastRep);
+    if (wantVtc) {
+      try {
+        drawVTC(lastRep);
+        const cv = $('#chartVTC');
+        if (cv) vtcImg = cv.toDataURL('image/png');
+      } catch (e) { vtcImg = ''; }
+    }
+    const trImgs = wantTrans ? reportTransientImages(lastRep) : null;
     document.documentElement.setAttribute('data-theme', prevTheme);
     document.documentElement.setAttribute('data-tone', themeTone(prevTheme));
     if (MC.setChartTheme) MC.setChartTheme(prevTheme);
     Object.assign(MC.CHART_COLORS, MC.PALETTES[prevTheme] || MC.PALETTES.dark);
     ['torque', 'iu', 'speed', 'eff', 'power'].forEach(k => { charts[k].view = savedViews[k]; });
     renderCharts(lastRep);
+
+    const staticDefs = [
+      { key: 'torque', title: t('Механическая характеристика M(n)'), html: imgs.torque },
+      { key: 'iu', title: t('Ток и напряжение от нагрузки'), html: imgs.iu },
+      { key: 'speed', title: t('Скорость, скольжение, f₂'), html: imgs.speed },
+      { key: 'eff', title: t('КПД и cosφ'), html: imgs.eff },
+      { key: 'power', title: t('Мощности'), html: imgs.power, power: true }
+    ];
+    const staticFigs = staticDefs.filter(d => selChart(d.key));
+    const transDefs = [
+      { key: 'simN', title: t('Скорость n(t)'), src: trImgs && trImgs.n },
+      { key: 'simI', title: t('Ток I(t)'), src: trImgs && trImgs.i },
+      { key: 'simT', title: t('Момент M(t)'), src: trImgs && trImgs.m },
+      { key: 'simU', title: t('Напряжение и частота'), src: trImgs && trImgs.u }
+    ];
+    const transFigs = transDefs.filter(d => selChart(d.key) && d.src);
+    const hasChars = staticFigs.length > 0;
+    const hasTrans = transFigs.length > 0;
+    const hasVtc = wantVtc && !!vtcImg;
+    const noCharts = !hasChars && !hasTrans && !hasVtc;
 
     const cmp = (compareData || []).find(x => x.method === state.startMethod);
     const th = thermalStart(lastRep);
@@ -971,6 +1078,7 @@
   .grid.chars { grid-template-columns: 1fr 1fr; }
   .grid.chars figure.power { grid-column: 1/-1; }
   .grid.transients { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .hint { font-size: 9.5pt; color: #5b6a7b; margin: 10px 0 0; }
   td, th { padding: 4px 6px; border-bottom: 1px solid #e7edf5; font-size: 9.3pt; vertical-align: top; }
   th { text-align: left; color: #5b6b7f; font-size: 8pt; text-transform: uppercase; letter-spacing: .06em; }
   .r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -1079,28 +1187,23 @@
   <div>${chkTable(chkRows.slice(chkHalf))}</div>
 </div>
 
+${hasChars ? `
 <h2>Характеристики</h2>
 <div class="grid chars">
-  <figure><h3>Механическая характеристика M(n)</h3>${imgs.torque}</figure>
-  <figure><h3>Ток и напряжение от нагрузки</h3>${imgs.iu}</figure>
-  <figure><h3>Скорость, скольжение, f₂</h3>${imgs.speed}</figure>
-  <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
-  <figure class="power"><h3>Мощности</h3>${imgs.power}</figure>
-</div>
-${trImgs ? `
+${staticFigs.map(f => `<figure${f.power ? ' class="power"' : ''}><h3>${f.title}</h3>${f.html}</figure>`).join('')}
+</div>` : ''}
+${hasTrans ? `
 <h2>Переходные процессы (пуск)</h2>
 <div class="grid transients">
-  <figure><h3>Скорость n(t)</h3><img src="${trImgs.n}" alt=""></figure>
-  <figure><h3>Ток I(t)</h3><img src="${trImgs.i}" alt=""></figure>
-  <figure><h3>Момент M(t)</h3><img src="${trImgs.m}" alt=""></figure>
-  <figure><h3>Напряжение и частота</h3><img src="${trImgs.u}" alt=""></figure>
+${transFigs.map(f => `<figure><h3>${f.title}</h3><img src="${f.src}" alt=""></figure>`).join('')}
 </div>` : ''}
-${vtcImg ? `
+${hasVtc ? `
 <section class="vtc">
 <h2>ВТХ: защита и пуск</h2>
-<figure><h3>Время-токовая характеристика</h3><img src="${vtcImg}" alt=""></figure>
+<figure><h3>${t('Время-токовая характеристика')}</h3><img src="${vtcImg}" alt=""></figure>
 </section>` : ''}
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.11.5.<br>Для PDF без колонтитулов используйте настольную версию или отключите «Верхние и нижние колонтитулы» в диалоге печати.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+${noCharts ? `<p class="hint">${t('Графики не выбраны для экспорта.')}</p>` : ''}
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.12.0.<br>Для PDF без колонтитулов используйте настольную версию или отключите «Верхние и нижние колонтитулы» в диалоге печати.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     /* настольная версия: отчёт сразу сохраняется в PDF через системный диалог */
@@ -1594,7 +1697,7 @@ ${vtcImg ? `
       const tn = { capacitor: 'конденсаторный', split: 'с расщеплённой фазой', psc: 'PSC' }[m.motor1phType] || 'конденсаторный';
       add('ok', `Однофазный режим: I = P₁/(U·cosφ), кабель 2-жильный (L + N), автомат 1P. Типовые данные — ${tn}.`);
       if (m.p2 > 7.5) add('warn', tf('Однофазный двигатель {p} кВт — редкий случай: типовые данные до 11 кВт ориентировочные, выше — оценка. Для такой мощности обычно применяют 3 фазы или специальный двигатель.', { p: nf(m.p2, 1) }));
-      if (state.voltage > 260) add('warn', `Для однофазного двигателя напряжение ${nf(state.voltage, 0)} В необычно — обычно 220/230 В. Проверьте данные.`);
+      if (state.voltage < 200 || state.voltage > 260) add('warn', tf('Для однофазного двигателя напряжение {u} В необычно — обычно 220/230 В. Проверьте данные.', { u: nf(state.voltage, 0) }));
     }
     const cat = state.mode === 'catalog' ? D.MOTOR_DB.find(x => x.type === state.catType) : null;
     if (state.loadType === 'constpower') {
@@ -1616,6 +1719,7 @@ ${vtcImg ? `
 
     const csec = (c.parallel > 1 ? c.parallel + ' × ' : '') + nf(c.section, 1) + ' мм²';
     const t1name = { capacitor: 'конденсаторный', split: 'с расщеплённой фазой', psc: 'PSC' }[m.motor1phType] || '';
+    if (+c.length > 200) add('warn', tf('Линия {l} м — длинная. Проверьте падение напряжения и просадку при пуске; при необходимости увеличьте сечение, число кабелей или сократите линию.', { l: nf(c.length, 0) }));
     if (ch.cable) add('ok', `Сечение <b>${csec}</b> обеспечивает суммарный ток ${nf(c.allow, 1)} А ≥ ${nf(m.i, 1)} А с учётом поправок.`);
     else add('bad', `Сечение ${csec} недостаточно: суммарный допустимый ток ${nf(c.allow, 1)} А < ${nf(m.i, 1)} А. Увеличьте сечение, число кабелей или измените условия прокладки.`);
     if (c.dropLimited) add('warn', `Сечение увеличено относительно минимального по нагреву — с учётом ΔU (${nf(rep.drop.pct, 2)} % в работе, ${nf(rep.dropStart.pct, 1)} % при пуске).`);
@@ -2489,6 +2593,19 @@ ${vtcImg ? `
         if (ch && state.charts[k]) ch.refresh();
       });
     });
+
+    // выбор графиков для экспорта
+    $('#exportCharts').addEventListener('change', e => {
+      const cb = e.target.closest('input[data-export]');
+      if (!cb) return;
+      state.exportCharts[cb.dataset.export] = cb.checked;
+      updateExportTag();
+      saveState();
+    });
+    $('#btnExportAll').addEventListener('click', () => setAllExport(true));
+    $('#btnExportNone').addEventListener('click', () => setAllExport(false));
+    $('#btnExportPng').addEventListener('click', exportSelectedPng);
+    $('#btnExportPdf').addEventListener('click', openReport);
 
     // печать / сброс
     $('#btnCsv').addEventListener('click', exportCsv);

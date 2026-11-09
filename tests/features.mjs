@@ -169,6 +169,57 @@ try {
   check((await pop.textContent('h1')).includes('Насосная станция'), 'в отчёте нет названия объекта');
   await pop.close();
 
+  // выбор графиков для PDF и PNG
+  await page.click('.tab-btn[data-tab="charts"]');
+  await page.waitForTimeout(300);
+  check(await page.$$eval('#exportCharts input', els => els.length) === 10, 'экспорт: не 10 графиков');
+  await page.uncheck('#exportCharts input[data-export="torque"]');
+  await page.uncheck('#exportCharts input[data-export="vtc"]');
+  await page.waitForTimeout(250);
+  check((await page.textContent('#exportTag')).includes('8'), 'экспорт: счётчик не обновился');
+  const [popSel] = await Promise.all([ctx.waitForEvent('page'), page.click('#btnExportPdf')]);
+  await popSel.waitForTimeout(1000);
+  check((await popSel.$$('img')).length === 8, 'экспорт: в PDF не 8 графиков');
+  const selHeads = (await popSel.$$eval('h2', els => els.map(x => x.textContent.trim()))).join(' | ');
+  check(selHeads.indexOf('ВТХ') < 0, 'экспорт: ВТХ попала в PDF без выбора');
+  await popSel.close();
+
+  await page.click('#btnExportAll');
+  await page.waitForTimeout(250);
+  await page.click('#btnExportNone');
+  await page.check('#exportCharts input[data-export="torque"]');
+  await page.check('#exportCharts input[data-export="vtc"]');
+  await page.evaluate(() => {
+    window.__pngNames = [];
+    window.__oldSaveDataUrl = window.MC_BRIDGE.saveDataUrl;
+    window.MC_BRIDGE.saveDataUrl = (name) => { window.__pngNames.push(name); return Promise.resolve({ ok: true }); };
+  });
+  await page.click('#btnExportPng');
+  await page.waitForTimeout(900);
+  const pngNames = await page.evaluate(() => window.__pngNames.slice());
+  check(pngNames.length === 2 && pngNames.indexOf('motor-torque.png') >= 0 && pngNames.indexOf('motor-vtc.png') >= 0, 'экспорт: PNG не по выбору');
+  await page.evaluate(() => { window.MC_BRIDGE.saveDataUrl = window.__oldSaveDataUrl; });
+  await page.click('#btnExportAll');
+  await page.waitForTimeout(200);
+
+  // предупреждения на границах
+  await page.click('.tab-btn[data-tab="cable"]');
+  await page.waitForTimeout(300);
+  await page.fill('#len', '250');
+  await page.waitForTimeout(800);
+  check(((await page.textContent('#panelWarn')) || '').includes('длинная'), 'нет предупреждения о длинной линии');
+  await page.fill('#len', '50');
+  await page.waitForTimeout(500);
+  await page.click('.tab-btn[data-tab="calc"]');
+  await page.waitForTimeout(300);
+  await page.click('#segMode button[data-val="catalog"]');
+  await page.waitForTimeout(400);
+  await page.fill('#voltage', '220');
+  await page.waitForTimeout(700);
+  check(((await page.textContent('#panelWarn')) || '').includes('отличается от номинала'), 'нет предупреждения о напряжении');
+  await page.fill('#voltage', '380');
+  await page.waitForTimeout(500);
+
   // однофазный режим
   await page.click('#segPhases button[data-val="1"]');
   await page.waitForTimeout(500);
@@ -223,6 +274,8 @@ try {
   // зум и PNG
   await page.click('.tab-btn[data-tab="charts"]');
   await page.waitForTimeout(600);
+  await page.locator('#chartTorque').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(250);
   const box = await page.locator('#chartTorque').boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.wheel(0, -240);
