@@ -803,7 +803,10 @@
     const Istart = rep.iStart || rep.motor.ist;
     const cmp = (compareData || []).find(x => x.method === state.startMethod);
     const tStart = cmp && cmp.tStart != null ? cmp.tStart : null;
-    const trip = MC.vtc.thermalTripTime(s, curve, In, Istart);
+    /* нагрев определяет не пик, а действующий ток за пуск: сравнение пика на
+       всей длительности даёт завышенную тепловую дозу */
+    const Ieq = cmp && cmp.ieq ? cmp.ieq : Istart;
+    const trip = MC.vtc.thermalTripTime(s, curve, In, Ieq);
     const ratio = (trip != null && tStart != null && tStart > 0) ? trip / tStart : null;
     const level = ratio == null ? null : ratio <= 1 ? 'bad' : ratio <= 2 ? 'warn' : 'ok';
     /* повторные пуски: доля времени под пусковым током → эквивалентный ток */
@@ -811,11 +814,11 @@
     let duty = null;
     if (tStart != null && tStart > 0 && starts > 0) {
       const share = Math.min(1, starts * tStart / 3600);
-      const Ieq = Istart * Math.sqrt(share);
-      const tripEq = MC.vtc.thermalTripTime(s, curve, In, Ieq);
-      duty = { starts, share, Ieq, tripEq, ok: tripEq == null || tripEq >= 3600 };
+      const IeqDuty = Ieq * Math.sqrt(share);
+      const tripEq = MC.vtc.thermalTripTime(s, curve, In, IeqDuty);
+      duty = { starts, share, Ieq: IeqDuty, tripEq, ok: tripEq == null || tripEq >= 3600 };
     }
-    return { s, curve, In, Istart, tStart, trip, ratio, level, duty };
+    return { s, curve, In, Istart, Ieq, tStart, trip, ratio, level, duty };
   }
 
   function checksList(rep) {
@@ -954,7 +957,7 @@
   <figure><h3>КПД и cosφ</h3>${imgs.eff}</figure>
   <figure><h3>Мощности</h3>${imgs.power}</figure>
 </div>
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.9.1.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.9.2.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     /* настольная версия: отчёт сразу сохраняется в PDF через системный диалог */
@@ -1158,7 +1161,9 @@
     const Istart = rep.iStart || rep.motor.ist;
     const cmp = (compareData || []).find(x => x.method === state.startMethod);
     const tS = cmp && cmp.tStart != null ? cmp.tStart : null;
-    const trip = MC.vtc.thermalTripTime(s, curve, In, Istart);
+    /* нагрев определяет действующий ток за пуск (см. thermalStart) */
+    const Ieq = cmp && cmp.ieq ? cmp.ieq : Istart;
+    const trip = MC.vtc.thermalTripTime(s, curve, In, Ieq);
     const ratio = (trip != null && tS != null && tS > 0) ? trip / tS : null;
     const level = ratio == null ? null : ratio <= 1 ? 'bad' : ratio <= 2 ? 'warn' : 'ok';
     const up = +state.upstreamIn;
@@ -1211,11 +1216,20 @@
     // пуск
     const dot = level === 'bad' ? C.red : level === 'warn' ? C.amber : C.mint;
     const ty = Y(Math.max(tS || 0.6, 0.02));
+    const eqDiff = Math.abs(Ieq - Istart) / Math.max(Istart, 1) > 0.03;
     g.save(); g.fillStyle = dot; g.beginPath(); g.arc(X(Istart), ty, 4.5, 0, Math.PI * 2); g.fill();
-    if (trip != null) { g.globalAlpha = .55; g.strokeStyle = dot; g.lineWidth = 1; g.setLineDash([2, 2]); g.beginPath(); g.moveTo(X(Istart), ty); g.lineTo(X(Istart), Y(Math.max(trip, 0.02))); g.stroke(); g.restore(); g.save(); }
+    if (eqDiff) {
+      /* второй маркер: действующий ток пуска — по нему и считается нагрев */
+      g.strokeStyle = dot; g.lineWidth = 1.4; g.globalAlpha = .9;
+      g.beginPath(); g.arc(X(Ieq), ty, 3.8, 0, Math.PI * 2); g.stroke(); g.globalAlpha = 1;
+      g.beginPath(); g.setLineDash([1, 2]); g.moveTo(X(Ieq), ty); g.lineTo(X(Istart), ty); g.stroke(); g.setLineDash([]);
+    }
+    if (trip != null) { g.globalAlpha = .55; g.strokeStyle = dot; g.lineWidth = 1; g.setLineDash([2, 2]); g.beginPath(); g.moveTo(X(Ieq), ty); g.lineTo(X(Ieq), Y(Math.max(trip, 0.02))); g.stroke(); g.restore(); g.save(); }
     g.font = '10px ui-monospace, monospace'; g.fillStyle = dot; g.textAlign = 'left';
     const startTxt = trip != null
-      ? tf('пуск {i} А / {t} с · автомат {tr} с', { i: nf(Istart, 0), t: tS != null ? nf(tS, 2) : '?', tr: nf(Math.max(trip, 0.02), 2) })
+      ? (eqDiff
+        ? tf('пуск {i} А / {t} с · экв. {ieq} А → автомат {tr} с', { i: nf(Istart, 0), t: tS != null ? nf(tS, 2) : '?', ieq: nf(Ieq, 0), tr: nf(Math.max(trip, 0.02), 2) })
+        : tf('пуск {i} А / {t} с · автомат {tr} с', { i: nf(Istart, 0), t: tS != null ? nf(tS, 2) : '?', tr: nf(Math.max(trip, 0.02), 2) }))
       : tf('пуск {i} А / {t} с', { i: nf(Istart, 0), t: tS != null ? nf(tS, 2) : '?' });
     g.fillText(startTxt, X(Istart) + 7, ty - 5);
     g.restore();
@@ -1248,7 +1262,12 @@
     $('#tagVTC').className = 'panel-tag ' + tagCls;
     const selTxt = b.upstream ? ' ' + tf('Селективность {r}× {ok}.', { r: nf(b.selRatio, 1), ok: b.okSel ? t('обеспечена') : t('недостаточна') }) : '';
     const bandTxt = mag[0] !== mag[1] ? ' ' + tf('Зона отсечки {a}…{b} А.', { a: nf(mag[0] * In, 0), b: nf(mag[1] * In, 0) }) : '';
-    const thermTxt = (trip != null && tS != null) ? ' ' + tf('Тепловая зона при {i} А: {tr} с, пуск {ts} с.', { i: nf(Istart, 0), tr: nf(Math.max(trip, 0.02), 2), ts: nf(tS, 2) }) : '';
+    const eqDiffTxt = Math.abs(Ieq - Istart) / Math.max(Istart, 1) > 0.03;
+    const thermTxt = (trip != null && tS != null)
+      ? ' ' + (eqDiffTxt
+        ? tf('Тепловая зона: действующий ток пуска {ieq} А (пик {i} А), автомат {tr} с против пуска {ts} с.', { ieq: nf(Ieq, 0), i: nf(Istart, 0), tr: nf(Math.max(trip, 0.02), 2), ts: nf(tS, 2) })
+        : tf('Тепловая зона при {i} А: {tr} с, пуск {ts} с.', { i: nf(Istart, 0), tr: nf(Math.max(trip, 0.02), 2), ts: nf(tS, 2) }))
+      : '';
     $('#vtcFoot').textContent = tf('Серия {b} {s}, {i} А, {type}. Пик пуска {peak} А; отсечка {mag} А.{sel}', {
       b: s.brand, s: s.series, i: In,
       type: s.type === 'mccb' ? 'MCCB' : tf('кривая {c}', { c: curve }),
@@ -1380,18 +1399,21 @@
 
     /* тепловая часть ВТХ: пуск может уложиться в отсечку, но не в тепловую зону */
     const th = thermalStart(rep);
+    const eqNote = (th.Ieq && th.Istart && Math.abs(th.Ieq - th.Istart) / Math.max(th.Istart, 1) > 0.03)
+      ? tf(' (действующий ток {ieq} А, пик {i} А)', { ieq: nf(th.Ieq, 0), i: nf(th.Istart, 0) })
+      : '';
     if (th.level === 'bad') {
       add('bad', tf('Тепловая зона автомата: при {i} А он отключится за {tr} с, а пуск длится {ts} с — сработает по теплу. Уменьшите пусковой ток (софтстартер, ПЧ, Y–Δ) или возьмите аппарат с регулируемой тепловой защитой.', {
-        i: nf(th.Istart, 0), tr: nf(Math.max(th.trip, 0.02), 2), ts: nf(th.tStart, 2)
-      }));
+        i: nf(th.Ieq || th.Istart, 0), tr: nf(Math.max(th.trip, 0.02), 2), ts: nf(th.tStart, 2)
+      }) + eqNote);
     } else if (th.level === 'warn') {
       add('warn', tf('Пуск на границе тепловой зоны: автомат отключится за {tr} с, пуск — {ts} с (запас {k}×). При повторных пусках и нагретом автомате возможен расход.', {
         tr: nf(Math.max(th.trip, 0.02), 2), ts: nf(th.tStart, 2), k: nf(th.ratio, 2)
-      }));
+      }) + eqNote);
     } else if (th.level === 'ok') {
       add('ok', tf('Пуск укладывается в тепловую зону: автомат отключится за {tr} с, пуск — {ts} с (запас {k}×).', {
         tr: nf(Math.max(th.trip, 0.02), 2), ts: nf(th.tStart, 2), k: nf(th.ratio, 2)
-      }));
+      }) + eqNote);
     }
     if (th.duty && !th.duty.ok) {
       add('warn', tf('{n} пусков/час: эквивалентный ток {ieq} А держится почти постоянно, автомат отключится по теплу за {t} с. Нужен аппарат с тепловой регулировкой или пауза между пусками.', {
@@ -1548,7 +1570,7 @@
         <tr><td>Автомат</td><td class="num">${nu(b.In, 0, 'А')}, ${b.type === 'mccb' ? 'MCCB ' + b.mag + '×' + t('Iн') : tf('кривая {c}', { c: b.curve })}</td><td>${rep.checks.breakerCurrent && rep.checks.breakerCable ? '<span class="badge ok">ок</span>' : '<span class="badge bad">нет</span>'}</td></tr>
         <tr><td>Селективность</td><td class="num">${b.upstream ? nf(b.upstream, 0) + ' / ' + nf(b.In, 0) + ' А' : 'не задана'}</td><td>${rep.checks.breakerSel ? '<span class="badge ok">ок</span>' : '<span class="badge warn">проверить</span>'}</td></tr>
         <tr><td>Отсечка</td><td class="num">${nf(b.magTrip, 0)} А</td><td>${rep.checks.breakerMag ? '<span class="badge ok">ок</span>' : '<span class="badge bad">ложный пуск</span>'}</td></tr>
-        <tr><td>Тепловая зона</td><td class="num">${th.trip != null ? tf('{tr} с / пуск {ts} с', { tr: nf(Math.max(th.trip, 0.02), 2), ts: th.tStart != null ? nf(th.tStart, 2) : '?' }) : '—'}</td><td>${th.level === 'bad' ? '<span class="badge bad">расход</span>' : th.level === 'warn' ? '<span class="badge warn">граница</span>' : th.level === 'ok' ? '<span class="badge ok">ок</span>' : '—'}</td></tr>
+        <tr><td>Тепловая зона</td><td class="num">${th.trip != null ? tf('{tr} с / пуск {ts} с', { tr: nf(Math.max(th.trip, 0.02), 2), ts: th.tStart != null ? nf(th.tStart, 2) : '?' }) + (th.Ieq && th.Istart && Math.abs(th.Ieq - th.Istart) / Math.max(th.Istart, 1) > 0.03 ? ' · ' + tf('экв. {ieq} А', { ieq: nf(th.Ieq, 0) }) : '') : '—'}</td><td>${th.level === 'bad' ? '<span class="badge bad">расход</span>' : th.level === 'warn' ? '<span class="badge warn">граница</span>' : th.level === 'ok' ? '<span class="badge ok">ок</span>' : '—'}</td></tr>
         <tr><td>Icu</td><td class="num">${nf(b.icu, 0)} кА</td><td>${rep.checks.breakerIcu ? '<span class="badge ok">ок</span>' : '<span class="badge bad">мало</span>'}</td></tr>
         <tr><td>Тепловое реле</td><td class="num">${nf(r.lo, r.lo % 1 ? 1 : 0)}…${nf(r.hi, r.hi % 1 ? 1 : 0)} А</td><td><span class="badge ok">уставка ${nf(r.set, 1)} А</span></td></tr>
         <tr><td>Контактор</td><td class="num">${nf(rep.contactor.i, 0)} А / ${nf(rep.contactor.kw, 1)} кВт</td><td>${rep.checks.contactor ? '<span class="badge ok">ок</span>' : '<span class="badge bad">мало</span>'}</td></tr>

@@ -313,13 +313,16 @@ section('3. ВТХ и защита');
 
   /* тепловая зона: пуск против ВТХ, а не только против отсечки */
   const thOk = await page.evaluate(() => {
-    const t = window.__mcDebug.thermal;
+    const c = (window.__mcDebug.compare || []).find(x => x.method === window.__mcDebug.state.startMethod);
     const tag = document.querySelector('#tagVTC');
     const foot = document.querySelector('#vtcFoot').textContent;
     return {
-      hasThermal: /Тепловая зона при/.test(foot),
+      hasThermal: /Тепловая зона[: при]/.test(foot),
+      usesEq: /действующий ток/.test(foot) || /Тепловая зона при/.test(foot),
       legend: foot,
       tag: tag.textContent, cls: tag.className,
+      iStart: window.__mcDebug.rep.iStart,
+      ieq: c ? c.ieq : null,
       check: [...document.querySelectorAll('#checksBody .point-item')]
         .map(e => e.textContent.replace(/\s+/g, ' ').trim())
         .filter(x => /теплов/i.test(x))
@@ -328,11 +331,18 @@ section('3. ВТХ и защита');
   check(thOk.hasThermal, 'ВТХ: в подписи есть тепловая зона, время и пуск', thOk.legend.slice(-90));
   check(thOk.check.length >= 1, 'ВТХ: проверка тепловой зоны есть в «Проверке условий»', thOk.check);
   check(/Вышестоящий/.test(thOk.legend) === false, 'ВТХ: нет легенды «Вышестоящий» при нуле', thOk.legend.slice(0, 80));
+  /* нагрев считает действующий ток за пуск, а не пик */
+  check(thOk.ieq != null && thOk.ieq > 0 && thOk.ieq < thOk.iStart,
+    'нагрев: действующий ток пуска ниже пикового', { ieq: thOk.ieq && +thOk.ieq.toFixed(1), iStart: +thOk.iStart.toFixed(1) });
 
-  /* кэш сравнения обязан реагировать на J нагрузки */
-  const jBefore = await rep();
-  await setNum('jExtra', 2.8);
-  await page.waitForTimeout(1200);
+  /* кэш сравнения обязан реагировать на J нагрузки; тяжёлый маховик
+     удлиняет пуск настолько, что автомат не успевает по теплу */
+  const jBefore = await page.evaluate(() => {
+    const c = (window.__mcDebug.compare || []).find(x => x.method === window.__mcDebug.state.startMethod);
+    return c && c.tStart != null ? c.tStart : null;
+  });
+  await setNum('jExtra', 16);
+  await page.waitForTimeout(1500);
   const afterJ = await page.evaluate(() => {
     const c = (window.__mcDebug.compare || []).find(x => x.method === window.__mcDebug.state.startMethod);
     return {
@@ -344,8 +354,8 @@ section('3. ВТХ и защита');
       check: [...document.querySelectorAll('#checksBody .point-item')].map(e => e.textContent.replace(/\s+/g, ' ').trim()).filter(t => /тепловой зоне/i.test(t))
     };
   });
-  check(afterJ.tStart != null && Math.abs(afterJ.tStart - (jBefore.compareT || 0)) > 0.2,
-    'J нагрузки меняет время разгона (кэш сравнения)', { tStart: afterJ.tStart });
+  check(afterJ.tStart != null && jBefore != null && afterJ.tStart > jBefore * 2,
+    'J нагрузки меняет время разгона (кэш сравнения)', { before: jBefore, after: afterJ.tStart });
   check(afterJ.cls.indexOf('bad') >= 0, 'ВТХ: пуск вне тепловой зоны → красный бейдж', { tag: afterJ.tag, cls: afterJ.cls });
   check(/есть замечания/.test(afterJ.verdict), 'вердикт учитывает тепловую зону', afterJ.verdict.slice(-40));
   check(afterJ.warn.length >= 1, 'предупреждение о тепловой зоне выведено', afterJ.warn);

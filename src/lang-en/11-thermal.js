@@ -9,6 +9,11 @@ window.MC_EN = Object.assign(window.MC_EN || {}, {
   "Кабель {s} мм²": "Cable {s} mm²",
   "Зона отсечки {a}…{b} А.": "Trip band {a}…{b} A.",
   "Тепловая зона при {i} А: {tr} с, пуск {ts} с.": "Thermal zone at {i} A: {tr} s, start {ts} s.",
+  "Тепловая зона: действующий ток пуска {ieq} А (пик {i} А), автомат {tr} с против пуска {ts} с.":
+    "Thermal zone: rms starting current {ieq} A (peak {i} A), breaker {tr} s vs start {ts} s.",
+  "пуск {i} А / {t} с · экв. {ieq} А → автомат {tr} с": "start {i} A / {t} s · rms {ieq} A → breaker {tr} s",
+  "экв. {ieq} А": "rms {ieq} A",
+  " (действующий ток {ieq} А, пик {i} А)": " (rms current {ieq} A, peak {i} A)",
   "Пуск не выходит за тепловую характеристику": "Start stays within the thermal curve",
   "Тепловой запас при {n} пусках/час": "Thermal margin at {n} starts/h",
 

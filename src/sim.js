@@ -185,18 +185,25 @@
     st.cfg = Object.assign({}, cfg, { duration: maxT || 30 });
     const dt = 0.001;
     let guard = 0;
+    /* тепловая доза за время пуска: ∫I²dt. По ней считается эквивалентный
+       ток — тепловой эффект реальной спадающей кривой, а не пикового тока. */
+    let dose = 0;
     while (!st.done && guard++ < 60000) {
       stepOnce(st, dt);
+      if (st.tStart == null || st.t < st.tStart) dose += st.iNow * st.iNow * dt;
       if (st.t > 0.2 && st.tStart != null && st.t > st.tStart + 1.0) break;
     }
+    const tSt = st.tStart;
     return {
       method: cfg.method,
-      tStart: st.tStart,
+      tStart: tSt,
       peakI: st.peakI,
       peakT: st.peakT,
       nEnd: st.nNow,
       Iend: st.iNow,
-      stalled: st.stalled && st.tStart == null
+      stalled: st.stalled && st.tStart == null,
+      /* действующий ток пуска: sqrt(∫I²dt / tпуска) */
+      ieq: tSt && tSt > 0 ? Math.sqrt(dose / tSt) : null
     };
   }
 
