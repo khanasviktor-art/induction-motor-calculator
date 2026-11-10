@@ -92,7 +92,10 @@ jobs:
   macos:
     name: macOS dmg (arm64)
     needs: verify
-    runs-on: macos-14
+    # если macOS-раннеры недоступны для репозитория, job отменяется без машины;
+    # тогда релизим exe, а dmg прикладываем вручную с Mac
+    continue-on-error: true
+    runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -132,6 +135,8 @@ jobs:
   release:
     name: GitHub Release
     needs: [windows, macos]
+    # релиз не должен зависеть от macOS: exe собирается на windows-latest
+    if: ${{ !cancelled() && needs.windows.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Скачать собранные файлы
@@ -148,6 +153,7 @@ jobs:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           name: ${{ github.event.inputs.tag || github.ref_name }}
           generate_release_notes: true
+          fail_on_unmatched_files: false
           files: |
             artifacts/windows-exe/*.exe
             artifacts/macos-dmg/*.dmg
