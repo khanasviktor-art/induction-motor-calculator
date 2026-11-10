@@ -162,11 +162,29 @@ gh repo edit induction-motor-calculator \
 
 ## 7. Релиз
 
+Релиз автоматический: тег запускает workflow **Release** (`.github/workflows/release.yml`).
+
+```bash
+git tag -a v0.13.0 -m "0.13.0 — короткое описание"
+git push origin v0.13.0
+```
+
+Что происходит дальше (5–10 минут):
+
+1. **Сборка и тесты** — `npm ci`, проверка собранного словаря и `index.html`, `npm test` в Chrome.
+2. **Windows** — `npm run build:desktop` + portable exe через electron-builder.
+3. **macOS** — то же и `dmg` для Apple Silicon (`macos-14`, без подписи: приложение запускается через «правый клик → Открыть»).
+4. **GitHub Release** — создаётся сам, файлы `*.exe` и `*.dmg` прикладываются, заметки генерируются из коммитов; при желании допишите их из `CHANGELOG.md`.
+
+Если тег поставить забыли, релиз можно запустить вручную: **Actions → Release → Run workflow**, указав тег.
+
+Старый ручной путь (остаётся на случай, если автоматика недоступна):
+
 1. Releases → **Draft a new release**.
-2. Tag: `v0.5.0` → Create new tag on publish.
-3. Title: `v0.5.0`.
+2. Tag: `v0.13.0` → Create new tag on publish.
+3. Title: `v0.13.0`.
 4. Описание — из `CHANGELOG.md`.
-5. Прикрепите standalone-файл `induction-motor-calculator.html` (из корня рабочей папки, не из `src/`).
+5. Прикрепите `index.html` (standalone-файл) и, если нужно, `*.exe` / `*.dmg` из последней сборки.
 6. Publish release.
 
 Или CLI:
