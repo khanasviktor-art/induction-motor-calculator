@@ -32,7 +32,7 @@
     projectName: '', projectLogo: '', loadType: 'quadratic', loadPct: 75, jExtra: 0.3, loadCurve: [[0, 0], [25, 25], [50, 55], [75, 80], [100, 100]], loadUnload: 0, loadRelease: 20,
     cable: { standard: 'pue', material: 'cu', insulation: 'pvc', laying: 'open', length: 50, ambient: 25, group: 1, loaded: 3, parallel: 'auto', startDropLimit: 15, considerStartDrop: true },
     dropLimit: 5, startMethod: 'dol', curve: 'D', isc: 6,
-    breakerType: 'mcb', breakerSeries: 'abb-s200', mccbMag: 10, upstreamIn: 0,
+    breakerType: 'mcb', breakerSeries: 'abb-s200', mccbMag: 10, upstreamIn: 0, upstreamIn2: 0,
     sim: { tSwitch: 2, tRamp: 6, uStart: 30, iLimit: 3, duration: 20, speed: 1, overlay: 'none' },
     charts: { torque: true, iu: true, speed: true, eff: true, power: true },
     exportCharts: { torque: true, iu: true, speed: true, eff: true, power: true, simN: true, simI: true, simT: true, simU: true, vtc: true },
@@ -371,6 +371,7 @@
     fillBreakerCurves();
     $('#brkCurve').value = state.curve;
     $('#vtcUpstream').value = state.upstreamIn;
+    $('#vtcUpstream2').value = state.upstreamIn2;
     $('#mccbMag').value = state.mccbMag;
     $('#motorClass').value = state.motorClass;
     $('#motor1phType').value = state.motor1phType;
@@ -823,8 +824,41 @@
     });
   }
 
+  /* Цепочка аппаратов: основной + до двух вышестоящих (та же серия и кривая,
+     меняется только номинал). Для каждой пары — отношение минимальных отсечек
+     и тепловые времена на токе пуска. */
+  /* отношение отсечек: два знака, пока оно меньше 1,6 */
+  function nfRatio(r) { return nf(r, r < 1.6 ? 2 : 1); }
+
+  function selectivityChain(rep) {
+    const b = rep.breaker;
+    const s = MC.vtc.get(b.series || state.breakerSeries);
+    const curve = b.curve && s.curves.includes(b.curve) ? b.curve : s.curves[0];
+    const mag = s.mag[curve] || [10, 10];
+    const devices = [{ idx: 0, In: b.In, magMin: b.magTrip, role: 'main' }];
+    [state.upstreamIn, state.upstreamIn2].forEach((v, i) => {
+      const In = +v || 0;
+      if (In > 0) devices.push({ idx: i + 1, In, magMin: mag[0] * In, role: 'up' + (i + 1) });
+    });
+    const links = [];
+    for (let i = 1; i < devices.length; i++) {
+      const lo = devices[i - 1], hi = devices[i];
+      const ratio = hi.magMin / Math.max(lo.magMin, 1);
+      const level = ratio >= 1.6 ? 'ok' : ratio >= 1.2 ? 'warn' : 'bad';
+      links.push({
+        lo, hi, ratio, level,
+        tLo: MC.vtc.thermalTripTime(s, curve, lo.In, rep.iStart),
+        tHi: MC.vtc.thermalTripTime(s, curve, hi.In, rep.iStart)
+      });
+    }
+    const worst = links.reduce((acc, l) => (acc === 'bad' || l.level === 'bad') ? 'bad'
+      : ((acc === 'warn' || l.level === 'warn') ? 'warn' : 'ok'), 'ok');
+    return { s, curve, mag, devices, links, worst };
+  }
+
   function checksList(rep) {
     const th = thermalStart(rep);
+    const chain = selectivityChain(rep);
     const list = [
       ['Сечение по нагреву', rep.checks.cable],
       ['Падение напряжения ≤ ' + nf(state.dropLimit, 1) + ' %', rep.checks.drop],
@@ -837,13 +871,13 @@
     if (th.incomplete) list.push([tf('Пуск завершён за {d} с', { d: nf(th.duration, 0) }), false]);
     else if (th.level) list.push(['Пуск не выходит за тепловую характеристику', th.level !== 'bad']);
     if (th.duty) list.push([tf('Тепловой запас при {n} пусках/час', { n: th.duty.starts }), th.duty.ok]);
+    if (chain.links.length) list.push([tf('Селективность цепочки ({n} ап.)', { n: chain.devices.length }), chain.worst !== 'bad']);
     list.push(
       ['Icu ≥ тока КЗ', rep.checks.breakerIcu],
       ['Термическая стойкость', rep.checks.sc],
       ['Контактор AC-3', rep.checks.contactor],
       ['Устойчивость при нагрузке', !rep.op.stalled]
     );
-    if (rep.breaker.upstream) list.push(['Селективность', rep.checks.breakerSel]);
     return list;
   }
 
@@ -1018,6 +1052,7 @@
     const hasVtc = wantVtc && !!vtcImg;
     const noCharts = !hasChars && !hasTrans && !hasVtc;
 
+    const chain = selectivityChain(lastRep);
     const cmp = (compareData || []).find(x => x.method === state.startMethod);
     const th = thermalStart(lastRep);
     const loadNames = {
@@ -1029,7 +1064,11 @@
     const cableLay = t({ open: 'Открыто / по воздуху', tray: 'Лоток', pipe: 'Труба', ground: 'Земля' }[c.laying] || c.laying);
     const cableIns = c.insulation === 'xlpe' ? 'XLPE' : t('ПВХ / резина');
     const cableStd = c.standard === 'pue' ? 'ПУЭ' : 'IEC 60364';
-    const selTxt = b.upstream ? (b.okSel ? 'обеспечена' : 'не обеспечена') : 'не задана';
+    const selTxt = chain.links.length
+      ? nfRatio(chain.links.reduce((m, l) => Math.min(m, l.ratio), Infinity)) + '× · ' +
+        (chain.worst === 'ok' ? t('обеспечена') : chain.worst === 'warn' ? t('на границе') : t('недостаточна')) +
+        ' · ' + tf('аппаратов: {n}', { n: chain.devices.length })
+      : (b.upstream ? (b.okSel ? t('обеспечена') : t('не обеспечена')) : t('не задана'));
     const thTxt = th.pending ? t('не рассчитана')
       : th.incomplete ? t('не проверена (пуск не завершён)')
       : (th.tStart != null && th.trip != null) ? tf('{tr} с / пуск {ts} с', { tr: nf(Math.max(th.trip, 0.02), 2), ts: nf(th.tStart, 2) })
@@ -1111,7 +1150,13 @@
   ['Тепловая зона', thTxt],
   ['Контактор', nf(lastRep.contactor.i, 0) + ' А / ' + nf(lastRep.contactor.kw, 0) + ' кВт'],
   ['Предохранитель aM', nf(lastRep.fuse, 0) + ' А'],
-  ['Селективность', selTxt]
+  ['Селективность', selTxt],
+  ...chain.devices.filter(d => d.idx > 0).map(d => {
+    const link = chain.links.find(l => l.hi.idx === d.idx);
+    return [tf('Вышестоящий {n}', { n: d.idx }),
+      nf(d.In, 0) + ' ' + t('А') + ' · ' + tf('отсечка {a} А', { a: nf(d.magMin, 0) }) +
+      (link ? ' · ' + nfRatio(link.ratio) + '× ' + (link.level === 'ok' ? '✓' : link.level === 'warn' ? '!' : '✗') : '')];
+  }),
 ])}</table>
 <h2>Кабель</h2>
 <table>${rows([
@@ -1149,7 +1194,6 @@
 <div><table>${rows([
   ['Серия автомата', brkSeries || '—'],
   ['Уставка реле', nf(lastRep.relay.set, 1) + ' А'],
-  ['Вышестоящий', b.upstream ? nf(b.upstream, 0) + ' А' : 'не задан'],
   ['Стандарт кабеля', cableStd],
   ['Изоляция', cableIns],
   ['Способ прокладки', cableLay],
@@ -1182,7 +1226,7 @@ ${hasVtc ? `
 <figure><h3>${t('Время-токовая характеристика')}</h3><img src="${vtcImg}" alt=""></figure>
 </section>` : ''}
 ${noCharts ? `<p class="hint">${t('Графики не выбраны для экспорта.')}</p>` : ''}
-<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.13.0.<br>Для PDF без колонтитулов используйте настольную версию или отключите «Верхние и нижние колонтитулы» в диалоге печати.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
+<div class="note">Расчёт носит справочный характер. Каталожные данные — серия АИР; для ответственных приводов проверьте параметры по паспортам и проектной документации. Сформировано в «Асинхронный двигатель — инженерный расчёт» · v0.13.1.<br>Для PDF без колонтитулов используйте настольную версию или отключите «Верхние и нижние колонтитулы» в диалоге печати.<br>Сделано с помощью <b>DeepSeek</b> · идейный вдохновитель — <b>Виктор Ханас</b> · <a href="mailto:khanas.viktor@gmail.com">khanas.viktor@gmail.com</a></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},350);});<\/script>
 </body></html>`;
     /* настольная версия: отчёт сразу сохраняется в PDF через системный диалог */
@@ -1258,8 +1302,9 @@ ${noCharts ? `<p class="hint">${t('Графики не выбраны для э�
     const motorHot = rep.op.temp > rep.motor.tempLimit;
     const motorWarm = rep.op.temp > rep.motor.tempLimit - 25;
     const th = thermalStart(rep);
-    const bad = !rep.checks.cable || !rep.checks.breakerCable || rep.op.stalled || !rep.checks.startDrop || th.level === 'bad' || th.incomplete || motorHot;
-    const warn = !rep.checks.drop || !rep.checks.breakerMag || th.level === 'warn' || motorWarm;
+    const ch = selectivityChain(rep);
+    const bad = !rep.checks.cable || !rep.checks.breakerCable || rep.op.stalled || !rep.checks.startDrop || th.level === 'bad' || th.incomplete || motorHot || ch.worst === 'bad';
+    const warn = !rep.checks.drop || !rep.checks.breakerMag || th.level === 'warn' || motorWarm || ch.worst === 'warn';
     const stateTxt = bad ? '<span class="bad">✕ есть замечания</span>' : warn ? '<span class="warn">! проверьте условия</span>' : '<span class="ok">✓ проверки пройдены</span>';
     $('#verdict').innerHTML = `
       <b>${name}</b><span class="sep"></span>
@@ -1468,12 +1513,12 @@ ${noCharts ? `<p class="hint">${t('Графики не выбраны для э�
     g.save(); g.strokeStyle = C.red; g.lineWidth = 1.4; g.setLineDash([4, 3]);
     [mag[0] * In, mag[1] * In].forEach(I => { g.beginPath(); g.moveTo(X(I), Y(0.02)); g.lineTo(X(I), Y(100000)); g.stroke(); });
     g.restore();
-    // вышестоящий
-    if (up > 0) {
-      const upS = MC.vtc.get(state.breakerSeries);
-      const upCurve = upS.curves.includes(state.curve) ? state.curve : upS.curves[0];
-      line(MC.vtc.thermalPoints(upS, upCurve, up), C.violet, 1.5, [6, 4]);
-    }
+    // вышестоящие аппараты: до двух, та же серия и кривая, другой номинал
+    const chain = selectivityChain(rep);
+    const upColors = [C.violet, C.blue];
+    chain.devices.filter(d => d.idx > 0).forEach((d, i) => {
+      line(MC.vtc.thermalPoints(chain.s, chain.curve, d.In), upColors[i % upColors.length], 1.5, [6, 4]);
+    });
     // кабель: адиабатическая стойкость
     const k = state.cable.insulation === 'xlpe' ? 143 : 115;
     const S = rep.cable.section;
@@ -1529,7 +1574,10 @@ ${noCharts ? `<p class="hint">${t('Графики не выбраны для э�
         : tf('Отсечка {a} А', { a: nf(mag[0] * In, 0) }), color: C.red },
       { kind: 'dash', label: tf('Кабель {s} мм²', { s: nf(sec, 1) }), color: C.blue }
     ];
-    if (up > 0) leg.push({ kind: 'dash', label: t('Вышестоящий'), color: C.violet });
+    chain.devices.filter(d => d.idx > 0).forEach((d, i) => leg.push({
+      kind: 'dash', label: tf('Вышестоящий {n}: {i} А', { n: d.idx, i: nf(d.In, 0) }),
+      color: [C.violet, C.blue][i % 2]
+    }));
     if (hasStart) {
       leg.push({ kind: 'dot', label: t('Пик пуска Iп'), color: dot });
       if (Ieq != null && Math.abs(Ieq - Istart) / Math.max(Istart, 1) > 0.03) leg.push({ kind: 'circle', label: t('Эквивалентный ток Iэкв'), color: dot });
@@ -1549,20 +1597,28 @@ ${noCharts ? `<p class="hint">${t('Графики не выбраны для э�
       g.restore();
       lx += tw;
     });
-    const selBad = b.upstream && !b.okSel;
+    const selBad = chain.worst === 'bad';
+    const selWarn = chain.worst === 'warn';
     let tagTxt, tagCls;
     if (!rep.checks.breakerMag) { tagTxt = t('отсечка на пуске'); tagCls = 'bad'; }
     else if (pending) { tagTxt = t('расчёт пуска…'); tagCls = 'warn'; }
     else if (stalled) { tagTxt = t('пуск не разгоняется'); tagCls = 'bad'; }
     else if (incomplete) { tagTxt = tf('пуск не завершён за {d} с', { d: nf(duration, 0) }); tagCls = 'bad'; }
     else if (level === 'bad') { tagTxt = t('пуск вне тепловой зоны'); tagCls = 'bad'; }
-    else if (selBad) { tagTxt = t('селективность недостаточна'); tagCls = 'warn'; }
+    else if (selBad) { tagTxt = t('селективность недостаточна'); tagCls = 'bad'; }
+    else if (selWarn) { tagTxt = t('селективность на границе'); tagCls = 'warn'; }
     else if (level === 'warn') { tagTxt = t('пуск на границе тепловой зоны'); tagCls = 'warn'; }
     else if (level == null) { tagTxt = t('нет данных пуска'); tagCls = 'warn'; }
     else { tagTxt = t('пуск проходит'); tagCls = 'ok'; }
     $('#tagVTC').textContent = tagTxt;
     $('#tagVTC').className = 'panel-tag ' + tagCls;
-    const selTxt = b.upstream ? ' ' + tf('Селективность {r}× {ok}.', { r: nf(b.selRatio, 1), ok: b.okSel ? t('обеспечена') : t('недостаточна') }) : '';
+    const selTxt = chain.links.length
+      ? ' ' + tf('Селективность {r}× {ok} ({n} ап.).', {
+          r: nfRatio(chain.links.reduce((m, l) => Math.min(m, l.ratio), Infinity)),
+          ok: chain.worst === 'ok' ? t('обеспечена') : chain.worst === 'warn' ? t('на границе') : t('недостаточна'),
+          n: chain.devices.length
+        })
+      : '';
     const bandTxt = mag[0] !== mag[1] ? ' ' + tf('Зона отсечки {a}…{b} А.', { a: nf(mag[0] * In, 0), b: nf(mag[1] * In, 0) }) : '';
     const eqDiffTxt = Ieq != null && Math.abs(Ieq - Istart) / Math.max(Istart, 1) > 0.03;
     const thermTxt = (trip != null && tS != null)
@@ -1587,6 +1643,7 @@ ${noCharts ? `<p class="hint">${t('Графики не выбраны для э�
   function renderProtectPanel(rep) {
     const m = rep.motor;
     const b = rep.breaker, r = rep.relay, c = rep.contactor, f = rep.fuse;
+    const chain = selectivityChain(rep);
     const ok = rep.checks.breakerCurrent && rep.checks.breakerCable && rep.checks.breakerMag;
     $('#tagProtect').textContent = ok ? 'согласовано' : 'проверить';
     $('#tagProtect').className = 'panel-tag ' + (ok ? 'ok' : 'bad');
@@ -1595,7 +1652,7 @@ ${noCharts ? `<p class="hint">${t('Графики не выбраны для э�
       ${kv('Ток отсечки (мин.)', nf(b.magTrip, 0), tf('А  ({k}×Iн)', { k: b.mag }))}
       ${kv('Расчётный ток пуска', nf(rep.iStart, 0), 'А · ' + methodShort(state.startMethod), !rep.checks.breakerMag ? 'bad' : '')}
       ${kv('Отключающая способность', nf(b.icu, 0), 'кА')}
-      ${kv('Селективность', b.upstream ? nf(b.selRatio, 1) + '×' : 'не задана', b.upstream ? (b.okSel ? 'обеспечена' : 'недостаточна') : '', b.upstream && !b.okSel ? 'bad' : '')}
+      ${kv('Селективность', chain.links.length ? nfRatio(chain.links.reduce((m, l) => Math.min(m, l.ratio), Infinity)) + '× · ' + tf('аппаратов: {n}', { n: chain.devices.length }) : 'не задана', chain.links.length ? (chain.worst === 'ok' ? 'обеспечена' : chain.worst === 'warn' ? 'на границе' : 'недостаточна') : '', chain.worst === 'bad' ? 'bad' : chain.worst === 'warn' ? 'warn' : '')}
       ${kv('Тепловое реле', nf(r.lo, r.lo % 1 ? 1 : 0) + '…' + nf(r.hi, r.hi % 1 ? 1 : 0), 'А · уставка ' + nf(r.set, 1))}
       ${kv('Контактор ' + (m.phases === 1 ? '1P/2P' : 'AC-3'), nf(c.i, 0), m.phases === 1 ? 'А' : 'А · ' + nf(c.kw, 1) + ' кВт')}
       ${kv('Предохранитель aM', nf(f, 0), 'А')}
@@ -1746,9 +1803,24 @@ ${noCharts ? `<p class="hint">${t('Графики не выбраны для э�
       }));
     }
 
-    if (rep.breaker.upstream) {
-      if (rep.breaker.okSel) add('ok', `Селективность с вышестоящим аппаратом ${nf(rep.breaker.upstream, 0)} А обеспечена (отношение ${nf(rep.breaker.selRatio, 1)} ≥ 1,6).`);
-      else add('warn', `Селективность не обеспечена: вышестоящий ${nf(rep.breaker.upstream, 0)} А / нижестоящий ${nf(rep.breaker.In, 0)} А = ${nf(rep.breaker.selRatio, 1)} < 1,6. Увеличьте номинал вышестоящего аппарата.`);
+    const sc = selectivityChain(rep);
+    if (sc.links.length) {
+      const weak = sc.links.slice().sort((a, b) => a.ratio - b.ratio)[0];
+      if (weak.level === 'ok') {
+        add('ok', tf('Селективность цепочки ({n} ап.) обеспечена: минимальное отношение отсечек {k}× ≥ 1,6 ({a} А → {b} А).', {
+          n: sc.devices.length, k: nfRatio(weak.ratio), a: nf(weak.hi.magMin, 0), b: nf(weak.lo.magMin, 0)
+        }));
+      } else {
+        if (weak.level === 'warn') {
+          add('warn', tf('Селективность на границе: в паре {a} А → {b} А отношение отсечек {k}× — чуть меньше 1,6. Формально проходит, но при КЗ возможен одновременный сброс; лучше взять вышестоящий на ступень больше.', {
+            a: nf(weak.hi.magMin, 0), b: nf(weak.lo.magMin, 0), k: nfRatio(weak.ratio)
+          }));
+        } else {
+          add('bad', tf('Селективность нарушена в паре {a} А → {b} А: отношение отсечек {k}× (нужно ≥ 1,6). Увеличьте номинал вышестоящего аппарата.', {
+            a: nf(weak.hi.magMin, 0), b: nf(weak.lo.magMin, 0), k: nfRatio(weak.ratio)
+          }));
+        }
+      }
     }
     if (ch.breakerIcu) add('ok', `Отключающая способность ${nf(rep.breaker.icu, 0)} кА достаточна для тока КЗ ${nf(state.isc, 1)} кА.`);
     else add('bad', `Ток КЗ ${nf(state.isc, 1)} кА превышает отключающую способность ${nf(rep.breaker.icu, 0)} кА. Нужен аппарат с большей Icu.`);
@@ -1869,6 +1941,7 @@ ${noCharts ? `<p class="hint">${t('Графики не выбраны для э�
   /* ---------- вкладка «Кабель и защита» ---------- */
   function renderCableTab(rep) {
     const c = rep.cable, m = rep.motor;
+    const chain = selectivityChain(rep);
     const rows = c.rows.map(r => {
       const d = E.voltageDrop(rep.op.I, c.length, r.section, c.material, rep.op.cos, m.U, m.phases, c.insulation, c.parallel);
       const dok = d.pct <= +state.dropLimit;
@@ -1894,11 +1967,16 @@ ${noCharts ? `<p class="hint">${t('Графики не выбраны для э�
       <thead><tr><th>Аппарат</th><th>Параметр</th><th>Проверка</th></tr></thead>
       <tbody>
         <tr><td>Автомат</td><td class="num">${nu(b.In, 0, 'А')}, ${b.type === 'mccb' ? 'MCCB ' + b.mag + '×' + t('Iн') : tf('кривая {c}', { c: b.curve })}</td><td>${rep.checks.breakerCurrent && rep.checks.breakerCable ? '<span class="badge ok">ок</span>' : '<span class="badge bad">нет</span>'}</td></tr>
-        <tr><td>Селективность</td><td class="num">${b.upstream ? nf(b.upstream, 0) + ' / ' + nf(b.In, 0) + ' А' : 'не задана'}</td><td>${rep.checks.breakerSel ? '<span class="badge ok">ок</span>' : '<span class="badge warn">проверить</span>'}</td></tr>
+        <tr><td>Селективность</td><td class="num">${chain.links.length ? tf('аппаратов: {n}', { n: chain.devices.length }) + ' · ' + nfRatio(chain.links.reduce((m, l) => Math.min(m, l.ratio), Infinity)) + '×' : 'не задана'}</td><td>${!chain.links.length ? '<span class="badge ok">—</span>' : chain.worst === 'ok' ? '<span class="badge ok">ок</span>' : chain.worst === 'warn' ? '<span class="badge warn">граница</span>' : '<span class="badge bad">нет</span>'}</td></tr>
         <tr><td>Отсечка</td><td class="num">${nf(b.magTrip, 0)} А</td><td>${rep.checks.breakerMag ? '<span class="badge ok">ок</span>' : '<span class="badge bad">ложный пуск</span>'}</td></tr>
         <tr><td>Тепловая зона</td><td class="num">${th.trip != null ? tf('{tr} с / пуск {ts} с', { tr: nf(Math.max(th.trip, 0.02), 2), ts: th.tStart != null ? nf(th.tStart, 2) : '?' }) + (th.Ieq && th.Istart && Math.abs(th.Ieq - th.Istart) / Math.max(th.Istart, 1) > 0.03 ? ' · ' + tf('экв. {ieq} А', { ieq: nf(th.Ieq, 0) }) : '') : '—'}</td><td>${th.level === 'bad' ? '<span class="badge bad">расход</span>' : th.level === 'warn' ? '<span class="badge warn">граница</span>' : th.level === 'ok' ? '<span class="badge ok">ок</span>' : '—'}</td></tr>
         <tr><td>Icu</td><td class="num">${nf(b.icu, 0)} кА</td><td>${rep.checks.breakerIcu ? '<span class="badge ok">ок</span>' : '<span class="badge bad">мало</span>'}</td></tr>
         <tr><td>Тепловое реле</td><td class="num">${nf(r.lo, r.lo % 1 ? 1 : 0)}…${nf(r.hi, r.hi % 1 ? 1 : 0)} А</td><td><span class="badge ok">уставка ${nf(r.set, 1)} А</span></td></tr>
+        ${chain.devices.filter(d => d.idx > 0).map(d => {
+          const link = chain.links.find(l => l.hi.idx === d.idx);
+          const badge = !link ? '' : link.level === 'ok' ? '<span class="badge ok">' + nfRatio(link.ratio) + '×</span>' : link.level === 'warn' ? '<span class="badge warn">' + nfRatio(link.ratio) + '×</span>' : '<span class="badge bad">' + nfRatio(link.ratio) + '×</span>';
+          return `<tr><td>${tf('Вышестоящий {n}', { n: d.idx })}</td><td class="num">${nf(d.In, 0)} А · ${tf('отсечка {a} А', { a: nf(d.magMin, 0) })}</td><td>${badge}</td></tr>`;
+        }).join('')}
         <tr><td>Контактор</td><td class="num">${nf(rep.contactor.i, 0)} А / ${nf(rep.contactor.kw, 1)} кВт</td><td>${rep.checks.contactor ? '<span class="badge ok">ок</span>' : '<span class="badge bad">мало</span>'}</td></tr>
         <tr><td>Предохранитель</td><td class="num">aM ${nf(rep.fuse, 0)} А</td><td><span class="badge ok">рекоменд.</span></td></tr>
         <tr><td>I²t кабеля</td><td class="num">Smin ${nf(rep.sc.sMin, 1)} мм²</td><td>${rep.sc.ok ? '<span class="badge ok">ок</span>' : '<span class="badge warn">проверить</span>'}</td></tr>
@@ -1916,13 +1994,13 @@ ${noCharts ? `<p class="hint">${t('Графики не выбраны для э�
     if (th.incomplete) chk.push([tf('Пуск завершён за {d} с', { d: nf(th.duration, 0) }), false]);
     else if (th.level) chk.push(['Пуск в тепловой зоне автомата', th.level !== 'bad']);
     if (th.duty) chk.push([tf('Тепловой запас при {n} пусках/час', { n: th.duty.starts }), th.duty.ok]);
+    if (chain.links.length) chk.push([tf('Селективность цепочки ({n} ап.)', { n: chain.devices.length }), chain.worst !== 'bad']);
     chk.push(
       ['Icu ≥ тока КЗ', rep.checks.breakerIcu],
       ['Термическая стойкость', rep.checks.sc],
       ['Контактор AC-3', rep.checks.contactor],
       ['Устойчивость при нагрузке', !rep.op.stalled]
     );
-    if (rep.breaker.upstream) chk.push(['Селективность', rep.checks.breakerSel]);
     $('#checksBody').innerHTML = `<div class="point-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
       ${chk.map(x => `<div class="point-item ${x[1] ? 'accent' : 'bad'}"><div class="pl">${x[0]}</div><div class="pv" style="font-size:12px">${x[1] ? '✓ выполняется' : '× не выполняется'}</div></div>`).join('')}
     </div>`;
@@ -2301,6 +2379,7 @@ ${noCharts ? `<p class="hint">${t('Графики не выбраны для э�
     });
     $('#brkCurve').addEventListener('change', e => { state.curve = e.target.value; schedule(); });
     bindNum('vtcUpstream', 'upstreamIn', 0, 3000);
+    bindNum('vtcUpstream2', 'upstreamIn2', 0, 3000);
     $('#motorHotStart').addEventListener('change', e => { state.motorHotStart = e.target.checked; schedule(); });
     bindNum('motorHotPct', 'motorHotPct', 0, 95);
     bindNum('motorCoolTau', 'motorCoolTau', 1, 180);
@@ -2685,6 +2764,7 @@ ${noCharts ? `<p class="hint">${t('Графики не выбраны для э�
   function exportXlsx() {
     if (!lastRep || !MC.xlsx) return;
     const m = lastRep.motor, c = lastRep.cable, b = lastRep.breaker, op = lastRep.op;
+    const chain = selectivityChain(lastRep);
     const rnd = (v, d) => (typeof v === 'number' && isFinite(v) ? Math.round(v * Math.pow(10, d)) / Math.pow(10, d) : v);
     const modeName = { catalog: 'каталог', power: 'по мощности', current: 'по току', torque: 'по моменту' }[m.mode] || m.mode;
     const t1name = { capacitor: 'конденсаторный', split: 'с расщеплённой фазой', psc: 'PSC' }[m.motor1phType] || '';
@@ -2764,7 +2844,9 @@ ${noCharts ? `<p class="hint">${t('Графики не выбраны для э�
       ['Кривая / уставка', b.type === 'mccb' ? b.mag + '×' + t('Iн') : b.curve, ''],
       ['Ток отсечки', b.magTrip, 'А'],
       ['Icu', b.icu, 'кА'],
-      ['Селективность', b.upstream ? (b.okSel ? 'обеспечена' : 'не обеспечена') : 'не задана', ''],
+      ['Селективность', chain.links.length
+        ? nfRatio(chain.links.reduce((m, l) => Math.min(m, l.ratio), Infinity)) + '× · ' + (chain.worst === 'ok' ? 'обеспечена' : chain.worst === 'warn' ? 'на границе' : 'не обеспечена')
+        : 'не задана', ''],
       ['Тепловое реле', lastRep.relay.lo + '…' + lastRep.relay.hi, 'А'],
       ['Контактор', lastRep.contactor.i + ' ' + t('А') + ' / ' + lastRep.contactor.kw, 'кВт'],
       ['Предохранитель aM', lastRep.fuse, 'А'],

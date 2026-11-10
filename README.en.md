@@ -5,7 +5,7 @@
 An offline calculator for induction motors: current, power, torque, cable sizing, protection, time-current curves, performance charts, and starting transients. A single `index.html` — no server, no CDN, no internet.
 
 [![CI](https://github.com/khanasviktor-art/induction-motor-calculator/actions/workflows/ci.yml/badge.svg)](https://github.com/khanasviktor-art/induction-motor-calculator/actions/workflows/ci.yml)
-**Version 0.13.0** · MIT · [Open in browser](https://khanasviktor-art.github.io/induction-motor-calculator/) · Windows exe built separately · macOS DMG (Apple Silicon) in the [release](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.13.0)
+**Version 0.13.1** · MIT · [Open in browser](https://khanasviktor-art.github.io/induction-motor-calculator/) · Windows exe built separately · macOS DMG (Apple Silicon) in the [release](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.13.1)
 
 ![Interface](docs/screenshots/charts-default.png)
 
@@ -77,7 +77,7 @@ npm run desktop:dist     # build a Windows portable exe
 npm run desktop:dist:mac # build macOS DMG (arm64)
 ```
 
-Windows exe is built on Windows (portable, ~71 MB) and is not stored in git. macOS DMG for Apple Silicon is in the [v0.13.0 release](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.13.0). Intel Macs are not supported. Details — [desktop/README.md](desktop/README.md), [docs/WINDOWS.md](docs/WINDOWS.md).
+Windows exe is built on Windows (portable, ~71 MB) and is not stored in git. macOS DMG for Apple Silicon is in the [v0.13.1 release](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.13.1). Intel Macs are not supported. Details — [desktop/README.md](desktop/README.md), [docs/WINDOWS.md](docs/WINDOWS.md).
 
 ## Language
 

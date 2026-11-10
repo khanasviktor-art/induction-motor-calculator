@@ -389,6 +389,69 @@ section('3. ВТХ и защита');
   await page.waitForTimeout(300);
 }
 
+section('3b. селективность 2–3 аппаратов');
+{
+  await page.click('.tab-btn[data-tab="cable"]');
+  await page.waitForTimeout(500);
+
+  /* два вышестоящих: 63 и 100 А при основном 40 А — 1,58× и 2,5× */
+  await setNum('vtcUpstream', 63);
+  await page.waitForTimeout(700);
+  await setNum('vtcUpstream2', 100);
+  await page.waitForTimeout(900);
+  const two = await page.evaluate(() => ({
+    rows: [...document.querySelectorAll('#protectTable tbody tr')]
+      .map(t => t.textContent.replace(/\s+/g, ' ').trim())
+      .filter(t => /Вышестоящий|Селективность/.test(t)),
+    tag: document.querySelector('#tagVTC').textContent,
+    foot: document.querySelector('#vtcFoot').textContent,
+    checks: [...document.querySelectorAll('#checksBody .point-item')]
+      .map(e => e.textContent.replace(/\s+/g, ' ').trim()).filter(t => /цепочки/.test(t)),
+    warn: [...document.querySelectorAll('#panelWarn .warn-item')]
+      .map(e => e.textContent.replace(/\s+/g, ' ').trim()).filter(t => /електив/i.test(t)),
+    state: { u1: window.__mcDebug.state.upstreamIn, u2: window.__mcDebug.state.upstreamIn2 }
+  }));
+  check(two.state.u1 === 63 && two.state.u2 === 100, 'цепочка: оба номинала в состоянии', two.state);
+  check(two.rows.length >= 3, 'цепочка: строки в таблице аппаратов', two.rows);
+  check(/аппаратов: 3/.test(two.rows.join(' ')) && /1,58×/.test(two.rows.join(' ')), 'цепочка: 3 аппарата и отношение 1,58×', two.rows);
+  check(/на границе/.test(two.tag), 'цепочка: 1,58× → «на границе»', two.tag);
+  check(/на границе/.test(two.foot), 'цепочка: подпись графика', two.foot.slice(-120));
+  check(two.checks.length === 1, 'цепочка: строка в «Проверке условий»', two.checks);
+  check(two.warn.length === 1 && /1,58/.test(two.warn[0]), 'цепочка: предупреждение о границе', two.warn);
+
+  /* ложная селективность: 41 А над 40 А */
+  await setNum('vtcUpstream', 41);
+  await page.waitForTimeout(900);
+  const bad = await page.evaluate(() => ({
+    tag: document.querySelector('#tagVTC').textContent,
+    cls: document.querySelector('#tagVTC').className,
+    verdict: document.querySelector('#verdict').textContent.replace(/\s+/g, ' ').trim(),
+    rows: [...document.querySelectorAll('#protectTable tbody tr')]
+      .map(t => t.textContent.replace(/\s+/g, ' ').trim()).filter(t => /Селективность/.test(t)),
+    warn: [...document.querySelectorAll('#panelWarn .warn-item')]
+      .map(e => e.textContent.replace(/\s+/g, ' ').trim()).filter(t => /електив/i.test(t))
+  }));
+  check(/недостаточна/.test(bad.tag) && /bad/.test(bad.cls), 'цепочка: 1,03× → «недостаточна»', { tag: bad.tag, cls: bad.cls });
+  check(/есть замечания/.test(bad.verdict), 'цепочка: вердикт учитывает селективность', bad.verdict.slice(-40));
+  check(/1,03/.test(bad.rows.join(' ')), 'цепочка: отношение с двумя знаками', bad.rows);
+  check(bad.warn.length === 1 && /нарушена/.test(bad.warn[0]), 'цепочка: предупреждение о нарушении', bad.warn);
+
+  /* отчёт: строки вышестоящих и итог по цепочке */
+  const [chainRep] = await Promise.all([ctx.waitForEvent('page', { timeout: 15000 }), page.click('#btnPrint')]);
+  await chainRep.waitForLoadState('domcontentloaded');
+  await chainRep.waitForTimeout(600);
+  const chainRows = await chainRep.evaluate(() => [...document.querySelectorAll('table tr')]
+    .map(tr => tr.textContent.replace(/\s+/g, ' ').trim())
+    .filter(t => /Вышестоящий|Селективность/.test(t)));
+  check(chainRows.filter(t => /Вышестоящий/.test(t)).length === 2, 'цепочка в отчёте: два вышестоящих', chainRows);
+  check(/недостаточна/.test(chainRows.join(' ')), 'цепочка в отчёте: вердикт', chainRows);
+  await chainRep.close();
+
+  await setNum('vtcUpstream', 0);
+  await setNum('vtcUpstream2', 0);
+  await page.waitForTimeout(600);
+}
+
 section('4. экспорты: PNG, CSV, XLSX, отчёт');
 {
   await page.click('.tab-btn[data-tab="charts"]');
