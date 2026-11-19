@@ -5,7 +5,7 @@
 Офлайн-калькулятор асинхронного двигателя: ток, мощность, момент, кабель, защита, ВТХ, графики характеристик и переходные процессы пуска. Один файл `index.html`, без сервера, CDN и интернета.
 
 [![CI](https://github.com/khanasviktor-art/induction-motor-calculator/actions/workflows/ci.yml/badge.svg)](https://github.com/khanasviktor-art/induction-motor-calculator/actions/workflows/ci.yml)
-**Версия 0.13.1** · MIT · [Открыть в браузере](https://khanasviktor-art.github.io/induction-motor-calculator/) · Windows-exe собирается отдельно · macOS DMG (Apple Silicon) — в [релизе](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.13.1)
+**Версия 0.13.1** · MIT · [Открыть в браузере](https://khanasviktor-art.github.io/induction-motor-calculator/) · Windows exe и macOS DMG (Apple Silicon) собираются CI и лежат в [релизе](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.13.1)
 
 ![Интерфейс](docs/screenshots/charts-default.png)
 

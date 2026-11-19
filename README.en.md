@@ -5,7 +5,7 @@
 An offline calculator for induction motors: current, power, torque, cable sizing, protection, time-current curves, performance charts, and starting transients. A single `index.html` — no server, no CDN, no internet.
 
 [![CI](https://github.com/khanasviktor-art/induction-motor-calculator/actions/workflows/ci.yml/badge.svg)](https://github.com/khanasviktor-art/induction-motor-calculator/actions/workflows/ci.yml)
-**Version 0.13.1** · MIT · [Open in browser](https://khanasviktor-art.github.io/induction-motor-calculator/) · Windows exe built separately · macOS DMG (Apple Silicon) in the [release](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.13.1)
+**Version 0.13.1** · MIT · [Open in browser](https://khanasviktor-art.github.io/induction-motor-calculator/) · Windows exe and macOS DMG (Apple Silicon) are built by CI and attached to the [release](https://github.com/khanasviktor-art/induction-motor-calculator/releases/tag/v0.13.1)
 
 ![Interface](docs/screenshots/charts-default.png)
 
